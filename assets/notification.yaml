@@ -1,0 +1,9 @@
+flutter_icons:
+  ios: true
+  remove_alpha_ios: true
+  android: "ic_notification"
+  image_path: "assets/images/logo_red.png"
+  #image_path_ios: "assets/launcher/icon.png"
+  #image_path_android: "assets/launcher/icon.png"
+  adaptive_icon_background: "#fd4624"
+  adaptive_icon_foreground: "assets/images/logo_notification_transparent.png"
