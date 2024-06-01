@@ -66,10 +66,10 @@ add_executable( # Necessary to have a library or exec otherwise android sdk igno
 if(BUILD_BINARIES)
 	ExternalProject_Add(
 		tor
-	##	CMAKE_TLS_VERIFY TRUE # enable if using remote git
-	##	GIT_REPOSITORY https://github.com/torproject/tor.git
+		CMAKE_TLS_VERIFY TRUE # enable if using remote git
+		GIT_REPOSITORY https://gitlab.torproject.org/tpo/core/tor.git
 	##	GIT_REPOSITORY http://xtlfhaspqtkeeqxk6umggfbr3gyfznvf4jhrge2fujz53433i2fcs3id.onion/tor.git
-		GIT_REPOSITORY http://10.8.88.11/tor.git
+	#	GIT_REPOSITORY http://10.8.88.11/tor.git
 		GIT_TAG main # NOTE: tor may recommend using a release. should talk to them.
 		BUILD_IN_SOURCE 1
 		UPDATE_COMMAND "" # XXX taken out of ./configure XXX #
@@ -81,9 +81,9 @@ if(BUILD_BINARIES)
 	)
 	ExternalProject_Add(
 		obfs4proxy
-	##	GIT_REPOSITORY https://github.com/Yawning/obfs4.git
-		GIT_REPOSITORY http://10.8.88.11/obfs4.git
-	##	GIT_TAG <tag-name>
+		CMAKE_TLS_VERIFY TRUE # enable if using remote git
+		GIT_REPOSITORY https://gitlab.com/Yawning/obfs4/
+	#	GIT_REPOSITORY http://10.8.88.11/obfs4.git
 		BUILD_IN_SOURCE 1
 		CONFIGURE_COMMAND ""
 		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o obfs4proxy/obfs4proxy.so ./obfs4proxy
@@ -95,9 +95,9 @@ if(BUILD_BINARIES)
 	##target_link_directories(obfs4proxy PUBLIC ${CMAKE_ANDROID_NDK}toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib)
 	ExternalProject_Add(
 		snowflake
-	##	GIT_REPOSITORY https://github.com/keroserene/snowflake.git
-		GIT_REPOSITORY http://10.8.88.11/snowflake.git
-	##	GIT_TAG <tag-name>
+		CMAKE_TLS_VERIFY TRUE # enable if using remote git
+		GIT_REPOSITORY https://github.com/keroserene/snowflake/
+	#	GIT_REPOSITORY http://10.8.88.11/snowflake.git
 		BUILD_IN_SOURCE 1
 		CONFIGURE_COMMAND ""
 		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o client/snowflake.so ./client
@@ -107,10 +107,11 @@ if(BUILD_BINARIES)
 	ExternalProject_Add(
 		torx
 	#	BUILD_ALWAYS TRUE # BUILD_BYPRODUCTS
-	#	CMAKE_TLS_VERIFY TRUE # TODO enable if using remote git
-	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
-		GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
+		CMAKE_TLS_VERIFY TRUE # TODO enable if using remote git
+		GIT_REPOSITORY https://github.com/TorX-Chat/libtorx/ ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
+	#	GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 		GIT_TAG dev # dev 91c1d1fcb7d825ea673a4bcff3f2007b8a59a5b3
+	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
 		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=${BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
 		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} ${JNILIBS_LIST}
 	) # TODO get zlib, currently not able to remove sonames.
@@ -127,10 +128,11 @@ else()
 	ExternalProject_Add(
 		torx
 	#	BUILD_ALWAYS TRUE
-	#	CMAKE_TLS_VERIFY TRUE # TODO enable if using remote git
-	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
-		GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
+		CMAKE_TLS_VERIFY TRUE # TODO enable if using remote git
+		GIT_REPOSITORY https://github.com/TorX-Chat/libtorx/ ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
+	#	GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 		GIT_TAG dev # dev 91c1d1fcb7d825ea673a4bcff3f2007b8a59a5b3
+	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
 		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=${BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
 		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} libtorx.so
 	)

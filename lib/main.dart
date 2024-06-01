@@ -175,8 +175,8 @@ void initialization_functions(BuildContext? context) {
       printf(f.toString());
     });
     printf("Working dir: ${workDir.path}");
-    printf("WARNING: This is debug build. Setting Tor Socks5Proxy 10.0.2.2:1088.");
-    set_torrc("Socks5Proxy 10.0.2.2:1088"); // 10.0.2.2 is alias for emulator's host OS 127.0.0.1
+    printf("WARNING: This is debug build. Remember to check torrc and set proxy if necessary.");
+    set_torrc("# Socks5Proxy 10.0.2.2:PORT"); // 10.0.2.2 is alias for emulator's host OS 127.0.0.1
   }
 
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH, "Sticker", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
