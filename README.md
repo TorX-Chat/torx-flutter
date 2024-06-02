@@ -28,7 +28,13 @@ cp -Rn bare/* torx-flutter
 #### Contribution Agreement:
 All ideas, suggestions, issues, pull requests, etc, are gifted to the primary developer for the purpose of improving the software, for the benefit of all users. Ownership of the contribution is not maintained by the contributor.
 
-#### TODO List
+#### Screenshots:
+<a href="images/mobile_peerlist.png"><img src="images/mobile_peerlist.png" alt="Screenshot" style="max-height:400px;"></a>
+<a href="images/mobile_grandchild.png"><img src="images/mobile_grandchild.png" alt="Screenshot" style="max-height:400px;"></a>
+<a href="images/mobile_add_group.png"><img src="images/mobile_add_group.png" alt="Screenshot" style="max-height:400px;"></a>
+<a href="images/mobile_group.png"><img src="images/mobile_group.png" alt="Screenshot" style="max-height:400px;"></a>
+
+#### Legacy TODO List (needs review / cleanup)
 ###### Tasks common with GTK
 2024/05/03 If someone is fast on the censored region toggle while waiting for login, it will save the setting but not take effect until next restart
 <br>2024/04/26 We need to do sanity checks on sticker/Image data or people can be crashed with junk stickers/images. (Verified occured once in flutter with a sticker sized 0 bytes)
