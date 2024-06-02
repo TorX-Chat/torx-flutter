@@ -29,10 +29,10 @@ cp -Rn bare/* torx-flutter
 All ideas, suggestions, issues, pull requests, etc, are gifted to the primary developer for the purpose of improving the software, for the benefit of all users. Ownership of the contribution is not maintained by the contributor.
 
 #### Screenshots:
-<a href="images/mobile_peerlist.png"><img src="images/mobile_peerlist.png" alt="Screenshot" style="max-height:400px;"></a>
-<a href="images/mobile_grandchild.png"><img src="images/mobile_grandchild.png" alt="Screenshot" style="max-height:400px;"></a>
-<a href="images/mobile_add_group.png"><img src="images/mobile_add_group.png" alt="Screenshot" style="max-height:400px;"></a>
-<a href="images/mobile_group.png"><img src="images/mobile_group.png" alt="Screenshot" style="max-height:400px;"></a>
+<a href="https://torx-chat.github.io/images/mobile_peerlist.png"><img src="https://torx-chat.github.io/images/mobile_peerlist.png" alt="Screenshot" style="max-height:400px;"></a>
+<a href="https://torx-chat.github.io/images/mobile_grandchild.png"><img src="https://torx-chat.github.io/images/mobile_grandchild.png" alt="Screenshot" style="max-height:400px;"></a>
+<a href="https://torx-chat.github.io/images/mobile_add_group.png"><img src="https://torx-chat.github.io/images/mobile_add_group.png" alt="Screenshot" style="max-height:400px;"></a>
+<a href="https://torx-chat.github.io/images/mobile_group.png"><img src="https://torx-chat.github.io/images/mobile_group.png" alt="Screenshot" style="max-height:400px;"></a>
 
 #### Legacy TODO List (needs review / cleanup)
 ###### Tasks common with GTK
