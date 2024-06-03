@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.14)
 
 set(CMAKE_SYSTEM_NAME Android) # Must be before project
 set(CMAKE_SYSTEM_VERSION 21) # TODO NOT WORKING in our dependancy builds. Defaulting to 1. use __ANDROID_MIN_SDK_VERSION__ ?
+set(CMAKE_TLS_VERIFY TRUE)
 
 project(fake LANGUAGES C) # the output of this is fake/junk
 
@@ -66,7 +67,6 @@ add_executable( # Necessary to have a library or exec otherwise android sdk igno
 if(BUILD_BINARIES)
 	ExternalProject_Add(
 		tor
-		CMAKE_TLS_VERIFY TRUE # enable if using remote git
 		GIT_REPOSITORY https://gitlab.torproject.org/tpo/core/tor.git
 	##	GIT_REPOSITORY http://xtlfhaspqtkeeqxk6umggfbr3gyfznvf4jhrge2fujz53433i2fcs3id.onion/tor.git
 	#	GIT_REPOSITORY http://10.8.88.11/tor.git
@@ -81,7 +81,6 @@ if(BUILD_BINARIES)
 	)
 	ExternalProject_Add(
 		obfs4proxy
-		CMAKE_TLS_VERIFY TRUE # enable if using remote git
 		GIT_REPOSITORY https://gitlab.com/Yawning/obfs4/
 	#	GIT_REPOSITORY http://10.8.88.11/obfs4.git
 		BUILD_IN_SOURCE 1
@@ -95,7 +94,6 @@ if(BUILD_BINARIES)
 	##target_link_directories(obfs4proxy PUBLIC ${CMAKE_ANDROID_NDK}toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib)
 	ExternalProject_Add(
 		snowflake
-		CMAKE_TLS_VERIFY TRUE # enable if using remote git
 		GIT_REPOSITORY https://github.com/keroserene/snowflake/
 	#	GIT_REPOSITORY http://10.8.88.11/snowflake.git
 		BUILD_IN_SOURCE 1
@@ -107,7 +105,6 @@ if(BUILD_BINARIES)
 	ExternalProject_Add(
 		torx
 	#	BUILD_ALWAYS TRUE # BUILD_BYPRODUCTS
-		CMAKE_TLS_VERIFY TRUE # TODO enable if using remote git
 		GIT_REPOSITORY https://github.com/TorX-Chat/libtorx/ ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 	#	GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 		GIT_TAG main
@@ -128,7 +125,6 @@ else()
 	ExternalProject_Add(
 		torx
 	#	BUILD_ALWAYS TRUE
-		CMAKE_TLS_VERIFY TRUE # TODO enable if using remote git
 		GIT_REPOSITORY https://github.com/TorX-Chat/libtorx/ ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 	#	GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 		GIT_TAG main
