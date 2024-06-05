@@ -2,8 +2,8 @@
 
 ### TorX Flutter Client (torx-flutter)
 This page is primarily for developers and contributors.
-If you are simply looking to download and run TorX, go to [Download](https://torx.chat/#download)
-If you want to contribute, see [Contribute](https://torx.chat/#contribute) and our [TODO Lists](https://torx.chat/todo.html)
+<br>If you are simply looking to download and run TorX, go to [Download](https://torx.chat/#download)
+<br>If you want to contribute, see [Contribute](https://torx.chat/#contribute) and our [TODO Lists](https://torx.chat/todo.html)
 <br>
 <br>Note: There are toggles for BUILD_ALWAYS / BUILD_BINARIES and related notes in android/app/CMakeLists.txt
 <br>You MUST ensure BUILD_BINARIES is set to 1 for the first build, and then you may desire to change it to 0 for subsequent builds.
@@ -16,13 +16,29 @@ flutter create --org com.torx --project-name chat --description "A chat software
 cd bare && rm -r test && flutter pub global activate rename && flutter pub global run rename setAppName --targets android --value "TorX" && cd ..
 git clone https://github.com/TorX-Chat/torx-flutter
 cp -Rn bare/* torx-flutter
+cd torx-flutter
 ```
 
-###### Step 2: First build / Build from scratch (takes several minutes) (WARNING: will delete libtor.so, libsnowflake.so, etc, which need to be rebuilt by modifying CMakeLists.txt -- the BUILD_BINARIES flag)
-`cd torx-flutter && rm -rf build/ android/app/.cxx/Debug/ ; rm android/app/src/main/jniLibs/*/*.so ; flutter pub run flutter_launcher_icons && flutter run`
+###### Step 2: Change the  BUILD_BINARIES flag to 1
+```
+nano android/app/CMakeLists.txt
+```
 
-###### Subsequent builds (takes 10-20 seconds)
-`cd torx-flutter && flutter run`
+###### Step 3: First build / Build from scratch (takes several minutes) (WARNING: will delete libtor.so, libsnowflake.so, etc, which need to be rebuilt by modifying CMakeLists.txt -- the BUILD_BINARIES flag)
+```
+rm -rf build/ android/app/.cxx/Debug/
+rm android/app/src/main/jniLibs/*/*.so
+flutter pub run flutter_launcher_icons && flutter run
+
+```
+
+###### Step 4: Change the  BUILD_BINARIES flag to 0
+```
+nano android/app/CMakeLists.txt
+```
+
+###### Subsequent builds (takes 10-20 seconds, including fresh builds of libtorx)
+`flutter run`
 
 ###### For building a release (Remember to increase the version in pubspec.yaml or F-Droid will ignore the update.)
 `flutter build apk`
