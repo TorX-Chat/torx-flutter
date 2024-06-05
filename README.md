@@ -1,7 +1,9 @@
-<img alt="Logo" width="256" height="256" src="https://raw.githubusercontent.com/TorX-Chat/torx-gtk4/main/other/scalable/apps/logo-torx-symbolic.svg" align="right" style="position: relative; top: 0; left: 0;">
+<img alt="Logo" width="200" height="200" src="https://raw.githubusercontent.com/TorX-Chat/torx-gtk4/main/other/scalable/apps/logo-torx-symbolic.svg" align="right" style="position: relative; top: 0; left: 0;">
 
 ### TorX Flutter Client (torx-flutter)
-This page is for developers and contributors. If you are simply looking to download and run TorX, go to [TorX.Chat](https://torx.chat/#download)
+This page is primarily for developers and contributors.
+If you are simply looking to download and run TorX, go to [Download](https://torx.chat/#download)
+If you want to contribute, see [Contribute](https://torx.chat/#contribute) and our [TODO Lists](https://torx.chat/todo.html)
 <br>
 <br>Note: There are toggles for BUILD_ALWAYS / BUILD_BINARIES and related notes in android/app/CMakeLists.txt
 <br>You MUST ensure BUILD_BINARIES is set to 1 for the first build, and then you may desire to change it to 0 for subsequent builds.
@@ -25,6 +27,9 @@ cp -Rn bare/* torx-flutter
 ###### For building a release (Remember to increase the version in pubspec.yaml or F-Droid will ignore the update.)
 `flutter build apk`
 
+#### License:
+To discourage pre-release distribution of unsafe builds, source code is currently licensed as follows: Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)
+
 #### Contribution Agreement:
 All ideas, suggestions, issues, pull requests, contributions of any kind, etc, are gifted to the original TorX developer without condition nor consideration, for the purpose of improving the software, for the benefit of all users, current and future.
 
@@ -33,29 +38,3 @@ All ideas, suggestions, issues, pull requests, contributions of any kind, etc, a
 <a href="https://torx-chat.github.io/images/mobile_grandchild.png"><img src="https://torx-chat.github.io/images/mobile_grandchild.png" alt="Screenshot" style="max-height:400px;"></a>
 <a href="https://torx-chat.github.io/images/mobile_add_group.png"><img src="https://torx-chat.github.io/images/mobile_add_group.png" alt="Screenshot" style="max-height:400px;"></a>
 <a href="https://torx-chat.github.io/images/mobile_group.png"><img src="https://torx-chat.github.io/images/mobile_group.png" alt="Screenshot" style="max-height:400px;"></a>
-
-#### Legacy TODO List (needs review / cleanup)
-###### Tasks common with GTK
-2024/05/03 If someone is fast on the censored region toggle while waiting for login, it will save the setting but not take effect until next restart
-<br>2024/04/26 We need to do sanity checks on sticker/Image data or people can be crashed with junk stickers/images. (Verified occured once in flutter with a sticker sized 0 bytes)
-<br>2023/??/?? Multi-Select -- Tables should allow multiple selections for deletion. It should hide Show QR and Copy (umm, ok maybe not) showing only Delete (or Accept + Reject)
-
-###### Tasks unique to Flutter
-2024/05/12 (Post release) calling peer_accept() while actively modifying peernick results in modifications being lost
-<br>2024/05/10 (Post release) autoRunOnBoot: true (foreground task) + fix BootBroadcastReceiver.kt, then have a toggle in settings page for both.
-<br>2024/05/05 Consider requesting battery optimization
-<br>2024/05/05 AnimatedBuilder should replace many of our setState calls, for efficiency. Especially: activity button, and send/sticker/attach builds
-<br>2024/05/03 Should use gallery with photo_view to allow swipping back/forward to see other images in PhotoView.
-<br>2024/05/10 Search messages, then scroll to the selected one
-<br>2023/??/?? can't change app name on the fly, but can change icon. Put alternate icon option (calculator, or something people never use). "The calculator theoretically opens chat but it doesn't work anymore. They said it requires entering a specific calculation," Micay said. 
-<br>2023/??/?? add save_dir_always_ask (like in GTK) and put a toggle in settings
-<br>2023/??/?? We lose TorX log and Tor log contents every time we .detach, so we might consider to store it in a library defined C pointer so it stays in RAM. We would just need to create the pointer in lib and the remaining work is done in flutter.
-<br>2023/??/?? Message box height: 400 is too tall. Figure out a way to avoid hard coding it.
-<br>2023/??/?? can we onload and offload message history? Like, keep last 50 messages of every peer, but dump the rest to save RAM?
-<br>2023/??/?? Prevent un-encrypted backups of android data? Most chat apps do this but i'm on the fence. GrapheneOS project has some info that suggests we can block only unencrypted backups.
-<br>2023/??/?? Comment out any unused color and language strings. Ensure that we don't have any strings not in our languages file.
-<br>2023/??/?? *** Consider having a popup when adding something to clipboard. The clipboard would have a "Clear clipboard" and "Exit" option, along with a warning about other applications being able to steal clipboard contents
-<br>2023/??/?? MaterialBanner() anywhere it exists needs to be checked for functionality. It works at least on RouteTorrc but elsewhere may be non-functional.
-<br>2023/??/?? Experiment in Noti with grouping notifications per-user. If that fails, experiment with summaries if there are messages from multiple users? (no? summaries are dumb but per user grouping would be cool)
-<br>2023/??/?? "Whenever items list is updated, ListView shall be updated automatically." https://googleflutter.com/flutter-add-item-to-listview-dynamically/ https://stackoverflow.com/questions/51343567/append-items-dynamically-to-listview
-<br>2023/??/?? delete getTemporaryDirectory().path/qr.png on program startup and shutdown. Zero and delete might be best.
