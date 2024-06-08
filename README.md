@@ -19,29 +19,20 @@ cp -Rn bare/* torx-flutter
 cd torx-flutter
 ```
 
-###### Step 2: Change the  BUILD_BINARIES flag to 1
-```
-nano android/app/CMakeLists.txt
-```
-
-###### Step 3: First build / Build from scratch (takes several minutes) (WARNING: will delete libtor.so, libsnowflake.so, etc, which need to be rebuilt by modifying CMakeLists.txt -- the BUILD_BINARIES flag)
+###### Step 2: First build / Build from scratch (takes several minutes) (WARNING: will delete libtor.so, libsnowflake.so, etc)
 ```
 rm -rf build/ android/app/.cxx/Debug/
 rm android/app/src/main/jniLibs/*/*.so
-flutter pub run flutter_launcher_icons && flutter run
+flutter pub run flutter_launcher_icons
+TORX_TAG=main BUILD_BINARIES=1 flutter run
 
-```
-
-###### Step 4: Change the  BUILD_BINARIES flag to 0
-```
-nano android/app/CMakeLists.txt
 ```
 
 ###### Subsequent builds (takes 10-20 seconds, including fresh builds of libtorx)
-`flutter run`
+`TORX_TAG=main flutter run`
 
 ###### For building a release (Remember to increase the version in pubspec.yaml or F-Droid will ignore the update.)
-`flutter build apk`
+`TORX_TAG=main flutter build apk`
 
 #### License:
 To discourage pre-release distribution of unsafe builds, source code is currently licensed as follows: Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)

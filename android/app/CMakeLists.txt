@@ -10,13 +10,33 @@ project(fake LANGUAGES C) # the output of this is fake/junk
 
 include(ExternalProject)
 ## XXX NOTICE: rm -rf build/ android/app/.cxx/Debug/* android/app/.cxx/RelWithDebInfo/* # can be safely called after BUILD_BINARIES=1 is run once. This will allow faster rebuilds and save extensive diskspace. XXX ##
-set(BUILD_BINARIES 0) ## XXX (1) Determines dependencies should be re-built (tor , obfs4proxy, snowflake ), or just flutter UI + torx + deps (0), which requires JNILIBS folder populated already XXX ##
+
 set(CMAKE_ANDROID_NDK $ENV{ANDROID_NDK_HOME})
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmake)
 
 # ANDROID_SYSROOT TODO set
 # ANDROID_TOOLCHAIN TODO set
 # ??? CMAKE_PREFIX_PATH ==
+
+## XXX -D BUILD_BINARIES=? (1) Determines dependencies should be re-built (tor , obfs4proxy, snowflake ), or just flutter UI + torx + deps (0), which requires JNILIBS folder populated already XXX ##
+if($ENV{TORX_TAG})
+	set(TAG_REPO "$ENV{TORX_TAG}")
+else()
+	set(TAG_REPO "main")
+endif()
+if($ENV{LAN_REPO})
+	message(STATUS "Using LAN repository: $ENV{LAN_REPO}")
+	set(REPO_TOR "$ENV{LAN_REPO}/tor.git")
+	set(REPO_OBFS "$ENV{LAN_REPO}/obfs4.git")
+	set(REPO_SNOWFLAKE "$ENV{LAN_REPO}/snowflake.git")
+	set(REPO_TORX "$ENV{LAN_REPO}/libtorx.git")
+else()
+	message(STATUS "Using default remote repositories instead of LAN.")
+	set(REPO_TOR "https://gitlab.torproject.org/tpo/core/tor.git") # http://xtlfhaspqtkeeqxk6umggfbr3gyfznvf4jhrge2fujz53433i2fcs3id.onion/tor.git
+	set(REPO_OBFS "https://gitlab.com/Yawning/obfs4/")
+	set(REPO_SNOWFLAKE "https://github.com/keroserene/snowflake/")
+	set(REPO_TORX "https://github.com/TorX-Chat/libtorx/")
+endif()
 
 set(JNILIBS_DIR ../../../../../../../../../android/app/src/main/jniLibs/${ANDROID_ABI}/)
 
@@ -64,12 +84,10 @@ add_executable( # Necessary to have a library or exec otherwise android sdk igno
 	${PROJECT_NAME}
 	fake.c
 )
-if(BUILD_BINARIES)
+if($ENV{BUILD_BINARIES})
 	ExternalProject_Add(
 		tor
-		GIT_REPOSITORY https://gitlab.torproject.org/tpo/core/tor.git
-	##	GIT_REPOSITORY http://xtlfhaspqtkeeqxk6umggfbr3gyfznvf4jhrge2fujz53433i2fcs3id.onion/tor.git
-	#	GIT_REPOSITORY http://10.8.88.11/tor.git
+		GIT_REPOSITORY ${REPO_TOR}
 		GIT_TAG main # NOTE: tor may recommend using a release. should talk to them.
 		BUILD_IN_SOURCE 1
 		UPDATE_COMMAND "" # XXX taken out of ./configure XXX #
@@ -81,8 +99,7 @@ if(BUILD_BINARIES)
 	)
 	ExternalProject_Add(
 		obfs4proxy
-		GIT_REPOSITORY https://gitlab.com/Yawning/obfs4/
-	#	GIT_REPOSITORY http://10.8.88.11/obfs4.git
+		GIT_REPOSITORY ${REPO_OBFS}
 		BUILD_IN_SOURCE 1
 		CONFIGURE_COMMAND ""
 		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o obfs4proxy/obfs4proxy.so ./obfs4proxy
@@ -94,8 +111,7 @@ if(BUILD_BINARIES)
 	##target_link_directories(obfs4proxy PUBLIC ${CMAKE_ANDROID_NDK}toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib)
 	ExternalProject_Add(
 		snowflake
-		GIT_REPOSITORY https://github.com/keroserene/snowflake/
-	#	GIT_REPOSITORY http://10.8.88.11/snowflake.git
+		GIT_REPOSITORY ${REPO_SNOWFLAKE}
 		BUILD_IN_SOURCE 1
 		CONFIGURE_COMMAND ""
 		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o client/snowflake.so ./client
@@ -105,11 +121,10 @@ if(BUILD_BINARIES)
 	ExternalProject_Add(
 		torx
 	#	BUILD_ALWAYS TRUE # BUILD_BYPRODUCTS
-		GIT_REPOSITORY https://github.com/TorX-Chat/libtorx/ ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
-	#	GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
-		GIT_TAG main
+		GIT_REPOSITORY ${REPO_TORX} ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
+		GIT_TAG ${TAG_REPO}
 	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
-		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=${BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
+		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=$ENV{BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
 		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} ${JNILIBS_LIST}
 	) # TODO get zlib, currently not able to remove sonames.
 	# NOTE: regarding libpng, the copy is a response to a bug they introduced where they dropped the prefix. Introduced in one of the first two commits of feb 2023
@@ -125,11 +140,10 @@ else()
 	ExternalProject_Add(
 		torx
 	#	BUILD_ALWAYS TRUE
-		GIT_REPOSITORY https://github.com/TorX-Chat/libtorx/ ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
-	#	GIT_REPOSITORY http://10.8.88.11/libtorx.git ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
-		GIT_TAG main
+		GIT_REPOSITORY ${REPO_TORX} ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
+		GIT_TAG ${TAG_REPO}
 	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
-		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=${BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
+		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=$ENV{BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
 		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} libtorx.so
 	)
 	add_dependencies(
