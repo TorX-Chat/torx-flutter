@@ -4,9 +4,6 @@
 This page is primarily for developers and contributors.
 <br>If you are simply looking to download and run TorX, go to [Download](https://torx.chat/#download)
 <br>If you want to contribute, see [Contribute](https://torx.chat/#contribute) and our [TODO Lists](https://torx.chat/todo.html)
-<br>
-<br>Note: There are toggles for BUILD_ALWAYS / BUILD_BINARIES and related notes in android/app/CMakeLists.txt
-<br>You MUST ensure BUILD_BINARIES is set to 1 for the first build, and then you may desire to change it to 0 for subsequent builds.
 
 #### Build Instructions:
 
