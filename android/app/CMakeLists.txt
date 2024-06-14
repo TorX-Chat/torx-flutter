@@ -71,7 +71,7 @@ set(CLANGPP_BINARY ${BINARY_PREFIX}-linux-android${ANDROID_VERSION_STR}-clang++)
 set(CLANG_BINARY_PATH ${BINARY_PATH}${CLANG_BINARY})
 set(CLANGPP_BINARY_PATH ${BINARY_PATH}${CLANGPP_BINARY})
 set(CUSTOM_ARGS_FLUTTER -DANDROID_PLATFORM=${ANDROID_PLATFORM} -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION} -DCLANG_BINARY=${CLANG_BINARY} -DCLANGPP_BINARY=${CLANGPP_BINARY} -DCLANG_BINARY_PATH=${CLANG_BINARY_PATH} -DCLANGPP_BINARY_PATH=${CLANGPP_BINARY_PATH} -DANDROID_ABI=${ANDROID_ABI} -DANDROID_PLATFORM=${ANDROID_PLATFORM} -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ABI} -DCMAKE_ANDROID_NDK=${CMAKE_ANDROID_NDK} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
-set(JNILIBS_LIST libtorx.so _deps/event-build/lib/libevent_pthreads-2.2.so _deps/event-build/lib/libevent_core-2.2.so sodium-download-prefix/src/sodium-download/src/libsodium/.libs/libsodium.so _deps/png-build/libpng16.so sqlcipher-download-prefix/src/sqlcipher-download/.libs/libsqlcipher.so) # REMOVED: openssl-download-prefix/src/openssl-download/libcrypto_1_1.so openssl-download-prefix/src/openssl-download/libssl_1_1.so
+set(JNILIBS_LIST _deps/event-build/lib/libevent_pthreads-2.2.so _deps/event-build/lib/libevent_core-2.2.so sodium-download-prefix/src/sodium-download/src/libsodium/.libs/libsodium.so _deps/png-build/libpng16.so sqlcipher-download-prefix/src/sqlcipher-download/.libs/libsqlcipher.so) # REMOVED: openssl-download-prefix/src/openssl-download/libcrypto_1_1.so openssl-download-prefix/src/openssl-download/libssl_1_1.so
 ################################################################################################################################################################
 ################################################################################################################################################################
 ################################################################################################################################################################
@@ -88,13 +88,13 @@ if($ENV{BUILD_BINARIES})
 	ExternalProject_Add(
 		tor
 		GIT_REPOSITORY ${REPO_TOR}
-		GIT_TAG release-0.4.8 # main # NOTE: tor may recommend using a release. should talk to them.
+		GIT_TAG main # tor-0.4.8.11 # release-0.4.8 # main # NOTE: tor may recommend using a release. should talk to them.
 		BUILD_IN_SOURCE 1
 		UPDATE_COMMAND "" # XXX taken out of ./configure XXX #
 		## XXX NOTE: based on testing, it seems like libtor.so has to be statically linked to everything because as a binary it does not look in the JNILIBS folder and fails if it cannot find its depends on android itself ##
 		CONFIGURE_COMMAND cp -r ../../../torx-prefix/src/torx-build/_deps/event-src/include/ ../../../torx-prefix/src/torx-build/_deps/event-build && export CC=${CLANG_BINARY_PATH} && export CXX=${CLANGPP_BINARY_PATH} && export PATH=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/:$ENV{PATH} && ./autogen.sh -v && ./configure --host=${TOR_PLATFORM} --enable-systemd=no --disable-system-torrc --disable-tool-name-check --enable-pic --disable-module-dirauth --enable-android --disable-unittests --disable-manpage --disable-html-manual --disable-module-relay --disable-asciidoc --disable-seccomp --disable-libscrypt --disable-lzma --disable-zstd --with-zlib-dir=../../../torx-prefix/src/torx-build/zlib-download-prefix/src/zlib-download/ --with-libevent-dir=../../../torx-prefix/src/torx-build/_deps/event-build --with-openssl-dir=../../../torx-prefix/src/torx-build/openssl-download-prefix/src/openssl-download/ --enable-static-zlib --enable-static-openssl --enable-static-libevent # TODO have put zlib as static because we currently fail to remove soname (and it is trivially small anyway), libevent is static because we suck at linking libevent-2.2.so, openssl is static only because the other two are XXX NOTE: we added --disable-system-torrc. This may or may not work with what we expect.
 		BUILD_COMMAND make -j8
-		INSTALL_COMMAND cp src/app/tor ${JNILIBS_DIR}/libtor.so
+		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp src/app/tor ${JNILIBS_DIR}/libtor.so
 		BUILD_BYPRODUCTS src/app/tor
 	)
 	ExternalProject_Add(
@@ -124,8 +124,8 @@ if($ENV{BUILD_BINARIES})
 		GIT_REPOSITORY ${REPO_TORX} ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 		GIT_TAG ${TAG_REPO}
 	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
-		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=$ENV{BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
-		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} ${JNILIBS_LIST}
+		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=1 -D BUILD_SHARED_LIBS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
+		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} libtorx.so ${JNILIBS_LIST}
 	) # TODO get zlib, currently not able to remove sonames.
 	# NOTE: regarding libpng, the copy is a response to a bug they introduced where they dropped the prefix. Introduced in one of the first two commits of feb 2023
 	add_dependencies(tor torx) # because openssl libevent and zlib come from it
@@ -143,7 +143,7 @@ else()
 		GIT_REPOSITORY ${REPO_TORX} ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 		GIT_TAG ${TAG_REPO}
 	#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
-		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=$ENV{BUILD_BINARIES} -D BUILD_SHARED_LIBS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
+		CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=0 -D BUILD_SHARED_LIBS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
 		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} libtorx.so
 	)
 	add_dependencies(
