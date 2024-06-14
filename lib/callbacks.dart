@@ -301,7 +301,7 @@ void print_message_cb_ui(int n, int i, int scroll) {
             payload: "$n $group_pm",
             fln: flutterLocalNotificationsPlugin);
         Vibration.vibrate(); // Vibrate regardless of mute setting, if current chat not open or application is not in the foreground
-        FlutterRingtonePlayer.playNotification(); // Make sound if not muted
+        FlutterRingtonePlayer.play(looping: false, fromAsset: "lib/other/beep.wav"); // Make sound if not muted
       }
       t_peer.unread[nn]++;
       if (owner == ENUM_OWNER_GROUP_CTRL) {

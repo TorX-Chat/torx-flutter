@@ -18,7 +18,7 @@ cd torx-flutter
 
 ###### Step 2: First build / Build from scratch (takes several minutes) (WARNING: will delete libtor.so, libsnowflake.so, etc)
 ```
-rm -rf build/ android/app/.cxx/Debug/
+rm -rf build/ android/app/.cxx/Debug/ android/app/.cxx/RelWithDebInfo
 rm android/app/src/main/jniLibs/*/*.so
 flutter pub run flutter_launcher_icons
 TORX_TAG=main BUILD_BINARIES=1 flutter run
