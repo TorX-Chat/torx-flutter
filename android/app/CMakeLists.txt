@@ -88,7 +88,7 @@ if($ENV{BUILD_BINARIES})
 	ExternalProject_Add(
 		tor
 		GIT_REPOSITORY ${REPO_TOR}
-		GIT_TAG main # NOTE: tor may recommend using a release. should talk to them.
+		GIT_TAG release-0.4.8 # main # NOTE: tor may recommend using a release. should talk to them.
 		BUILD_IN_SOURCE 1
 		UPDATE_COMMAND "" # XXX taken out of ./configure XXX #
 		## XXX NOTE: based on testing, it seems like libtor.so has to be statically linked to everything because as a binary it does not look in the JNILIBS folder and fails if it cannot find its depends on android itself ##
