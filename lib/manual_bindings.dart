@@ -1406,6 +1406,7 @@ class torx {
   static Pointer<Pointer<Utf8>> tor_location = dynamicLibrary.lookup('tor_location'); // utilized
   static Pointer<Pointer<Utf8>> snowflake_location = dynamicLibrary.lookup('snowflake_location'); // utilized
   static Pointer<Pointer<Utf8>> obfs4proxy_location = dynamicLibrary.lookup('obfs4proxy_location'); // utilized
+  static Pointer<Pointer<Utf8>> native_library_directory = dynamicLibrary.lookup('native_library_directory'); // utilized
   static Pointer<Pointer<Utf8>> working_dir = dynamicLibrary.lookup('working_dir'); // utilized
 
   /* Arrays */

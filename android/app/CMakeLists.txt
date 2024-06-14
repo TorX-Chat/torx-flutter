@@ -18,6 +18,10 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 # ANDROID_TOOLCHAIN TODO set
 # ??? CMAKE_PREFIX_PATH ==
 
+#set($ENV{TORX_TAG} "dev")			### XXX XXX XXX
+#set($ENV{LAN_REPO} "http://10.8.88.1/") 	### XXX XXX XXX
+#set($ENV{BUILD_BINARIES} 1)
+
 ## XXX -D BUILD_BINARIES=? (1) Determines dependencies should be re-built (tor , obfs4proxy, snowflake ), or just flutter UI + torx + deps (0), which requires JNILIBS folder populated already XXX ##
 if($ENV{TORX_TAG})
 	set(TAG_REPO "$ENV{TORX_TAG}")
@@ -70,7 +74,7 @@ set(CLANG_BINARY ${BINARY_PREFIX}-linux-android${ANDROID_VERSION_STR}-clang)
 set(CLANGPP_BINARY ${BINARY_PREFIX}-linux-android${ANDROID_VERSION_STR}-clang++)
 set(CLANG_BINARY_PATH ${BINARY_PATH}${CLANG_BINARY})
 set(CLANGPP_BINARY_PATH ${BINARY_PATH}${CLANGPP_BINARY})
-set(CUSTOM_ARGS_FLUTTER -DANDROID_PLATFORM=${ANDROID_PLATFORM} -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION} -DCLANG_BINARY=${CLANG_BINARY} -DCLANGPP_BINARY=${CLANGPP_BINARY} -DCLANG_BINARY_PATH=${CLANG_BINARY_PATH} -DCLANGPP_BINARY_PATH=${CLANGPP_BINARY_PATH} -DANDROID_ABI=${ANDROID_ABI} -DANDROID_PLATFORM=${ANDROID_PLATFORM} -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ABI} -DCMAKE_ANDROID_NDK=${CMAKE_ANDROID_NDK} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
+set(CUSTOM_ARGS_FLUTTER -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION} -DCLANG_BINARY=${CLANG_BINARY} -DCLANGPP_BINARY=${CLANGPP_BINARY} -DCLANG_BINARY_PATH=${CLANG_BINARY_PATH} -DCLANGPP_BINARY_PATH=${CLANGPP_BINARY_PATH} -DANDROID_ABI=${ANDROID_ABI} -DANDROID_PLATFORM=${ANDROID_PLATFORM} -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ABI} -DCMAKE_ANDROID_NDK=${CMAKE_ANDROID_NDK} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
 set(JNILIBS_LIST _deps/event-build/lib/libevent_pthreads-2.2.so _deps/event-build/lib/libevent_core-2.2.so sodium-download-prefix/src/sodium-download/src/libsodium/.libs/libsodium.so _deps/png-build/libpng16.so sqlcipher-download-prefix/src/sqlcipher-download/.libs/libsqlcipher.so) # REMOVED: openssl-download-prefix/src/openssl-download/libcrypto_1_1.so openssl-download-prefix/src/openssl-download/libssl_1_1.so
 ################################################################################################################################################################
 ################################################################################################################################################################

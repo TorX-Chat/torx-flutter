@@ -152,8 +152,8 @@ void initialization_functions(BuildContext? context) {
     return;
   }
   String tor_location = "$nativeLibraryDir/libtor.so";
-  String obfs4proxy_location = "$nativeLibraryDir/obfs4proxy.so";
-  String snowflake_location = "$nativeLibraryDir/snowflake.so";
+  String obfs4proxy_location = "nativeLibraryDir/obfs4proxy.so"; // This is a FAKE location that is replaced by the library with native_library_directory
+  String snowflake_location = "nativeLibraryDir/snowflake.so"; // This is a FAKE location that is replaced by the library with native_library_directory
 
   torx.torx_debug_level(0);
 
@@ -161,6 +161,7 @@ void initialization_functions(BuildContext? context) {
   torx.tor_location[0] = tor_location.toNativeUtf8();
   torx.obfs4proxy_location[0] = obfs4proxy_location.toNativeUtf8();
   torx.snowflake_location[0] = snowflake_location.toNativeUtf8();
+  torx.native_library_directory[0] = nativeLibraryDir.toNativeUtf8();
   torx.reduced_memory.value = 2; // 1 == 256mb, 2 == 64mb
   torx.working_dir[0] = workDir.path.toNativeUtf8(); // necessary before initial on systems where $HOME is not set
   torx.tor_data_directory[0] = "${workDir.path}/tor".toNativeUtf8(); // hardcoding this. This will override user settings for sanity purposes.
