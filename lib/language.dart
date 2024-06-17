@@ -85,6 +85,7 @@ class text {
   static String accept = "";
   static String reject = "";
   static String copy = "";
+  static String copy_all = "";
   static String start = "";
   static String pause = "";
   static String cancel = "";
@@ -273,6 +274,7 @@ void initialize_language() {
     text.accept = "Accept";
     text.reject = "Reject";
     text.copy = "Copy";
+    text.copy_all = "Copy All";
     text.start = "Start";
     text.pause = "Pause";
     text.cancel = "Cancel";

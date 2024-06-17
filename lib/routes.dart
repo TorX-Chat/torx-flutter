@@ -1161,7 +1161,7 @@ class _RouteChatState extends State<RouteChat> {
                           maxHeight:
                               400, // GOAT should be sizeof(keyboard)+sizeof(appbar)+ some space, ediaQuery.of(context).size.height - (Scaffold.of(context).appBarMaxHeight! + $keboard + 24)
                         ),
-                        margin: const EdgeInsets.only(left: 5.0, bottom: 5.0, top: 8.0),
+                        margin: const EdgeInsets.only(left: 5.0, bottom: 15.0, top: 8.0),
                         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: color.write_message_background),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 5.0, right: 5.0),
@@ -1170,7 +1170,7 @@ class _RouteChatState extends State<RouteChat> {
                             controller: controllerMessage,
                             autocorrect: !keyboard_privacy, // Android + iOS
                             enableSuggestions: !keyboard_privacy, // Only affects android
-                            enableIMEPersonalizedLearning: !keyboard_privacy, // Only affects android
+                            enableIMEPersonalizedLearning: false, // Only affects android
                             scribbleEnabled: false,
                             spellCheckConfiguration: ime_enabled_spellCheckConfiguration, // const SpellCheckConfiguration.disabled(), // Android + iOS
                             showCursor: true,
@@ -1561,28 +1561,45 @@ class _RouteLogTorState extends State<RouteLogTor> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom(scrollcontroller_log_tor));
     return Scaffold(
-        backgroundColor: color.right_panel_background,
-        appBar: AppBar(
-            backgroundColor: color.chat_headerbar,
-            title: Text(
-              text.tor_log,
-              style: TextStyle(color: color.page_title),
-            )),
-        body: SingleChildScrollView(
-            controller: scrollcontroller_log_tor,
-            child: AnimatedBuilder(
-                animation: changeNotifierTorLog,
-                builder: (BuildContext context, Widget? snapshot) {
-                  return SelectableText(
-                    torLogBuffer,
-                    textAlign: TextAlign.left,
-                    style: TextStyle(
-                      fontWeight: FontWeight.normal,
-                      fontSize: 12,
-                      color: color.right_panel_text,
-                    ),
-                  );
-                })));
+      backgroundColor: color.right_panel_background,
+      appBar: AppBar(
+          backgroundColor: color.chat_headerbar,
+          title: Text(
+            text.tor_log,
+            style: TextStyle(color: color.page_title),
+          )),
+      body: SingleChildScrollView(
+          controller: scrollcontroller_log_tor,
+          child: AnimatedBuilder(
+              animation: changeNotifierTorLog,
+              builder: (BuildContext context, Widget? snapshot) {
+                return SelectableText(
+                  torLogBuffer,
+                  textAlign: TextAlign.left,
+                  style: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    fontSize: 12,
+                    color: color.right_panel_text,
+                  ),
+                );
+              })),
+      bottomNavigationBar: BottomAppBar(
+        color: color.right_panel_background,
+        child: MaterialButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: torLogBuffer));
+          },
+          height: 20,
+          minWidth: 20,
+          elevation: 5,
+          color: color.button_background,
+          child: Text(
+            text.copy_all,
+            style: TextStyle(color: color.button_text),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1600,58 +1617,75 @@ class _RouteLogTorXState extends State<RouteLogTorX> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom(scrollcontroller_log_torx));
     return Scaffold(
-        backgroundColor: color.right_panel_background,
-        appBar: AppBar(
-            backgroundColor: color.chat_headerbar,
-            title: Text(
-              text.torx_log,
-              style: TextStyle(color: color.page_title),
-            ),
-            actions: [
-              //      Text(text.debug_level),
-              Align(
-                alignment: Alignment.center,
-                child: Text(
-                  "${text.debug_level} ${torx.torx_debug_level(-1).toString()}",
-                  style: TextStyle(color: color.page_title),
-                ),
+      backgroundColor: color.right_panel_background,
+      appBar: AppBar(
+          backgroundColor: color.chat_headerbar,
+          title: Text(
+            text.torx_log,
+            style: TextStyle(color: color.page_title),
+          ),
+          actions: [
+            //      Text(text.debug_level),
+            Align(
+              alignment: Alignment.center,
+              child: Text(
+                "${text.debug_level} ${torx.torx_debug_level(-1).toString()}",
+                style: TextStyle(color: color.page_title),
               ),
-              IconButton(
-                  onPressed: () {
-                    int level = torx.torx_debug_level(-1);
-                    if (level < 5) {
-                      setState(() {
-                        torx.torx_debug_level(++level);
-                      });
-                    }
-                  },
-                  icon: Icon(Icons.add, color: color.torch_off)),
-              IconButton(
-                  onPressed: () {
-                    int level = torx.torx_debug_level(-1);
-                    if (level > 0) {
-                      setState(() {
-                        torx.torx_debug_level(--level);
-                      });
-                    }
-                  },
-                  icon: Icon(Icons.remove, color: color.torch_off)),
-            ]),
-        body: SingleChildScrollView(
-            controller: scrollcontroller_log_torx,
-            child: AnimatedBuilder(
-                animation: changeNotifierError,
-                builder: (BuildContext context, Widget? snapshot) {
-                  return SelectableText(
-                    torxLogBuffer,
-                    textAlign: TextAlign.left,
-                    style: TextStyle(
-                      fontWeight: FontWeight.normal,
-                      fontSize: 12,
-                      color: color.right_panel_text,
-                    ),
-                  );
-                })));
+            ),
+            IconButton(
+                onPressed: () {
+                  int level = torx.torx_debug_level(-1);
+                  if (level < 5) {
+                    setState(() {
+                      torx.torx_debug_level(++level);
+                    });
+                  }
+                },
+                icon: Icon(Icons.add, color: color.torch_off)),
+            IconButton(
+                onPressed: () {
+                  int level = torx.torx_debug_level(-1);
+                  if (level > 0) {
+                    setState(() {
+                      torx.torx_debug_level(--level);
+                    });
+                  }
+                },
+                icon: Icon(Icons.remove, color: color.torch_off)),
+          ]),
+      body: SingleChildScrollView(
+          controller: scrollcontroller_log_torx,
+          child: AnimatedBuilder(
+              animation: changeNotifierError,
+              builder: (BuildContext context, Widget? snapshot) {
+                return SelectableText(
+                  torxLogBuffer,
+                  textAlign: TextAlign.left,
+                  style: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    fontSize: 12,
+                    color: color.right_panel_text,
+                  ),
+                );
+              })),
+      bottomNavigationBar: BottomAppBar(
+        color: color.right_panel_background,
+        child: MaterialButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: torxLogBuffer));
+          },
+          height: 20,
+          minWidth: 20,
+          elevation: 5,
+          color: color.button_background,
+          child: Text(
+            text.copy_all,
+            style: TextStyle(color: color.button_text),
+          ),
+        ),
+      ),
+    );
   }
 }
 
