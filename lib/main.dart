@@ -152,8 +152,8 @@ void initialization_functions(BuildContext? context) {
     return;
   }
   String tor_location = "$nativeLibraryDir/libtor.so";
-  String obfs4proxy_location = "nativeLibraryDir/obfs4proxy.so"; // This is a FAKE location that is replaced by the library with native_library_directory
-  String snowflake_location = "nativeLibraryDir/snowflake.so"; // This is a FAKE location that is replaced by the library with native_library_directory
+  String obfs4proxy_location = "nativeLibraryDir/libobfs4proxy.so"; // This is a FAKE location that is replaced by the library with native_library_directory
+  String snowflake_location = "nativeLibraryDir/libsnowflake.so"; // This is a FAKE location that is replaced by the library with native_library_directory
 
   torx.torx_debug_level(0);
 
@@ -171,14 +171,14 @@ void initialization_functions(BuildContext? context) {
 
   torx.initial(); // !!! GOAT DO NOT PUT ANY (other) TORX FUNCTIONS BEFORE THIS (such as set_torrc) !!! TODO
   if (kDebugMode) {
-    Directory dir = Directory(nativeLibraryDir);
-    dir.list(recursive: false).forEach((f) {
-      printf(f.toString());
-    });
-    printf("Working dir: ${workDir.path}");
-    printf("WARNING: This is debug build. Remember to check torrc and set proxy if necessary.");
+    printf("WARNING: This is debug build. Remember to check torrc and set proxy if necessary: Socks5Proxy 10.0.2.2:PORT");
     set_torrc("# Socks5Proxy 10.0.2.2:PORT"); // 10.0.2.2 is alias for emulator's host OS 127.0.0.1
   }
+  Directory dir = Directory(nativeLibraryDir);
+  dir.list(recursive: false).forEach((f) {
+    error(0, f.toString());
+  });
+  error(0, "Working dir: ${workDir.path}");
 
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH, "Sticker", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, "Sticker Date Signed", "", 0, 2 * 4, crypto_sign_BYTES, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);

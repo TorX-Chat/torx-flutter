@@ -106,9 +106,9 @@ if($ENV{BUILD_BINARIES})
 		GIT_REPOSITORY ${REPO_OBFS}
 		BUILD_IN_SOURCE 1
 		CONFIGURE_COMMAND ""
-		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o obfs4proxy/obfs4proxy.so ./obfs4proxy
-		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp obfs4proxy/obfs4proxy.so ${JNILIBS_DIR}
-		BUILD_BYPRODUCTS obfs4proxy/obfs4proxy.so
+		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o obfs4proxy/libobfs4proxy.so ./obfs4proxy
+		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp obfs4proxy/libobfs4proxy.so ${JNILIBS_DIR}
+		BUILD_BYPRODUCTS obfs4proxy/libobfs4proxy.so
 	)
 	## CFLAGS=-I${CMAKE_ANDROID_NDK}toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include CXXFLAGS=-I${CMAKE_ANDROID_NDK}toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include
 	##target_include_directories(obfs4proxy PUBLIC ${CMAKE_ANDROID_NDK}toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include)
@@ -118,9 +118,9 @@ if($ENV{BUILD_BINARIES})
 		GIT_REPOSITORY ${REPO_SNOWFLAKE}
 		BUILD_IN_SOURCE 1
 		CONFIGURE_COMMAND ""
-		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o client/snowflake.so ./client
-		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp client/snowflake.so ${JNILIBS_DIR}
-		BUILD_BYPRODUCTS client/snowflake.so
+		BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o client/libsnowflake.so ./client
+		INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp client/libsnowflake.so ${JNILIBS_DIR}
+		BUILD_BYPRODUCTS client/libsnowflake.so
 	)
 	ExternalProject_Add(
 		torx
