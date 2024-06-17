@@ -568,7 +568,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 t_peer.edit_n[global_n] = n;
                 t_peer.edit_i[global_n] = i;
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
-                controllerMessage?.text = getter_string(n, i, -1, offsetof("message", "message"));
+                controllerMessage?.text = t_peer.unsent[global_n] = getter_string(n, i, -1, offsetof("message", "message"));
                 Navigator.pop(context);
               })),
     if (message_owner == ENUM_OWNER_GROUP_PEER)
@@ -593,7 +593,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 t_peer.edit_i[global_n] = -1;
                 t_peer.edit_n[global_n] = n;
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
-                controllerMessage?.text = getter_string(n, -1, -1, offsetof("peer", "peernick"));
+                controllerMessage?.text = t_peer.unsent[global_n] = getter_string(n, -1, -1, offsetof("peer", "peernick"));
                 Navigator.pop(context);
               })),
     if (message_owner == ENUM_OWNER_GROUP_PEER)

@@ -281,7 +281,7 @@ void initialize_language() {
     text.save_qr = "Save QR";
     text.copy_qr = "Copy QR";
     text.delete = "Delete";
-    text.delete_log = "Delete Logs";
+    text.delete_log = "Clear Logs";
     text.button_send = "Send";
     text.done = "Done";
     text.cancel_editing = "Cancel editing";
