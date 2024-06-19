@@ -2900,7 +2900,7 @@ class _RouteSettingsState extends State<RouteSettings> {
   final List<String> _themes = [text.dark, text.light];
   final List<String> _idTypes = [text.generate_onionid, text.generate_torxid];
 
-  final _cpuThreads = List<String>.generate(threadsafe_read_global_Uint8("threads_max"), (int index) => '${index + 1}');
+  final _cpuThreads = List<String>.generate(threadsafe_read_global_Uint32("threads_max"), (int index) => '${index + 1}');
 
   final _suffixLength = List<String>.generate(10, (int index) => '$index');
 
@@ -2940,10 +2940,10 @@ class _RouteSettingsState extends State<RouteSettings> {
   int shorten_torxids = threadsafe_read_global_Uint8("shorten_torxids");
   int global_log_messages = threadsafe_read_global_Uint8("global_log_messages");
   int auto_resume_inbound = threadsafe_read_global_Uint8("auto_resume_inbound");
-  int threads_max = threadsafe_read_global_Uint8("threads_max");
+  int threads_max = threadsafe_read_global_Uint32("threads_max");
   int suffix_length = threadsafe_read_global_Uint8("suffix_length");
   int auto_accept_mult = threadsafe_read_global_Uint8("auto_accept_mult");
-  int global_threads = threadsafe_read_global_Int("global_threads");
+  int global_threads = threadsafe_read_global_Uint32("global_threads");
 
   @override
   Widget build(BuildContext context) {
@@ -3353,7 +3353,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                 ),
                 Focus(
                     onFocusChange: (hasFocus) {
-                      hasFocus ? null : _saveIntSetting(torx.show_log_days, "show_log_days", controllerLogDays);
+                      hasFocus ? null : _saveIntSetting(torx.show_log_days as Pointer<Int>, "show_log_days", controllerLogDays);
                     },
                     child: TextField(
                       controller: controllerLogDays,
@@ -3365,7 +3365,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                       showCursor: true,
                       keyboardType: TextInputType.number,
                       onEditingComplete: () {
-                        _saveIntSetting(torx.show_log_days, "show_log_days", controllerLogDays);
+                        _saveIntSetting(torx.show_log_days as Pointer<Int>, "show_log_days", controllerLogDays);
                       },
                       textAlign: TextAlign.center,
                       style: TextStyle(color: color.write_message_text),

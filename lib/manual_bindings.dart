@@ -1423,8 +1423,8 @@ class torx {
 
   static Pointer<Uint32> sing_expiration_days = dynamicLibrary.lookup('sing_expiration_days'); // utilized
   static Pointer<Uint32> mult_expiration_days = dynamicLibrary.lookup('mult_expiration_days'); // utilized
-  static Pointer<Int> show_log_days = dynamicLibrary.lookup('show_log_days'); // utilized
-  static Pointer<Int> global_threads = dynamicLibrary.lookup('global_threads'); // utilized
+  static Pointer<Uint32> show_log_days = dynamicLibrary.lookup('show_log_days'); // utilized
+  static Pointer<Uint32> global_threads = dynamicLibrary.lookup('global_threads'); // utilized
 
   // Confirmed to work. Pass directly to torx.pthread_rwlock_rdlock(mutex);
   static Pointer<Void> mutex_global_variable = dynamicLibrary.lookup('mutex_global_variable'); // utilized
