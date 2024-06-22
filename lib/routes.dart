@@ -3275,7 +3275,12 @@ class _RouteSettingsState extends State<RouteSettings> {
                     onPressed: () async {
                       String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
                       Pointer<Utf8> name = "download_dir".toNativeUtf8();
-                      if (selectedDirectory != null && await write_test(selectedDirectory)) {
+                      if (selectedDirectory != null) {
+                        if (await write_test(selectedDirectory) == false) {
+                          calloc.free(name);
+                          name = nullptr;
+                          return; // not writable
+                        }
                         Pointer<Utf8> directory = selectedDirectory.toNativeUtf8();
                         Pointer<Void> allocation = torx.torx_secure_malloc(selectedDirectory.length + 1);
                         torx.memcpy(allocation, directory as Pointer<Void>, selectedDirectory.length + 1);
