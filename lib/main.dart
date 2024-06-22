@@ -673,6 +673,19 @@ void changeNick(int n, TextEditingController tec) {
   }
 }
 
+Future<bool> write_test(String path) async {
+  try {
+    final testFile = File('$path/jgIYZZHLdU9gCKud1VxptmJlH3zWd0bA'); // Random string must not clash with any file on user's device
+    await testFile.create();
+    await testFile.writeAsString('test');
+    await testFile.delete();
+    return true;
+  } catch (e) {
+    error(0, "Directory is not writable. Choose a different directory.");
+    return false;
+  }
+}
+
 int handle_stuff(int n, int i) {
   int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
   int group_msg = protocol_int(p_iter, "group_msg");

@@ -655,7 +655,7 @@ class _RouteChatState extends State<RouteChat> {
                     onTap: () async {
                       if (filename == file_path || file_path == "") {
                         String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-                        if (selectedDirectory != null) {
+                        if (selectedDirectory != null && await write_test(selectedDirectory)) {
                           String path = "$selectedDirectory/$filename";
                           Pointer<Utf8> file_path_p = path.toNativeUtf8(); // free'd by calloc.free
                           torx.file_set_path(nnn, fff, file_path_p);
@@ -664,9 +664,6 @@ class _RouteChatState extends State<RouteChat> {
                           //    printf("Checkpoint accept_file: $path");
                           torx.file_accept(nnn, fff); // NOTE: having this in two places because this function is async
                           //    printf("Checkpoint have accepted file");
-                        } else {
-                          error(0, "Checkpoint Selected directory is null");
-                          return;
                         }
                       } else if (finished_file && finished_image) {
                         Navigator.push(context, MaterialPageRoute(builder: (context) {
@@ -1723,7 +1720,7 @@ class RouteShowQr extends StatefulWidget {
 Future<void> saveQr(String data) async {
 //  final picData = await genQr(data);
   String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-  if (selectedDirectory != null) {
+  if (selectedDirectory != null && await write_test(selectedDirectory)) {
     //  printf("Selected dir: $selectedDirectory");
     int datetime = (DateTime.now()).millisecondsSinceEpoch; // seconds since epoch is safe because it has no timezone attached
     Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
@@ -1731,7 +1728,7 @@ Future<void> saveQr(String data) async {
     Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
     Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
     Pointer<Utf8> destination = "$selectedDirectory/qr$datetime.png".toNativeUtf8(); // free'd by calloc.free
-    torx.write_bytes(destination, size_p.value, png);
+    torx.write_bytes(destination, png, size_p.value);
     torx.torx_free_simple(qr_raw);
     qr_raw = nullptr;
     torx.torx_free_simple(png);
@@ -1779,7 +1776,7 @@ class _RouteShowQr extends State<RouteShowQr> {
                     Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
                     Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
                     Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
-                    torx.write_bytes(destination, size_p.value, png);
+                    torx.write_bytes(destination, png, size_p.value);
                     torx.torx_free_simple(qr_raw);
                     qr_raw = nullptr;
                     torx.torx_free_simple(png);
@@ -2510,7 +2507,7 @@ class _widget_route_generateState extends State<widget_route_generate> {
                           Pointer<Void> qr_raw = torx.qr_bool(generated, 8); // free'd by torx_free
                           Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
                           Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
-                          torx.write_bytes(destination, size_p.value, png);
+                          torx.write_bytes(destination, png, size_p.value);
                           torx.torx_free_simple(qr_raw);
                           qr_raw = nullptr;
                           torx.torx_free_simple(png);
@@ -3262,6 +3259,54 @@ class _RouteSettingsState extends State<RouteSettings> {
                         keyboard_privacy = value;
                       });
                     },
+                  ),
+                ]),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Text(
+                      text.set_download_directory,
+                      style: TextStyle(color: color.page_subtitle),
+                    )
+                  ],
+                ),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  MaterialButton(
+                    onPressed: () async {
+                      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+                      Pointer<Utf8> name = "download_dir".toNativeUtf8();
+                      if (selectedDirectory != null && await write_test(selectedDirectory)) {
+                        Pointer<Utf8> directory = selectedDirectory.toNativeUtf8();
+                        Pointer<Void> allocation = torx.torx_secure_malloc(selectedDirectory.length + 1);
+                        torx.memcpy(allocation, directory as Pointer<Void>, selectedDirectory.length + 1);
+                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                        torx.torx_free_simple(torx.download_dir[0] as Pointer<Void>);
+                        torx.download_dir[0] = allocation as Pointer<Utf8>;
+                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                        set_setting_string(0, -1, "download_dir", selectedDirectory);
+                        calloc.free(directory);
+                        directory = nullptr;
+                      } else {
+                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                        if (torx.download_dir[0] != nullptr) {
+                          torx.torx_free_simple(torx.download_dir[0] as Pointer<Void>);
+                          torx.download_dir[0] = nullptr;
+                        }
+                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                        torx.sql_delete_setting(0, -1, name);
+                      }
+                      calloc.free(name);
+                      name = nullptr;
+                      setState(() {}); // torx.download_dir[0] changed
+                    },
+                    height: 20,
+                    minWidth: 20,
+                    elevation: 5,
+                    color: color.button_background,
+                    child: Text(
+                      threadsafe_read_global_string("download_dir"),
+                      style: TextStyle(color: color.button_text),
+                    ),
                   ),
                 ]),
                 const SizedBox(height: 5),

@@ -825,8 +825,8 @@ typedef FnDARTqr_utf8 = Pointer<Utf8> Function(Pointer<Void>);
 typedef FnCreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<Void>);
 typedef FnDARTreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<Void>);
 
-typedef FnCwrite_bytes = Void Function(Pointer<Utf8>, Size_t, Pointer<Void>);
-typedef FnDARTwrite_bytes = void Function(Pointer<Utf8>, int, Pointer<Void>);
+typedef FnCwrite_bytes = Void Function(Pointer<Utf8>, Pointer<Void>, Size_t);
+typedef FnDARTwrite_bytes = void Function(Pointer<Utf8>, Pointer<Void>, int);
 
 void register_callbacks() {
   if (callbacks_registered) {
@@ -1402,6 +1402,8 @@ class torx {
   static final write_bytes = dynamicLibrary.lookupFunction<FnCwrite_bytes, FnDARTwrite_bytes>('write_bytes');
 
 /* Pointers */
+  // These are ONLY FOR SETTING. and require mutex wrapper. For reading, use threadsafe_read_global_
+  static Pointer<Pointer<Utf8>> download_dir = dynamicLibrary.lookup('download_dir'); // utilized
   static Pointer<Pointer<Utf8>> tor_data_directory = dynamicLibrary.lookup('tor_data_directory'); // utilized
   static Pointer<Pointer<Utf8>> tor_location = dynamicLibrary.lookup('tor_location'); // utilized
   static Pointer<Pointer<Utf8>> snowflake_location = dynamicLibrary.lookup('snowflake_location'); // utilized
@@ -1410,8 +1412,6 @@ class torx {
   static Pointer<Pointer<Utf8>> working_dir = dynamicLibrary.lookup('working_dir'); // utilized
 
   /* Arrays */
-//  static Pointer<Uint8> decryption_key = dynamicLibrary.lookup('decryption_key');
-
   // These are ONLY FOR SETTING. and require mutex wrapper. For reading, use threadsafe_read_global_
   static Pointer<Uint8> reduced_memory = dynamicLibrary.lookup('reduced_memory'); // utilized
   static Pointer<Uint8> global_log_messages = dynamicLibrary.lookup('global_log_messages'); // utilized
@@ -1435,7 +1435,12 @@ class torx {
 String threadsafe_read_global_string(String symbolName) {
   Pointer<Pointer<Utf8>> symbol = dynamicLibrary.lookup(symbolName);
   torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
-  String ret = symbol[0].toDartString();
+  String ret;
+  if (symbol[0] == nullptr) {
+    ret = "";
+  } else {
+    ret = symbol[0].toDartString();
+  }
   torx.pthread_rwlock_unlock(torx.mutex_global_variable);
   return ret;
 }
