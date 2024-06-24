@@ -23,7 +23,7 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
   // UI code here
 });
 */
-
+@pragma("vm:entry-point") // These pragma statements are likely doing nothing in callbacks.dart because tree shaking is irrelevant.
 void initialize_n_cb_ui(int n) {
   t_peer.unsent[n] = "";
   t_peer.mute[n] = 0;
@@ -34,25 +34,34 @@ void initialize_n_cb_ui(int n) {
   t_peer.t_file[n] = t_file_class();
 }
 
+@pragma("vm:entry-point")
 void initialize_i_cb_ui(int n, int i) {
   /* currently null */
 }
+
+@pragma("vm:entry-point")
 void initialize_f_cb_ui(int n, int f) {
   t_peer.t_file[n].changeNotifierTransferProgress[f] = ChangeNotifierTransferProgress();
 }
 
+@pragma("vm:entry-point")
 void initialize_g_cb_ui(int g) {
   /* currently null */
 }
+
+@pragma("vm:entry-point")
 void expand_file_struc_cb_ui(int n, int f) {
   for (int i = 0; i < 10; i++) {
     t_peer.t_file[n].changeNotifierTransferProgress.add(ChangeNotifierTransferProgress());
   }
 }
 
+@pragma("vm:entry-point")
 void expand_messages_struc_cb_ui(int n, int i) {
   /* currently null */
 }
+
+@pragma("vm:entry-point")
 void expand_peer_struc_cb_ui(int n) {
   for (int i = 0; i < 10; i++) {
     t_peer.unsent.add("");
@@ -65,14 +74,17 @@ void expand_peer_struc_cb_ui(int n) {
   }
 }
 
+@pragma("vm:entry-point")
 void expand_group_struc_cb_ui(int g) {
   /* currently null */
 }
+
+@pragma("vm:entry-point")
 void transfer_progress_cb_ui(int n, int f, int transferred) {
-  printf("Checkpoint transfer_progress_cb_ui: $n $f $transferred");
   t_peer.t_file[n].changeNotifierTransferProgress[f].callback();
 }
 
+@pragma("vm:entry-point")
 void change_password_cb_ui(int value) {
   if (value == 0 || value == -1) {
     controllerPassOld.clear();
@@ -88,6 +100,7 @@ void change_password_cb_ui(int value) {
   changeNotifierChangePassword.callback(integer: value);
 }
 
+@pragma("vm:entry-point")
 void incoming_friend_request_cb_ui(int n) {
   totalIncoming++;
   if (launcherBadges) {
@@ -121,6 +134,7 @@ void incoming_friend_request_cb_ui(int n) {
   );
 }
 
+@pragma("vm:entry-point")
 void onion_deleted_cb_ui(int owner, int n) {
   initialize_n_cb_ui(n);
   changeNotifierDataTables.callback(integer: owner);
@@ -135,6 +149,7 @@ void onion_deleted_cb_ui(int owner, int n) {
   }
 }
 
+@pragma("vm:entry-point")
 void peer_online_cb_ui(int n) {
   int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
   if (n == global_n || owner == ENUM_OWNER_GROUP_PEER) {
@@ -143,6 +158,7 @@ void peer_online_cb_ui(int n) {
   changeNotifierChatList.callback(integer: n);
 }
 
+@pragma("vm:entry-point")
 void peer_offline_cb_ui(int n) {
   int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
   if (n == global_n || owner == ENUM_OWNER_GROUP_PEER) {
@@ -151,15 +167,19 @@ void peer_offline_cb_ui(int n) {
   changeNotifierChatList.callback(integer: n);
 }
 
+@pragma("vm:entry-point")
 void peer_new_cb_ui(int n) {
   changeNotifierOnlineOffline.callback(integer: n); // especially for groups
   changeNotifierChatList.callback(integer: n);
   changeNotifierDataTables.callback(integer: n);
 }
 
+@pragma("vm:entry-point")
 void print_log_cb_ui(int n, int actual) {
   /* currently null */
 }
+
+@pragma("vm:entry-point")
 void onion_ready_cb_ui(int n) {
   String onion = getter_string(n, -1, -1, offsetof("peer", "onion"));
   String torxid = getter_string(n, -1, -1, offsetof("peer", "torxid"));
@@ -177,12 +197,14 @@ void onion_ready_cb_ui(int n) {
   changeNotifierDataTables.callback(integer: n);
 }
 
+@pragma("vm:entry-point")
 void cleanup_cb_ui(int sig_num) {
   writeUnread();
   torx.cleanup_lib(sig_num); // do last before calling exit
   SystemNavigator.pop(); // proper alternative to exit(sig_num); but it will be ignored in iOS
 }
 
+@pragma("vm:entry-point")
 void tor_log_cb_ui(Pointer<Utf8> message) {
   if (message == nullptr) {
     return;
@@ -198,6 +220,7 @@ void tor_log_cb_ui(Pointer<Utf8> message) {
   message = nullptr;
 }
 
+@pragma("vm:entry-point")
 void error_cb_ui(Pointer<Utf8> error_message) {
   if (error_message == nullptr) {
     return;
@@ -214,10 +237,12 @@ void error_cb_ui(Pointer<Utf8> error_message) {
   error_message = nullptr;
 }
 
+@pragma("vm:entry-point")
 void fatal_cb_ui(Pointer<Utf8> error_message) {
   error_cb_ui(error_message);
 }
 
+@pragma("vm:entry-point")
 void custom_setting_cb_ui(int n, Pointer<Utf8> setting_name, Pointer<Utf8> setting_value, int setting_value_len, int plaintext) {
   if (setting_name == nullptr || setting_value == nullptr) {
     return;
@@ -272,6 +297,7 @@ void custom_setting_cb_ui(int n, Pointer<Utf8> setting_name, Pointer<Utf8> setti
   setting_value = nullptr;
 }
 
+@pragma("vm:entry-point")
 void print_message_cb_ui(int n, int i, int scroll) {
   if (n < 0 || i < 0 || scroll < 0) {
     error(0, "Sanity checkfailed in print_message_cb_ui");
@@ -351,6 +377,7 @@ void print_message_cb_ui(int n, int i, int scroll) {
   }
 }
 
+@pragma("vm:entry-point")
 void stream_cb_ui(int n, int p_iter, Pointer<Utf8> data, int data_len) {
   if (data == nullptr || data_len == 0 || n < 0 || p_iter < 0) {
     torx.torx_free_simple(data as Pointer<Void>);
@@ -424,6 +451,7 @@ void stream_cb_ui(int n, int p_iter, Pointer<Utf8> data, int data_len) {
   data = nullptr;
 }
 
+@pragma("vm:entry-point")
 void login_cb_ui(int value) {
   printf("Checkpoint login: $value");
   login_failed = true;

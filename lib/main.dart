@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -20,7 +19,6 @@ import 'manual_bindings.dart';
 import 'language.dart';
 import 'change_notifiers.dart';
 import 'package:screen_protector/screen_protector.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart' as fft;
 
 /* Global Variables */
 int current_index = 0;
@@ -117,7 +115,7 @@ void resumptionTasks() {
   // Any UI held values will be defaults if this has occured after .detach. This means things like .unread will be zero'd.
   // Find a way to set "resuming from detach" bool that can re-set or re-fetch certain things, like .unread counts and such
   flutterLocalNotificationsPlugin.cancelAll();
-  FlutterForegroundTask.stopService();
+  _stopForegroundService();
   if (threadsafe_read_global_Uint8("keyed") > 0) {
     if (!callbacks_registered) {
       register_callbacks(); // NECESSARY to call again, in case .detach occured
@@ -136,6 +134,37 @@ void resumptionTasks() {
       FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
     }
   }
+}
+
+Future<void> _startForegroundService() async {
+  // Documentation: https://github.com/MaikuB/flutter_local_notifications/blob/5375645b01c845998606b58a3d97b278c5b2cefa/flutter_local_notifications/lib/src/platform_flutter_local_notifications.dart#L208
+  // And: https://github.com/MaikuB/flutter_local_notifications/blob/5375645b01c845998606b58a3d97b278c5b2cefa/flutter_local_notifications/example/android/app/src/main/AndroidManifest.xml
+  // The notification of the foreground service can be updated by method multiple times.
+  const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    'Foreground service channel2',
+    'Foreground service channel2',
+    channelDescription: 'Foreground service channel description',
+    importance: Importance.none,
+    priority: Priority.min,
+    visibility: NotificationVisibility.secret,
+    ongoing: true,
+    autoCancel: false,
+    onlyAlertOnce: false,
+    showWhen: false,
+    icon: 'ic_notification_foreground',
+    color: Colors.red,
+    colorized: false,
+    enableVibration: false, // NOTE: Cannot be changed without changing channel name
+    playSound: false, // NOTE: Cannot be changed without changing channel name
+    silent: true,
+  );
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
+}
+
+Future<void> _stopForegroundService() async {
+  await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.stopForegroundService();
 }
 
 Future<void> requestPermissions() async {
@@ -238,7 +267,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
   }
 
   void _initForegroundTask() {
-    FlutterForegroundTask.init(
+    /*  FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         foregroundServiceType: AndroidForegroundServiceType.DATA_SYNC,
         channelId: 'zooStuff1232',
@@ -265,23 +294,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
         allowWakeLock: true,
         allowWifiLock: true,
       ),
-    );
-  }
-
-  void _start_foreground_task() async {
-    bool reqResult;
-    if (await FlutterForegroundTask.isRunningService) {
-      error(0, "Checkpoint should be stopping foreground service");
-      reqResult = await FlutterForegroundTask.stopService();
-      _start_foreground_task(); // recursive function, should start
-    } else {
-      reqResult = await FlutterForegroundTask.startService(
-        notificationTitle: text.title,
-        notificationText: text.tap_return, //status,
-        callback: null,
-      );
-      printf("Checkpoint should be starting foreground service: ${reqResult.toString()}");
-    }
+    );*/
   }
 
   @override
@@ -310,7 +323,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       case AppLifecycleState.paused:
         error(0, "Checkpoint AppLifecycleState.paused");
         //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.paused', body: '', fln: flutterLocalNotificationsPlugin);
-        _start_foreground_task(); // restart to update the text
+        _startForegroundService(); // was here but not anymore after switching foregroudn providers
         writeUnread();
         break;
       case AppLifecycleState.detached:
@@ -789,7 +802,6 @@ void scrollIfBottom(ScrollController scrollController) {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   const androidChannel = MethodChannel('com.torx.chat/android');
   Future<String> getNativeLibraryPath() async {
     return await androidChannel.invokeMethod('getNativeLibraryPath') as String;

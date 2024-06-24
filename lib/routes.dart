@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app_badger/flutter_app_badger.dart';
-import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
@@ -26,61 +25,47 @@ import 'package:photo_view/photo_view.dart';
 import 'package:open_filex/open_filex.dart';
 import 'stickers.dart';
 
-class Noti {
-// NOTICE: showsUserInterface: false ---> Response runs in a different isolate. Will not work without interprocess communication. (Neither C nor Dart). 2024/04/15 ALSO DOES NOT WORK WITH INTERPROCESS COMMUNICATION
-// Old: Different isolate, C works, Dart everything is initialized. DO NOT READ OR SET GLOBAL VARIABLES INCLUDING t_peer, and ChangeNotifiers don't work. Use print_message_cb() for any UI thread stuff ( ctrl+f "section 9jfj20f0w" ).
-  @pragma("vm:entry-point") // NOTE: THIS LINE IS ABSOLUTELY necessary by flutter_local_notifications to prevent tree-shaking the code
-  static void response(NotificationResponse notificationResponse) {
+@pragma("vm:entry-point") // Should be top level / not in class. NOTE: THIS LINE IS ABSOLUTELY necessary by flutter_local_notifications to prevent tree-shaking the code
+void response(NotificationResponse notificationResponse) {
 /*    if (notificationResponse.actionId == 'reply') {
       printf("there is a reply!");
     }*/
-    if (notificationResponse.payload == null || notificationResponse.input == null) {
-      printf("Noti fail or user clicked dismiss?");
-      return;
-    }
-    List<String> parts = notificationResponse.payload!.split(' ');
-    int n = int.parse(parts[0]);
-    int group_pm = int.parse(parts[1]);
+  if (notificationResponse.payload == null || notificationResponse.input == null) {
+    printf("Noti fail or user clicked dismiss?");
+    return;
+  }
+  List<String> parts = notificationResponse.payload!.split(' ');
+  int n = int.parse(parts[0]);
+  int group_pm = int.parse(parts[1]);
 //    printf("Checkpoint notification response: $n $group_pm ${notificationResponse.input}");
-    Pointer<Utf8> message = notificationResponse.input!.toNativeUtf8(); // free'd by calloc.free
-    int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
-    if (group_pm != 0) {
-      torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
-    } else if (owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
-      int g = torx.set_g(n, nullptr);
-      int g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
-      int group_n = torx.getter_group_int(g, offsetof("group", "n"));
-      if (g_invite_required != 0) {
-        // date && sign private group messages
-        torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message as Pointer<Void>, message.length);
-      } else {
-        torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
-      }
+  Pointer<Utf8> message = notificationResponse.input!.toNativeUtf8(); // free'd by calloc.free
+  int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+  if (group_pm != 0) {
+    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
+  } else if (owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
+    int g = torx.set_g(n, nullptr);
+    int g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
+    int group_n = torx.getter_group_int(g, offsetof("group", "n"));
+    if (g_invite_required != 0) {
+      // date && sign private group messages
+      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message as Pointer<Void>, message.length);
     } else {
-      torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
+      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
     }
-    if (message != nullptr) {
-      calloc.free(message);
-      message = nullptr;
-    }
-    //    flutterLocalNotificationsPlugin.cancel(notificationResponse.id!); // Does not work, either due to isolate or unknown other reason
-    // GOAT how can these notification IDs be stored in the proper isolate so that they can be individually closed if going to the N's RouteChat? low priority
+  } else {
+    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
   }
-/*
-  @pragma("vm:entry-point")
-  static void onDidReceiveNotificationResponse(NotificationResponse notificationResponse) {
-    Vibration
-        .vibrate(); // GOAT remove this. this is ONLY here for testing to prove that this function is NOT being called on device and therefore the failure is NOT isolate related. Must be a flutter_local_notifications bug.
-    printf("Checkpoint Foreground Reply to N: ${notificationResponse.payload} ${notificationResponse.input}");
+  if (message != nullptr) {
+    calloc.free(message);
+    message = nullptr;
   }
+  //    flutterLocalNotificationsPlugin.cancel(notificationResponse.id!); // Does not work, either due to isolate or unknown other reason
+  // GOAT how can these notification IDs be stored in the proper isolate so that they can be individually closed if going to the N's RouteChat? low priority
+}
 
-  @pragma("vm:entry-point")
-  static void onDidReceiveBackgroundNotificationResponse(NotificationResponse notificationResponse) {
-    Vibration
-        .vibrate(); // GOAT remove this. this is ONLY here for testing to prove that this function is NOT being called on device and therefore the failure is NOT isolate related. Must be a flutter_local_notifications bug.
-    printf("Checkpoint Background Reply to N: ${notificationResponse.payload} ${notificationResponse.input}");
-  }
-  */
+class Noti {
+// NOTICE: showsUserInterface: false ---> Response runs in a different isolate. Will not work without interprocess communication. (Neither C nor Dart). 2024/04/15 ALSO DOES NOT WORK WITH INTERPROCESS COMMUNICATION
+// Old: Different isolate, C works, Dart everything is initialized. DO NOT READ OR SET GLOBAL VARIABLES INCLUDING t_peer, and ChangeNotifiers don't work. Use print_message_cb() for any UI thread stuff ( ctrl+f "section 9jfj20f0w" ).
 
   static Future initialize(FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) async {
     var androidInitialize = const AndroidInitializationSettings('ic_notification_foreground'); // NOTE: arg is icon
@@ -114,6 +99,7 @@ class Noti {
             enableVibration: false,
             importance: Importance.high,
             priority: Priority.max,
+            color: Colors.red,
             actions: [
           // GOAT showsUserInterface resumes the application to the foreground before sending, to run on the main isolate. To disable this, we have to implement a messaging mechanism to communicate with the main isolate.
           if (payload != null)
@@ -3700,53 +3686,52 @@ class _RouteBottomState extends State<RouteBottom> {
       initialize_theme(context);
     }
 //    globalCurrentRouteChatN = -1; // BAD BAD DO NOT PUT HERE
-    return WithForegroundTask(
-        child: AnimatedBuilder(
-            animation: changeNotifierTheme,
-            builder: (BuildContext context, Widget? snapshot) {
-              return Scaffold(
-                body: _widgetOptions[_selectedIndex],
-                bottomNavigationBar: BottomNavigationBar(
-                    currentIndex: _selectedIndex,
-                    onTap: _onItemTapped,
-                    showSelectedLabels: true,
-                    showUnselectedLabels: false,
-                    selectedItemColor: color.torch_on,
-                    unselectedItemColor: color.torch_off,
-                    items: [
-                      BottomNavigationBarItem(
-                          backgroundColor: color.chat_headerbar,
-                          icon: AnimatedBuilder(
-                              animation: changeNotifierTotalUnread,
-                              builder: (BuildContext context, Widget? snapshot) {
-                                return Badge(
-                                    isLabelVisible: totalUnreadPeer + totalUnreadGroup > 0,
-                                    label: Text((totalUnreadPeer + totalUnreadGroup).toString()),
-                                    child: const Icon(Icons.chat_outlined));
-                              }),
-                          activeIcon: AnimatedBuilder(
-                              animation: changeNotifierTotalUnread,
-                              builder: (BuildContext context, Widget? snapshot) {
-                                return Badge(
-                                  isLabelVisible: totalUnreadPeer + totalUnreadGroup > 0,
-                                  label: Text((totalUnreadPeer + totalUnreadGroup).toString()),
-                                  child: const Icon(Icons.chat),
-                                );
-                              }),
-                          label: text.chats),
-                      //  BottomNavigationBarItem(icon: Icon(Icons.ac_unit),label: "Groups"),
-                      BottomNavigationBarItem(backgroundColor: color.chat_headerbar, icon: const Icon(Icons.add), label: text.add_generate_bottom),
-                      BottomNavigationBarItem(
-                          backgroundColor: color.chat_headerbar,
-                          icon: AnimatedBuilder(
-                              animation: changeNotifierTotalIncoming,
-                              builder: (BuildContext context, Widget? snapshot) {
-                                return Badge(isLabelVisible: totalIncoming > 0, label: Text(totalIncoming.toString()), child: const Icon(Icons.home));
-                              }),
-                          label: text.home),
-                      BottomNavigationBarItem(backgroundColor: color.chat_headerbar, icon: const Icon(Icons.settings), label: text.settings)
-                    ]),
-              );
-            }));
+    return AnimatedBuilder(
+        animation: changeNotifierTheme,
+        builder: (BuildContext context, Widget? snapshot) {
+          return Scaffold(
+            body: _widgetOptions[_selectedIndex],
+            bottomNavigationBar: BottomNavigationBar(
+                currentIndex: _selectedIndex,
+                onTap: _onItemTapped,
+                showSelectedLabels: true,
+                showUnselectedLabels: false,
+                selectedItemColor: color.torch_on,
+                unselectedItemColor: color.torch_off,
+                items: [
+                  BottomNavigationBarItem(
+                      backgroundColor: color.chat_headerbar,
+                      icon: AnimatedBuilder(
+                          animation: changeNotifierTotalUnread,
+                          builder: (BuildContext context, Widget? snapshot) {
+                            return Badge(
+                                isLabelVisible: totalUnreadPeer + totalUnreadGroup > 0,
+                                label: Text((totalUnreadPeer + totalUnreadGroup).toString()),
+                                child: const Icon(Icons.chat_outlined));
+                          }),
+                      activeIcon: AnimatedBuilder(
+                          animation: changeNotifierTotalUnread,
+                          builder: (BuildContext context, Widget? snapshot) {
+                            return Badge(
+                              isLabelVisible: totalUnreadPeer + totalUnreadGroup > 0,
+                              label: Text((totalUnreadPeer + totalUnreadGroup).toString()),
+                              child: const Icon(Icons.chat),
+                            );
+                          }),
+                      label: text.chats),
+                  //  BottomNavigationBarItem(icon: Icon(Icons.ac_unit),label: "Groups"),
+                  BottomNavigationBarItem(backgroundColor: color.chat_headerbar, icon: const Icon(Icons.add), label: text.add_generate_bottom),
+                  BottomNavigationBarItem(
+                      backgroundColor: color.chat_headerbar,
+                      icon: AnimatedBuilder(
+                          animation: changeNotifierTotalIncoming,
+                          builder: (BuildContext context, Widget? snapshot) {
+                            return Badge(isLabelVisible: totalIncoming > 0, label: Text(totalIncoming.toString()), child: const Icon(Icons.home));
+                          }),
+                      label: text.home),
+                  BottomNavigationBarItem(backgroundColor: color.chat_headerbar, icon: const Icon(Icons.settings), label: text.settings)
+                ]),
+          );
+        });
   }
 }
