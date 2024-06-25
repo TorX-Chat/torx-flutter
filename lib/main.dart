@@ -252,7 +252,6 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
   void initState() {
     _screenshotInit();
     super.initState();
-    _initForegroundTask();
     Noti.initialize(flutterLocalNotificationsPlugin);
     WidgetsBinding.instance.addObserver(this);
   }
@@ -262,37 +261,6 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
     _screenshotDispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  void _initForegroundTask() {
-    /*  FlutterForegroundTask.init(
-      androidNotificationOptions: AndroidNotificationOptions(
-        foregroundServiceType: AndroidForegroundServiceType.DATA_SYNC,
-        channelId: 'zooStuff1232',
-        channelName: 'Status Notifier',
-//      channelDescription: 'This notification appears when the foreground service is running.',
-        channelImportance: NotificationChannelImportance.NONE,
-        visibility: fft.NotificationVisibility.VISIBILITY_SECRET,
-        priority: NotificationPriority.MIN,
-        iconData: const NotificationIconData(
-          resType: ResourceType.drawable,
-          resPrefix: ResourcePrefix.ic,
-          name: 'notification_foreground',
-        ),
-      ),
-      iosNotificationOptions: const IOSNotificationOptions(
-        showNotification: true,
-        playSound: false,
-      ),
-      foregroundTaskOptions: ForegroundTaskOptions(
-        interval: 5000,
-        isOnceEvent: false,
-        autoRunOnBoot:
-            autoRunOnBoot, // GOAT _start_foreground_task() NOTE: This is useless because it doesn't call main(). We tried in AndroidManifest.xml + BootBroadcastReceiver.kt to get main() to be called on boot, but we failed. TODO
-        allowWakeLock: true,
-        allowWifiLock: true,
-      ),
-    );*/
   }
 
   @override

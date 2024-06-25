@@ -186,8 +186,8 @@ typedef FnDARTprint_message_cb = void Function(int, int, int);
 typedef FnClogin_cb = Void Function(Int);
 typedef FnDARTlogin_cb = void Function(int);
 
-typedef FnCprint_log_cb = Void Function(Int, Int);
-typedef FnDARTprint_log_cb = void Function(int, int);
+typedef FnCpeer_loaded_cb = Void Function(Int);
+typedef FnDARTpeer_loaded_cb = void Function(int);
 
 typedef FnCcleanup_cb = Void Function(Int);
 typedef FnDARTcleanup_cb = void Function(int);
@@ -261,8 +261,8 @@ typedef FnDARTprint_message_setter = void Function(Pointer<NativeFunction<FnCpri
 typedef FnClogin_setter = Void Function(Pointer<NativeFunction<FnClogin_cb>>);
 typedef FnDARTlogin_setter = void Function(Pointer<NativeFunction<FnClogin_cb>>);
 
-typedef FnCprint_log_setter = Void Function(Pointer<NativeFunction<FnCprint_log_cb>>);
-typedef FnDARTprint_log_setter = void Function(Pointer<NativeFunction<FnCprint_log_cb>>);
+typedef FnCpeer_loaded_setter = Void Function(Pointer<NativeFunction<FnCpeer_loaded_cb>>);
+typedef FnDARTpeer_loaded_setter = void Function(Pointer<NativeFunction<FnCpeer_loaded_cb>>);
 
 typedef FnCcleanup_setter = Void Function(Pointer<NativeFunction<FnCcleanup_cb>>);
 typedef FnDARTcleanup_setter = void Function(Pointer<NativeFunction<FnCcleanup_cb>>);
@@ -833,31 +833,32 @@ void register_callbacks() {
     return;
   }
   callbacks_registered = true;
-  torx.initialize_n_setter(NativeCallable<FnCinitialize_n_cb>.listener(initialize_n_cb_ui).nativeFunction);
-  torx.initialize_i_setter(NativeCallable<FnCinitialize_i_cb>.listener(initialize_i_cb_ui).nativeFunction);
-  torx.initialize_f_setter(NativeCallable<FnCinitialize_f_cb>.listener(initialize_f_cb_ui).nativeFunction);
-  torx.initialize_g_setter(NativeCallable<FnCinitialize_g_cb>.listener(initialize_g_cb_ui).nativeFunction);
-  torx.expand_file_struc_setter(NativeCallable<FnCexpand_file_struc_cb>.listener(expand_file_struc_cb_ui).nativeFunction);
-  torx.expand_messages_struc_setter(NativeCallable<FnCexpand_messages_struc_cb>.listener(expand_messages_struc_cb_ui).nativeFunction);
-  torx.expand_peer_struc_setter(NativeCallable<FnCexpand_peer_struc_cb>.listener(expand_peer_struc_cb_ui).nativeFunction);
-  torx.expand_group_struc_setter(NativeCallable<FnCexpand_group_struc_cb>.listener(expand_group_struc_cb_ui).nativeFunction);
-  torx.transfer_progress_setter(NativeCallable<FnCtransfer_progress_cb>.listener(transfer_progress_cb_ui).nativeFunction);
-  torx.change_password_setter(NativeCallable<FnCchange_password_cb>.listener(change_password_cb_ui).nativeFunction);
-  torx.incoming_friend_request_setter(NativeCallable<FnCincoming_friend_request_cb>.listener(incoming_friend_request_cb_ui).nativeFunction);
-  torx.onion_deleted_setter(NativeCallable<FnConion_deleted_cb>.listener(onion_deleted_cb_ui).nativeFunction);
-  torx.peer_online_setter(NativeCallable<FnCpeer_online_cb>.listener(peer_online_cb_ui).nativeFunction);
-  torx.peer_offline_setter(NativeCallable<FnCpeer_offline_cb>.listener(peer_offline_cb_ui).nativeFunction);
-  torx.peer_new_setter(NativeCallable<FnCpeer_new_cb>.listener(peer_new_cb_ui).nativeFunction);
-  torx.onion_ready_setter(NativeCallable<FnConion_ready_cb>.listener(onion_ready_cb_ui).nativeFunction);
-  torx.tor_log_setter(NativeCallable<FnCtor_log_cb>.listener(tor_log_cb_ui).nativeFunction);
-  torx.error_setter(NativeCallable<FnCerror_cb>.listener(error_cb_ui).nativeFunction);
-  torx.fatal_setter(NativeCallable<FnCfatal_cb>.listener(fatal_cb_ui).nativeFunction);
-  torx.custom_setting_setter(NativeCallable<FnCcustom_setting_cb>.listener(custom_setting_cb_ui).nativeFunction);
-  torx.print_message_setter(NativeCallable<FnCprint_message_cb>.listener(print_message_cb_ui).nativeFunction);
-  torx.login_setter(NativeCallable<FnClogin_cb>.listener(login_cb_ui).nativeFunction);
-  torx.print_log_setter(NativeCallable<FnCprint_log_cb>.listener(print_log_cb_ui).nativeFunction);
-  torx.cleanup_setter(NativeCallable<FnCcleanup_cb>.listener(cleanup_cb_ui).nativeFunction);
-  torx.stream_setter(NativeCallable<FnCstream_cb>.listener(stream_cb_ui).nativeFunction);
+  printf("SINGLETON CHECKER -------> ${Callbacks().hashCode} ${Callbacks().initialize_n_cb_ui.hashCode}"); // Should be the same across lifecycle, which it is not
+  torx.initialize_n_setter(NativeCallable<FnCinitialize_n_cb>.listener(Callbacks().initialize_n_cb_ui).nativeFunction);
+  torx.initialize_i_setter(NativeCallable<FnCinitialize_i_cb>.listener(Callbacks().initialize_i_cb_ui).nativeFunction);
+  torx.initialize_f_setter(NativeCallable<FnCinitialize_f_cb>.listener(Callbacks().initialize_f_cb_ui).nativeFunction);
+  torx.initialize_g_setter(NativeCallable<FnCinitialize_g_cb>.listener(Callbacks().initialize_g_cb_ui).nativeFunction);
+  torx.expand_file_struc_setter(NativeCallable<FnCexpand_file_struc_cb>.listener(Callbacks().expand_file_struc_cb_ui).nativeFunction);
+  torx.expand_messages_struc_setter(NativeCallable<FnCexpand_messages_struc_cb>.listener(Callbacks().expand_messages_struc_cb_ui).nativeFunction);
+  torx.expand_peer_struc_setter(NativeCallable<FnCexpand_peer_struc_cb>.listener(Callbacks().expand_peer_struc_cb_ui).nativeFunction);
+  torx.expand_group_struc_setter(NativeCallable<FnCexpand_group_struc_cb>.listener(Callbacks().expand_group_struc_cb_ui).nativeFunction);
+  torx.transfer_progress_setter(NativeCallable<FnCtransfer_progress_cb>.listener(Callbacks().transfer_progress_cb_ui).nativeFunction);
+  torx.change_password_setter(NativeCallable<FnCchange_password_cb>.listener(Callbacks().change_password_cb_ui).nativeFunction);
+  torx.incoming_friend_request_setter(NativeCallable<FnCincoming_friend_request_cb>.listener(Callbacks().incoming_friend_request_cb_ui).nativeFunction);
+  torx.onion_deleted_setter(NativeCallable<FnConion_deleted_cb>.listener(Callbacks().onion_deleted_cb_ui).nativeFunction);
+  torx.peer_online_setter(NativeCallable<FnCpeer_online_cb>.listener(Callbacks().peer_online_cb_ui).nativeFunction);
+  torx.peer_offline_setter(NativeCallable<FnCpeer_offline_cb>.listener(Callbacks().peer_offline_cb_ui).nativeFunction);
+  torx.peer_new_setter(NativeCallable<FnCpeer_new_cb>.listener(Callbacks().peer_new_cb_ui).nativeFunction);
+  torx.onion_ready_setter(NativeCallable<FnConion_ready_cb>.listener(Callbacks().onion_ready_cb_ui).nativeFunction);
+  torx.tor_log_setter(NativeCallable<FnCtor_log_cb>.listener(Callbacks().tor_log_cb_ui).nativeFunction);
+  torx.error_setter(NativeCallable<FnCerror_cb>.listener(Callbacks().error_cb_ui).nativeFunction);
+  torx.fatal_setter(NativeCallable<FnCfatal_cb>.listener(Callbacks().fatal_cb_ui).nativeFunction);
+  torx.custom_setting_setter(NativeCallable<FnCcustom_setting_cb>.listener(Callbacks().custom_setting_cb_ui).nativeFunction);
+  torx.print_message_setter(NativeCallable<FnCprint_message_cb>.listener(Callbacks().print_message_cb_ui).nativeFunction);
+  torx.login_setter(NativeCallable<FnClogin_cb>.listener(Callbacks().login_cb_ui).nativeFunction);
+  torx.peer_loaded_setter(NativeCallable<FnCpeer_loaded_cb>.listener(Callbacks().peer_loaded_cb_ui).nativeFunction);
+  torx.cleanup_setter(NativeCallable<FnCcleanup_cb>.listener(Callbacks().cleanup_cb_ui).nativeFunction);
+  torx.stream_setter(NativeCallable<FnCstream_cb>.listener(Callbacks().stream_cb_ui).nativeFunction);
 }
 
 String getPath() {
@@ -1023,7 +1024,7 @@ class torx {
 
   static final login_setter = dynamicLibrary.lookupFunction<FnClogin_setter, FnDARTlogin_setter>('login_setter');
 
-  static final print_log_setter = dynamicLibrary.lookupFunction<FnCprint_log_setter, FnDARTprint_log_setter>('print_log_setter');
+  static final peer_loaded_setter = dynamicLibrary.lookupFunction<FnCpeer_loaded_setter, FnDARTpeer_loaded_setter>('peer_loaded_setter');
 
   static final cleanup_setter = dynamicLibrary.lookupFunction<FnCcleanup_setter, FnDARTcleanup_setter>('cleanup_setter');
 
