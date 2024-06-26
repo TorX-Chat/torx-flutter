@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'package:chat/callbacks.dart';
 import 'package:chat/stickers.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
@@ -309,6 +310,8 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
+    printf("BUILD TIMES -----> ${Callbacks().build_times}");
+    Callbacks().build_times++;
     initialization_functions(context);
     return MaterialApp(
         restorationScopeId: 'app',

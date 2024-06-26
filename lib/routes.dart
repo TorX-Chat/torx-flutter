@@ -109,8 +109,7 @@ class Noti {
                 inputs: [const AndroidNotificationActionInput()]),
           //    AndroidNotificationAction('dismiss', text.dismiss, cancelNotification: true) // does NOT work
         ]);
-    var not = NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/);
-    await fln.show(id, title, body, not, payload: payload);
+    await fln.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
   }
 }
 
@@ -1084,7 +1083,7 @@ class _RouteChatState extends State<RouteChat> {
                             if (g > -1) {
                               msg_count = torx.getter_group_uint32(g, offsetof("group", "msg_count"));
                             } else {
-                              msg_count = torx.getter_int(widget.n, -1, -1, -1, offsetof("peer", "message_n"));
+                              msg_count = torx.getter_int(widget.n, -1, -1, -1, offsetof("peer", "max_i")) + 1;
                             }
                             return owner == ENUM_OWNER_GROUP_CTRL
                                 ? ListView.builder(
@@ -1308,7 +1307,9 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
         Color dotColor = ui_statusColor(arrayFriends[index]);
         Pointer<Int> nn_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
         int i = -1;
-        for (int count_back = 0; (i = torx.set_last_message(nn_p, arrayFriends[index], count_back)) > -1; count_back++) {
+        for (int count_back = 0;
+            (i = torx.set_last_message(nn_p, arrayFriends[index], count_back)) > torx.getter_int(nn_p.value, -1, -1, -1, offsetof("peer", "min_i")) - 1;
+            count_back++) {
           if (t_peer.mute[nn_p.value] == 1 && torx.getter_uint8(nn_p.value, -1, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER) {
             continue; // do not print, these are hidden messages from ignored users
           } else {
@@ -1322,8 +1323,8 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
         String lastMessage = "";
         int p_iter;
         if (i > -1 && (p_iter = torx.getter_int(nn, i, -1, -1, offsetof("message", "p_iter"))) > -1) {
-          int message_n = torx.getter_int(nn, -1, -1, -1, offsetof("peer", "message_n"));
-          if (message_n > 0 || t_peer.unsent[nn].isNotEmpty) {
+          int max_i = torx.getter_int(nn, -1, -1, -1, offsetof("peer", "max_i"));
+          if (max_i > -1 || t_peer.unsent[nn].isNotEmpty) {
             int protocol = protocol_int(p_iter, "protocol");
             int file_offer = protocol_int(p_iter, "file_offer");
             int null_terminated_len = protocol_int(p_iter, "null_terminated_len");

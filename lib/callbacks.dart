@@ -33,6 +33,8 @@ class Callbacks {
     return _instance;
   }
 
+  int build_times = 0;
+
   void initialize_n_cb_ui(int n) {
     t_peer.unsent[n] = "";
     t_peer.mute[n] = 0;
