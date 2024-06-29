@@ -63,7 +63,7 @@ class Callbacks {
     }
   }
 
-  void expand_messages_struc_cb_ui(int n, int i) {
+  void expand_message_struc_cb_ui(int n, int i) {
     /* currently null */
   }
 

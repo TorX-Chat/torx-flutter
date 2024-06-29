@@ -135,8 +135,8 @@ typedef FnDARTinitialize_g_cb = void Function(int);
 typedef FnCexpand_file_struc_cb = Void Function(Int, Int);
 typedef FnDARTexpand_file_struc_cb = void Function(int, int);
 
-typedef FnCexpand_messages_struc_cb = Void Function(Int, Int);
-typedef FnDARTexpand_messages_struc_cb = void Function(int, int);
+typedef FnCexpand_message_struc_cb = Void Function(Int, Int);
+typedef FnDARTexpand_message_struc_cb = void Function(int, int);
 
 typedef FnCexpand_peer_struc_cb = Void Function(Int);
 typedef FnDARTexpand_peer_struc_cb = void Function(int);
@@ -210,8 +210,8 @@ typedef FnDARTinitialize_g_setter = void Function(Pointer<NativeFunction<FnCinit
 typedef FnCexpand_file_struc_setter = Void Function(Pointer<NativeFunction<FnCexpand_file_struc_cb>>);
 typedef FnDARTexpand_file_struc_setter = void Function(Pointer<NativeFunction<FnCexpand_file_struc_cb>>);
 
-typedef FnCexpand_messages_struc_setter = Void Function(Pointer<NativeFunction<FnCexpand_messages_struc_cb>>);
-typedef FnDARTexpand_messages_struc_setter = void Function(Pointer<NativeFunction<FnCexpand_messages_struc_cb>>);
+typedef FnCexpand_message_struc_setter = Void Function(Pointer<NativeFunction<FnCexpand_message_struc_cb>>);
+typedef FnDARTexpand_message_struc_setter = void Function(Pointer<NativeFunction<FnCexpand_message_struc_cb>>);
 
 typedef FnCexpand_peer_struc_setter = Void Function(Pointer<NativeFunction<FnCexpand_peer_struc_cb>>);
 typedef FnDARTexpand_peer_struc_setter = void Function(Pointer<NativeFunction<FnCexpand_peer_struc_cb>>);
@@ -585,8 +585,8 @@ typedef FnDARTinitial_keyed = void Function();
 typedef FnCre_expand_callbacks = Void Function();
 typedef FnDARTre_expand_callbacks = void Function();
 
-typedef FnCexpand_messages_struc = Void Function(Int, Int);
-typedef FnDARTexpand_messages_struc = void Function(int, int);
+typedef FnCexpand_message_struc = Void Function(Int, Int);
+typedef FnDARTexpand_message_struc = void Function(int, int);
 
 typedef FnCset_last_message = Int Function(Pointer<Int>, Int, Int);
 typedef FnDARTset_last_message = int Function(Pointer<Int>, int, int);
@@ -839,7 +839,7 @@ void register_callbacks() {
   torx.initialize_f_setter(NativeCallable<FnCinitialize_f_cb>.listener(Callbacks().initialize_f_cb_ui).nativeFunction);
   torx.initialize_g_setter(NativeCallable<FnCinitialize_g_cb>.listener(Callbacks().initialize_g_cb_ui).nativeFunction);
   torx.expand_file_struc_setter(NativeCallable<FnCexpand_file_struc_cb>.listener(Callbacks().expand_file_struc_cb_ui).nativeFunction);
-  torx.expand_messages_struc_setter(NativeCallable<FnCexpand_messages_struc_cb>.listener(Callbacks().expand_messages_struc_cb_ui).nativeFunction);
+  torx.expand_message_struc_setter(NativeCallable<FnCexpand_message_struc_cb>.listener(Callbacks().expand_message_struc_cb_ui).nativeFunction);
   torx.expand_peer_struc_setter(NativeCallable<FnCexpand_peer_struc_cb>.listener(Callbacks().expand_peer_struc_cb_ui).nativeFunction);
   torx.expand_group_struc_setter(NativeCallable<FnCexpand_group_struc_cb>.listener(Callbacks().expand_group_struc_cb_ui).nativeFunction);
   torx.transfer_progress_setter(NativeCallable<FnCtransfer_progress_cb>.listener(Callbacks().transfer_progress_cb_ui).nativeFunction);
@@ -989,7 +989,7 @@ class torx {
 
   static final expand_file_struc_setter = dynamicLibrary.lookupFunction<FnCexpand_file_struc_setter, FnDARTexpand_file_struc_setter>('expand_file_struc_setter');
 
-  static final expand_messages_struc_setter = dynamicLibrary.lookupFunction<FnCexpand_messages_struc_setter, FnDARTexpand_messages_struc_setter>('expand_messages_struc_setter');
+  static final expand_message_struc_setter = dynamicLibrary.lookupFunction<FnCexpand_message_struc_setter, FnDARTexpand_message_struc_setter>('expand_message_struc_setter');
 
   static final expand_peer_struc_setter = dynamicLibrary.lookupFunction<FnCexpand_peer_struc_setter, FnDARTexpand_peer_struc_setter>('expand_peer_struc_setter');
 
@@ -1240,7 +1240,7 @@ class torx {
 
   static final re_expand_callbacks = dynamicLibrary.lookupFunction<FnCre_expand_callbacks, FnDARTre_expand_callbacks>('re_expand_callbacks');
 
-  static final expand_messages_struc = dynamicLibrary.lookupFunction<FnCexpand_messages_struc, FnDARTexpand_messages_struc>('expand_messages_struc');
+  static final expand_message_struc = dynamicLibrary.lookupFunction<FnCexpand_message_struc, FnDARTexpand_message_struc>('expand_message_struc');
 
   static final set_last_message = dynamicLibrary.lookupFunction<FnCset_last_message, FnDARTset_last_message>('set_last_message');
 

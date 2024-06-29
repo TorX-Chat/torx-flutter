@@ -457,6 +457,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
       file_status = torx.getter_uint8(n, -1, f, -1, offsetof("file", "status"));
     }
     if (i > -1) {
+      // XXX NEGATIVE I PROBLEM
       stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
       p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
       if (p_iter > -1) {
