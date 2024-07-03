@@ -638,7 +638,10 @@ class _RouteChatState extends State<RouteChat> {
                 return GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () async {
-                      if (filename == file_path || file_path == "") {
+                      torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+                      Pointer<Utf8> download_dir = torx.download_dir[0];
+                      torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                      if ((filename == file_path || file_path == "") && download_dir == nullptr) {
                         String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
                         if (selectedDirectory != null && await write_test(selectedDirectory)) {
                           String path = "$selectedDirectory/$filename";
@@ -1141,9 +1144,9 @@ class _RouteChatState extends State<RouteChat> {
                     child: Container(
                         constraints: const BoxConstraints(
                           maxHeight:
-                              400, // GOAT should be sizeof(keyboard)+sizeof(appbar)+ some space, ediaQuery.of(context).size.height - (Scaffold.of(context).appBarMaxHeight! + $keboard + 24)
+                              381, // was 400. reduced by 19 because fat fingers  GOAT should be sizeof(keyboard)+sizeof(appbar)+ some space, ediaQuery.of(context).size.height - (Scaffold.of(context).appBarMaxHeight! + $keboard + 24)
                         ),
-                        margin: const EdgeInsets.only(left: 5.0, bottom: 15.0, top: 8.0),
+                        margin: const EdgeInsets.only(left: 5.0, bottom: 15.0, top: 8.0), // fat fingers
                         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: color.write_message_background),
                         child: Padding(
                           padding: const EdgeInsets.only(left: 5.0, right: 5.0),
