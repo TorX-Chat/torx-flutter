@@ -409,7 +409,7 @@ void toggleMute(int n) {
   } else {
     return;
   }
-  int peer_index = torx.getter_int(n, -1, -1, -1, offsetof("peer", "peer_index"));
+  int peer_index = torx.getter_int(n, INT_MIN, -1, -1, offsetof("peer", "peer_index"));
   set_setting_string(0, peer_index, "mute", t_peer.mute[n].toString());
 }
 
@@ -442,7 +442,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
   }
 
   void setBlockIcon(int n) {
-    if (torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_BLOCKED) {
+    if (torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_BLOCKED) {
       blockColor = Colors.red;
       blockText = text.blocked;
     } else {
@@ -452,12 +452,11 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
   }
 
   if (n > -1) {
-    message_owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+    message_owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
     if (f > -1) {
-      file_status = torx.getter_uint8(n, -1, f, -1, offsetof("file", "status"));
+      file_status = torx.getter_uint8(n, INT_MIN, f, -1, offsetof("file", "status"));
     }
-    if (i > -1) {
-      // XXX NEGATIVE I PROBLEM
+    if (i > INT_MIN) {
       stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
       p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
       if (p_iter > -1) {
@@ -481,7 +480,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 ui_sticker_save(s);
                 Navigator.pop(context);
               })),
-    if (s > -1 && n < 0 && i < 0)
+    if (s > -1 && n < 0 && i == INT_MIN)
       PopupMenuItem(
           child: ListTile(
               leading: const Icon(Icons.delete),
@@ -561,7 +560,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               title: Text(text.private_messaging),
               onTap: () {
                 t_peer.edit_n[global_n] = -1;
-                t_peer.edit_i[global_n] = -1;
+                t_peer.edit_i[global_n] = INT_MIN;
                 t_peer.pm_n[global_n] = n;
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
                 Navigator.pop(context);
@@ -573,10 +572,10 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               title: Text(text.rename),
               onTap: () {
                 t_peer.pm_n[global_n] = -1;
-                t_peer.edit_i[global_n] = -1;
+                t_peer.edit_i[global_n] = INT_MIN;
                 t_peer.edit_n[global_n] = n;
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
-                controllerMessage?.text = t_peer.unsent[global_n] = getter_string(n, -1, -1, offsetof("peer", "peernick"));
+                controllerMessage?.text = t_peer.unsent[global_n] = getter_string(n, INT_MIN, -1, offsetof("peer", "peernick"));
                 Navigator.pop(context);
               })),
     if (message_owner == ENUM_OWNER_GROUP_PEER)
@@ -599,7 +598,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 changeNotifierPopoverList.callback(integer: n);
                 Navigator.pop(context);
               })),
-    if (n > -1 && i > -1)
+    if (n > -1 && i > INT_MIN)
       PopupMenuItem(
           child: ListTile(
               leading: const Icon(Icons.delete),
@@ -619,10 +618,10 @@ void printf(Object? str) {
 
 void writeUnread() {
   if (log_unread) {
-    for (int n = 0; torx.getter_byte(n, -1, -1, -1, offsetof("peer", "onion")) != 0; n++) {
-      int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner")); // 0
+    for (int n = 0; torx.getter_byte(n, INT_MIN, -1, -1, offsetof("peer", "onion")) != 0; n++) {
+      int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner")); // 0
       if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL) {
-        int peer_index = torx.getter_int(n, -1, -1, -1, offsetof("peer", "peer_index"));
+        int peer_index = torx.getter_int(n, INT_MIN, -1, -1, offsetof("peer", "peer_index"));
         set_setting_string(0, peer_index, "unread", t_peer.unread[n].toString());
       }
     }
@@ -631,15 +630,17 @@ void writeUnread() {
 
 void setBottomIndex() {
   bool set = false;
-  for (int n = 0; torx.getter_byte(n, -1, -1, -1, offsetof("peer", "onion")) != 0; n++) {
-    if (torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_CTRL && torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_PENDING) {
+  for (int n = 0; torx.getter_byte(n, INT_MIN, -1, -1, offsetof("peer", "onion")) != 0; n++) {
+    if (torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_CTRL &&
+        torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_PENDING) {
       bottom_index = 2; // default to view pending list
       set = true;
     }
   }
   if (set == false) {
-    for (int n = 0; torx.getter_byte(n, -1, -1, -1, offsetof("peer", "onion")) != 0; n++) {
-      if (torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_CTRL && torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_FRIEND) {
+    for (int n = 0; torx.getter_byte(n, INT_MIN, -1, -1, offsetof("peer", "onion")) != 0; n++) {
+      if (torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_CTRL &&
+          torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_FRIEND) {
         bottom_index = 0; // default to view pending list
       }
     }
@@ -647,7 +648,7 @@ void setBottomIndex() {
 }
 
 void changeNick(int n, TextEditingController tec) {
-  String peernick = getter_string(n, -1, -1, offsetof("peer", "peernick"));
+  String peernick = getter_string(n, INT_MIN, -1, offsetof("peer", "peernick"));
   if (tec.text.isNotEmpty && tec.text != peernick) {
     Pointer<Utf8> new_nick = tec.text.toNativeUtf8(); // free'd by calloc.free
     torx.change_nick(n, new_nick);
@@ -673,7 +674,7 @@ int handle_stuff(int n, int i) {
   int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
   int group_msg = protocol_int(p_iter, "group_msg");
   int nnn = n;
-  int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+  int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
   if (group_msg != 0 && owner == ENUM_OWNER_GROUP_PEER) {
     int g = torx.set_g(n, nullptr);
     nnn = torx.getter_group_int(g, offsetof("group", "n"));
@@ -741,10 +742,10 @@ int ui_group_join_public(String name, String encoded_id) {
 }
 
 Color ui_statusColor(int n) {
-  int sendfd_connected = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "sendfd_connected"));
-  int recvfd_connected = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "recvfd_connected"));
+  int sendfd_connected = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "sendfd_connected"));
+  int recvfd_connected = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "recvfd_connected"));
   Color returnColor;
-  if (torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_BLOCKED) {
+  if (torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_BLOCKED) {
     returnColor = Colors.red;
   } else if (sendfd_connected > 0 && recvfd_connected > 0) {
     returnColor = Colors.green;

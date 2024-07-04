@@ -104,6 +104,7 @@ const int ENUM_PROTOCOL_PIPE_AUTH = 25078;
 
 typedef Size_t = Size;
 typedef Time_t = Long; // GOAT WARNING: *should* be ok? TODO
+int INT_MIN = -(1 << 31); // -2147483648;
 
 const int MAX_PEERS = 4096; // GOAT this isnt ideal because library has no such limitation. this is just laziness. TODO
 
@@ -1424,7 +1425,6 @@ class torx {
 
   static Pointer<Uint32> sing_expiration_days = dynamicLibrary.lookup('sing_expiration_days'); // utilized
   static Pointer<Uint32> mult_expiration_days = dynamicLibrary.lookup('mult_expiration_days'); // utilized
-  static Pointer<Uint32> show_log_days = dynamicLibrary.lookup('show_log_days'); // utilized
   static Pointer<Uint32> global_threads = dynamicLibrary.lookup('global_threads'); // utilized
 
   // Confirmed to work. Pass directly to torx.pthread_rwlock_rdlock(mutex);

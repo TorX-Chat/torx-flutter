@@ -41,7 +41,7 @@ class Callbacks {
     t_peer.unread[n] = 0;
     t_peer.pm_n[n] = -1;
     t_peer.edit_n[n] = -1;
-    t_peer.edit_i[n] = -1;
+    t_peer.edit_i[n] = INT_MIN;
     t_peer.t_file[n] = t_file_class();
   }
 
@@ -109,7 +109,7 @@ class Callbacks {
     }
     changeNotifierTotalIncoming.callback(integer: -1);
     changeNotifierDataTables.callback(integer: n);
-    String peernick = getter_string(n, -1, -1, offsetof("peer", "peernick")); // 8
+    String peernick = getter_string(n, INT_MIN, -1, offsetof("peer", "peernick")); // 8
     if (peernick.isEmpty) {
       error(0, "nullptr in cb_type 8a");
       return;
@@ -127,7 +127,7 @@ class Callbacks {
         IconButton(
           icon: const Icon(Icons.thumb_down),
           onPressed: () {
-            int peer_index = torx.getter_int(n, -1, -1, -1, offsetof("peer", "peer_index"));
+            int peer_index = torx.getter_int(n, INT_MIN, -1, -1, offsetof("peer", "peer_index"));
             torx.takedown_onion(peer_index, 1);
           },
         ),
@@ -141,7 +141,7 @@ class Callbacks {
     // GOAT check if ctrl before updating chatlist
     changeNotifierChatList.callback(integer: owner);
     if (generated_n > -1) {
-      String generated = getter_string(generated_n, -1, -1, offsetof("peer", "onion"));
+      String generated = getter_string(generated_n, INT_MIN, -1, offsetof("peer", "onion"));
       if (generated.startsWith('000000')) {
         changeNotifierOnionReady.callback(integer: -1);
         entryAddGenerateOutputController.clear();
@@ -150,7 +150,7 @@ class Callbacks {
   }
 
   void peer_online_cb_ui(int n) {
-    int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
     if (n == global_n || owner == ENUM_OWNER_GROUP_PEER) {
       changeNotifierOnlineOffline.callback(integer: n);
     }
@@ -172,8 +172,8 @@ class Callbacks {
   }
 
   void onion_ready_cb_ui(int n) {
-    String onion = getter_string(n, -1, -1, offsetof("peer", "onion"));
-    String torxid = getter_string(n, -1, -1, offsetof("peer", "torxid"));
+    String onion = getter_string(n, INT_MIN, -1, offsetof("peer", "onion"));
+    String torxid = getter_string(n, INT_MIN, -1, offsetof("peer", "torxid"));
     if (torxid.isEmpty || onion.isEmpty) {
       return;
     }
@@ -240,7 +240,7 @@ class Callbacks {
         t_peer.mute[n] = int.parse(setting_value.toDartString());
       } else if (name == "unread") {
         if (log_unread) {
-          int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+          int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
           t_peer.unread[n] = int.parse(setting_value.toDartString());
           if (t_peer.unread[n] > 0) {
             if (owner == ENUM_OWNER_GROUP_CTRL) {
@@ -284,7 +284,7 @@ class Callbacks {
   }
 
   void print_message_cb_ui(int n, int i, int scroll) {
-    if (n < 0 || i < 0 || scroll < 0) {
+    if (n < 0 || i == INT_MIN || scroll < 0) {
       error(0, "Sanity checkfailed in print_message_cb_ui");
       return;
     }
@@ -295,7 +295,7 @@ class Callbacks {
       if (notifiable == 0) {
         return;
       }
-      int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+      int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
       int nn = n;
       if (owner == ENUM_OWNER_GROUP_PEER) {
         int g = torx.set_g(n, nullptr);
@@ -307,7 +307,7 @@ class Callbacks {
         if (t_peer.mute[n] == 0 && t_peer.mute[nn] == 0) {
           int group_pm = protocol_int(p_iter, "group_pm");
           Noti.showBigTextNotification(
-              title: getter_string(n, -1, -1, offsetof("peer", "peernick")),
+              title: getter_string(n, INT_MIN, -1, offsetof("peer", "peernick")),
               body: null_terminated_len != 0 ? getter_string(n, i, -1, offsetof("message", "message")) : protocol_string(p_iter, offsetof("protocols", "name")),
               payload: "$n $group_pm",
               fln: flutterLocalNotificationsPlugin);
@@ -334,7 +334,7 @@ class Callbacks {
         ); */
     } else if (stat != ENUM_MESSAGE_RECV && scroll == 1) {
       // "section 9jfj20f0w" this appears to be for clearing notifications after responding via notification
-      int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+      int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
       int nn = n;
       if (owner == ENUM_OWNER_GROUP_PEER) {
         int g = torx.set_g(n, nullptr);
@@ -370,8 +370,8 @@ class Callbacks {
       return;
     }
     int protocol = protocol_int(p_iter, "protocol");
-    int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
-    int status = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "status"));
+    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
+    int status = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "status"));
     if ((owner == ENUM_OWNER_GROUP_PEER && t_peer.mute[n] != 0) || status == ENUM_STATUS_BLOCKED) {
       torx.torx_free_simple(data as Pointer<Void>);
       data = nullptr;
@@ -398,7 +398,7 @@ class Callbacks {
           // if not on peer_n(pm), try group_n (public)
           int g = torx.set_g(n, nullptr);
           relevant_n = torx.getter_group_int(g, offsetof("group", "n"));
-          owner = torx.getter_uint8(relevant_n, -1, -1, -1, offsetof("peer", "owner"));
+          owner = torx.getter_uint8(relevant_n, INT_MIN, -1, -1, offsetof("peer", "owner"));
           stream_cb_ui(n, p_iter, data, data_len); // recurse
         } else {
           error(0, "Peer requested a sticker they dont have access to (either they are buggy or malicious, or our MAX_PEERS is too small). Report this.");

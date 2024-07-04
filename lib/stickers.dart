@@ -47,7 +47,7 @@ void ui_sticker_send(int s) {
   }
   int g = -1;
   int g_invite_required = 0;
-  int owner = torx.getter_uint8(global_n, -1, -1, -1, offsetof("peer", "owner"));
+  int owner = torx.getter_uint8(global_n, INT_MIN, -1, -1, offsetof("peer", "owner"));
   if (owner == ENUM_OWNER_GROUP_CTRL) {
     g = torx.set_g(global_n, nullptr);
     g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));

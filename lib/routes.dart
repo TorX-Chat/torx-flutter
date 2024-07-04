@@ -39,7 +39,7 @@ void response(NotificationResponse notificationResponse) {
   int group_pm = int.parse(parts[1]);
 //    printf("Checkpoint notification response: $n $group_pm ${notificationResponse.input}");
   Pointer<Utf8> message = notificationResponse.input!.toNativeUtf8(); // free'd by calloc.free
-  int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+  int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
   if (group_pm != 0) {
     torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
   } else if (owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
@@ -271,7 +271,7 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
                       onTap: () {
                         if (widget.type == ENUM_OWNER_GROUP_PEER) {
                           t_peer.edit_n[global_n] = -1;
-                          t_peer.edit_i[global_n] = -1;
+                          t_peer.edit_i[global_n] = INT_MIN;
                           t_peer.pm_n[global_n] = arrayFriends[index];
                           Navigator.pop(context);
                         } else {
@@ -294,7 +294,7 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
                             child: dot,
                           ),
                           title: Text(
-                            getter_string(arrayFriends[index], -1, -1, offsetof("peer", "peernick")),
+                            getter_string(arrayFriends[index], INT_MIN, -1, offsetof("peer", "peernick")),
                             style: TextStyle(color: color.group_or_user_name, fontWeight: FontWeight.bold),
                           )));
                 },
@@ -340,7 +340,7 @@ class RouteChat extends StatefulWidget {
 
 class _RouteChatState extends State<RouteChat> {
   ScrollController scrollController = ScrollController();
-  TextEditingController controllerNick = TextEditingController(text: global_n > -1 ? getter_string(global_n, -1, -1, offsetof("peer", "peernick")) : null);
+  TextEditingController controllerNick = TextEditingController(text: global_n > -1 ? getter_string(global_n, INT_MIN, -1, offsetof("peer", "peernick")) : null);
   Icon messageIcon = Icon(Icons.attach_file, color: color.torch_off);
   Widget statusIcon = const Icon(Icons.lock_open);
   String statusText = "";
@@ -351,7 +351,7 @@ class _RouteChatState extends State<RouteChat> {
   String loggingText = "";
   String muteText = "";
   String blockText = "";
-  int owner = 0; // torx.getter_uint8(widget.n, -1, -1, -1, offsetof("peer", "owner"));
+  int owner = 0; // torx.getter_uint8(widget.n, INT_MIN, -1, -1, offsetof("peer", "owner"));
   int g = -1;
   int g_invite_required = 0;
   double msgBorderRadius = 10;
@@ -364,7 +364,7 @@ class _RouteChatState extends State<RouteChat> {
     }
     IconData chooseIcon(int n) {
       IconData returnIcon;
-      if (torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "v3auth")) == 1) {
+      if (torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "v3auth")) == 1) {
         returnIcon = Icons.lock;
       } else {
         returnIcon = Icons.lock_open;
@@ -386,7 +386,7 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   void setBlockIcon(int n) {
-    if (torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_BLOCKED) {
+    if (torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_BLOCKED) {
       blockColor = Colors.red;
       blockText = text.blocked;
     } else {
@@ -396,7 +396,7 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   void setLoggingIcon(int n) {
-    int log_messages = torx.getter_int8(n, -1, -1, -1, offsetof("peer", "log_messages"));
+    int log_messages = torx.getter_int8(n, INT_MIN, -1, -1, offsetof("peer", "log_messages"));
     int global_log_messages = threadsafe_read_global_Uint8("global_log_messages");
     if (log_messages == -1) {
       loggingText = text.log_never;
@@ -418,7 +418,7 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   void toggleLogging(int n) {
-    int log_messages = torx.getter_int8(n, -1, -1, -1, offsetof("peer", "log_messages"));
+    int log_messages = torx.getter_int8(n, INT_MIN, -1, -1, offsetof("peer", "log_messages"));
     if (log_messages == -1 || log_messages == 0) {
       log_messages++;
     } else if (log_messages == 1) {
@@ -428,10 +428,10 @@ class _RouteChatState extends State<RouteChat> {
     }
     Pointer<Int8> setting = malloc(1); // free'd by calloc.free
     setting.value = log_messages;
-    torx.setter(n, -1, -1, -1, offsetof("peer", "log_messages"), setting as Pointer<Void>, 1);
+    torx.setter(n, INT_MIN, -1, -1, offsetof("peer", "log_messages"), setting as Pointer<Void>, 1);
     calloc.free(setting);
     setting = nullptr;
-    int peer_index = torx.getter_int(n, -1, -1, -1, offsetof("peer", "peer_index"));
+    int peer_index = torx.getter_int(n, INT_MIN, -1, -1, offsetof("peer", "peer_index"));
     set_setting_string(0, peer_index, "logging", log_messages.toString());
   }
 
@@ -441,13 +441,13 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   void toggleDelete(int n) {
-    int peer_index = torx.getter_int(n, -1, -1, -1, offsetof("peer", "peer_index"));
+    int peer_index = torx.getter_int(n, INT_MIN, -1, -1, offsetof("peer", "peer_index"));
     torx.takedown_onion(peer_index, 1);
     changeNotifierChatList.callback(integer: n);
   }
 
   void setStatus(int n) {
-    int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_GROUP_CTRL) {
       int g = torx.set_g(n, nullptr);
       int g_peercount = torx.getter_group_uint32(g, offsetof("group", "peercount"));
@@ -455,10 +455,10 @@ class _RouteChatState extends State<RouteChat> {
       return;
     }
 
-    int sendfd_connected = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "sendfd_connected"));
-    int recvfd_connected = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "recvfd_connected"));
+    int sendfd_connected = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "sendfd_connected"));
+    int recvfd_connected = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "recvfd_connected"));
     if (sendfd_connected == 0 || recvfd_connected == 0) {
-      int last_seen = torx.getter_time(n, -1, -1, -1, offsetof("peer", "last_seen"));
+      int last_seen = torx.getter_time(n, INT_MIN, -1, -1, offsetof("peer", "last_seen"));
       if (last_seen > 0) {
         // NOTE: integer size is time_t
         statusText = text.status_last_seen + DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(last_seen * 1000, isUtc: false));
@@ -471,7 +471,7 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   Widget messageTime(int n, int index) {
-    int owner = torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner"));
+    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
     int stat = torx.getter_uint8(n, index, -1, -1, offsetof("message", "stat"));
     Widget child;
     if (stat == ENUM_MESSAGE_FAIL && owner != ENUM_OWNER_GROUP_CTRL) {
@@ -483,7 +483,7 @@ class _RouteChatState extends State<RouteChat> {
       torx.torx_free_simple(p as Pointer<Void>);
       p = nullptr;
       if (owner == ENUM_OWNER_GROUP_PEER) {
-        prefix = "${getter_string(n, -1, -1, offsetof("peer", "peernick"))} ";
+        prefix = "${getter_string(n, INT_MIN, -1, offsetof("peer", "peernick"))} ";
       }
       child = Padding(
           padding: const EdgeInsets.only(right: 5.0, left: 5.0),
@@ -623,14 +623,14 @@ class _RouteChatState extends State<RouteChat> {
           AnimatedBuilder(
               animation: t_peer.t_file[nnn].changeNotifierTransferProgress[fff],
               builder: (BuildContext context, Widget? snapshot) {
-                String filename = getter_string(nnn, -1, fff, offsetof("file", "filename"));
-                String file_path = getter_string(nnn, -1, fff, offsetof("file", "file_path"));
-                int size = torx.getter_uint64(nnn, -1, fff, -1, offsetof("file", "size"));
+                String filename = getter_string(nnn, INT_MIN, fff, offsetof("file", "filename"));
+                String file_path = getter_string(nnn, INT_MIN, fff, offsetof("file", "file_path"));
+                int size = torx.getter_uint64(nnn, INT_MIN, fff, -1, offsetof("file", "size"));
                 int transferred = torx.calculate_transferred(nnn, fff);
                 Pointer<Utf8> file_size_text_p = torx.file_progress_string(nnn, fff);
                 String file_size_text = file_size_text_p.toDartString();
                 torx.torx_free_simple(file_size_text_p as Pointer<Void>);
-                int status = torx.getter_uint8(nnn, -1, fff, -1, offsetof("file", "status"));
+                int status = torx.getter_uint8(nnn, INT_MIN, fff, -1, offsetof("file", "status"));
                 //    printf("Checkpoint file: $transferred $status");
                 bool finished_file = is_finished_file(transferred, size, file_path);
                 bool finished_image = false;
@@ -726,7 +726,7 @@ class _RouteChatState extends State<RouteChat> {
 
       if (local_group_n > -1) {
         peercount = torx.getter_group_uint32(local_g, offsetof("group", "peercount"));
-        group_name = getter_string(local_group_n, -1, -1, offsetof("peer", "peernick"));
+        group_name = getter_string(local_group_n, INT_MIN, -1, offsetof("peer", "peernick"));
       } else {
         peercount = untrusted_peercount;
         group_name = getter_group_id(local_g);
@@ -820,7 +820,7 @@ class _RouteChatState extends State<RouteChat> {
     int stat = torx.getter_uint8(n, index, -1, -1, offsetof("message", "stat"));
     if (p_iter < 0 ||
         protocol_int(p_iter, "notifiable") == 0 ||
-        (stat == ENUM_MESSAGE_RECV && t_peer.mute[n] == 1 && torx.getter_uint8(n, -1, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER)) {
+        (stat == ENUM_MESSAGE_RECV && t_peer.mute[n] == 1 && torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER)) {
       return const Padding(padding: EdgeInsets.only(right: 0.0)); // NOTE: invisible widget of zero size, for placeholder / deleted / ignored messages. could still flash something.
     } else {
       return Padding(
@@ -839,7 +839,7 @@ class _RouteChatState extends State<RouteChat> {
   int former_text_len = t_peer.unsent[global_n].length;
   @override
   Widget build(BuildContext context) {
-    owner = torx.getter_uint8(widget.n, -1, -1, -1, offsetof("peer", "owner"));
+    owner = torx.getter_uint8(widget.n, INT_MIN, -1, -1, offsetof("peer", "owner"));
     g = owner == ENUM_OWNER_GROUP_CTRL ? torx.set_g(widget.n, nullptr) : -1;
     if (g > -1) {
       g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
@@ -1086,7 +1086,7 @@ class _RouteChatState extends State<RouteChat> {
                             if (g > -1) {
                               msg_count = torx.getter_group_uint32(g, offsetof("group", "msg_count"));
                             } else {
-                              msg_count = torx.getter_int(widget.n, -1, -1, -1, offsetof("peer", "max_i")) + 1;
+                              msg_count = torx.getter_int(widget.n, INT_MIN, -1, -1, offsetof("peer", "max_i")) + 1;
                             }
                             return owner == ENUM_OWNER_GROUP_CTRL
                                 ? ListView.builder(
@@ -1130,11 +1130,11 @@ class _RouteChatState extends State<RouteChat> {
                             setState(() {
                               t_peer.pm_n[widget.n] = -1;
                               t_peer.edit_n[widget.n] = -1;
-                              t_peer.edit_i[widget.n] = -1;
+                              t_peer.edit_i[widget.n] = INT_MIN;
                             });
                           },
                           label: t_peer.pm_n[widget.n] > -1
-                              ? Text("${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], -1, -1, offsetof("peer", "peernick"))}")
+                              ? Text("${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], INT_MIN, -1, offsetof("peer", "peernick"))}")
                               : Text(text.cancel_editing));
                     }),
               Row(
@@ -1218,7 +1218,7 @@ class _RouteChatState extends State<RouteChat> {
                           torx.message_edit(t_peer.edit_n[widget.n], t_peer.edit_i[widget.n], message);
                           setState(() {
                             t_peer.edit_n[widget.n] = -1;
-                            t_peer.edit_i[widget.n] = -1;
+                            t_peer.edit_i[widget.n] = INT_MIN;
                           });
                         } else if (t_peer.edit_n[widget.n] > -1) {
                           torx.change_nick(t_peer.edit_n[widget.n], message);
@@ -1309,11 +1309,11 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
       itemBuilder: (context, index) {
         Color dotColor = ui_statusColor(arrayFriends[index]);
         Pointer<Int> nn_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-        int i = -1;
+        int i = INT_MIN;
         for (int count_back = 0;
-            (i = torx.set_last_message(nn_p, arrayFriends[index], count_back)) > torx.getter_int(nn_p.value, -1, -1, -1, offsetof("peer", "min_i")) - 1;
+            (i = torx.set_last_message(nn_p, arrayFriends[index], count_back)) > torx.getter_int(nn_p.value, INT_MIN, -1, -1, offsetof("peer", "min_i")) - 1;
             count_back++) {
-          if (t_peer.mute[nn_p.value] == 1 && torx.getter_uint8(nn_p.value, -1, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER) {
+          if (t_peer.mute[nn_p.value] == 1 && torx.getter_uint8(nn_p.value, INT_MIN, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER) {
             continue; // do not print, these are hidden messages from ignored users
           } else {
             break;
@@ -1325,9 +1325,9 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
         String prefix = "";
         String lastMessage = "";
         int p_iter;
-        if (i > -1 && (p_iter = torx.getter_int(nn, i, -1, -1, offsetof("message", "p_iter"))) > -1) {
-          int max_i = torx.getter_int(nn, -1, -1, -1, offsetof("peer", "max_i"));
-          if (max_i > -1 || t_peer.unsent[nn].isNotEmpty) {
+        if (i > INT_MIN && (p_iter = torx.getter_int(nn, i, -1, -1, offsetof("message", "p_iter"))) > -1) {
+          int max_i = torx.getter_int(nn, INT_MIN, -1, -1, offsetof("peer", "max_i"));
+          if (max_i > INT_MIN || t_peer.unsent[nn].isNotEmpty) {
             int protocol = protocol_int(p_iter, "protocol");
             int file_offer = protocol_int(p_iter, "file_offer");
             int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
@@ -1350,7 +1350,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
                 nnn = torx.getter_group_int(g, offsetof("group", "n"));
               }
               int f = torx.set_f_from_i(nnn, i);
-              f > -1 ? lastMessage = getter_string(nnn, -1, f, offsetof("file", "filename")) : lastMessage = "Invalid file offer";
+              f > -1 ? lastMessage = getter_string(nnn, INT_MIN, f, offsetof("file", "filename")) : lastMessage = "Invalid file offer";
             } else if (null_terminated_len > 0) {
               lastMessage = getter_string(nn, i, -1, offsetof("message", "message"));
             } else if (protocol == ENUM_PROTOCOL_GROUP_OFFER || protocol == ENUM_PROTOCOL_GROUP_OFFER_FIRST) {
@@ -1370,7 +1370,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
             child: dot,
           ),
           title: Text(
-            getter_string(arrayFriends[index], -1, -1, offsetof("peer", "peernick")),
+            getter_string(arrayFriends[index], INT_MIN, -1, offsetof("peer", "peernick")),
             style: TextStyle(color: color.group_or_user_name, fontWeight: FontWeight.bold),
           ),
           subtitle: Text(
@@ -1384,7 +1384,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
             global_n = arrayFriends[index];
             if (t_peer.unread[arrayFriends[index]] > 0) {
               //    printf("Checkpoint unreads to wipe");
-              int owner = torx.getter_uint8(arrayFriends[index], -1, -1, -1, offsetof("peer", "owner"));
+              int owner = torx.getter_uint8(arrayFriends[index], INT_MIN, -1, -1, offsetof("peer", "owner"));
               if (owner == ENUM_OWNER_GROUP_CTRL) {
                 totalUnreadGroup -= t_peer.unread[arrayFriends[index]];
               } else {
@@ -1892,13 +1892,13 @@ class _RouteHomeState extends State<RouteHome> {
     List<TextEditingController> controller = [];
     for (int i = 0; i < len; i++) {
       controller.add(TextEditingController());
-      controller[i].text = getter_string(arrayN[i], -1, -1, offsetof("peer", "peernick")); // 8
+      controller[i].text = getter_string(arrayN[i], INT_MIN, -1, offsetof("peer", "peernick")); // 8
     }
 
     List<DataCell> currentCells(int i) {
       List<DataCell> currentCells;
       bool enabled = false; // only relevant to Sing and Mult
-      if (torx.getter_uint8(arrayN[i], -1, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_FRIEND) {
+      if (torx.getter_uint8(arrayN[i], INT_MIN, -1, -1, offsetof("peer", "status")) == ENUM_STATUS_FRIEND) {
         enabled = true;
       }
       if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_PEER) {
@@ -1922,7 +1922,7 @@ class _RouteHomeState extends State<RouteHome> {
             ),
           )),
           DataCell(Text(
-            getter_string(arrayN[i], -1, -1, offsetof("peer", lookup)),
+            getter_string(arrayN[i], INT_MIN, -1, offsetof("peer", lookup)),
             style: TextStyle(color: color.page_subtitle),
           )),
         ];
@@ -1956,7 +1956,7 @@ class _RouteHomeState extends State<RouteHome> {
             ),
           )),
           DataCell(Text(
-            getter_string(arrayN[i], -1, -1, offsetof("peer", lookup)),
+            getter_string(arrayN[i], INT_MIN, -1, offsetof("peer", lookup)),
             style: TextStyle(color: color.page_subtitle),
           )),
         ];
@@ -2219,8 +2219,8 @@ class _RouteHomeState extends State<RouteHome> {
             if (currentRowN > -1)
               MaterialButton(
                 onPressed: () {
-                  int former_owner = torx.getter_uint8(currentRowN, -1, -1, -1, offsetof("peer", "owner"));
-                  int peer_index = torx.getter_int(currentRowN, -1, -1, -1, offsetof("peer", "peer_index"));
+                  int former_owner = torx.getter_uint8(currentRowN, INT_MIN, -1, -1, offsetof("peer", "owner"));
+                  int peer_index = torx.getter_int(currentRowN, INT_MIN, -1, -1, offsetof("peer", "peer_index"));
                   torx.takedown_onion(peer_index, 1); // currentRowN
                   if (dtCurrentType == ENUM_OWNER_CTRL) {
                     totalIncoming--;
@@ -2247,9 +2247,9 @@ class _RouteHomeState extends State<RouteHome> {
               MaterialButton(
                 onPressed: () {
                   if (shorten_torxids == 1) {
-                    Clipboard.setData(ClipboardData(text: getter_string(currentRowN, -1, -1, offsetof("peer", "torxid"))));
+                    Clipboard.setData(ClipboardData(text: getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "torxid"))));
                   } else {
-                    Clipboard.setData(ClipboardData(text: getter_string(currentRowN, -1, -1, offsetof("peer", "onion"))));
+                    Clipboard.setData(ClipboardData(text: getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "onion"))));
                   }
                 },
                 height: 20,
@@ -2266,7 +2266,7 @@ class _RouteHomeState extends State<RouteHome> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => RouteShowQr(getter_string(currentRowN, -1, -1, offsetof("peer", "torxid")))),
+                    MaterialPageRoute(builder: (context) => RouteShowQr(getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "torxid")))),
                   );
                 },
                 height: 20,
@@ -2474,7 +2474,7 @@ class _widget_route_generateState extends State<widget_route_generate> {
                   generated_n = changeNotifierOnionReady.section.integer;
                   if ((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) {
                     generated =
-                        group ? group_id_p : torx.getter_string(nullptr, changeNotifierOnionReady.section.integer, -1, -1, offsetof("peer", "torxid")); // GOAT somehow free???
+                        group ? group_id_p : torx.getter_string(nullptr, changeNotifierOnionReady.section.integer, INT_MIN, -1, offsetof("peer", "torxid")); // GOAT somehow free???
                   }
                   //    printf("Group g: $group $g");
                   bool deleted = false;
@@ -2899,7 +2899,6 @@ class _RouteSettingsState extends State<RouteSettings> {
   String? _selectedCpuThreads;
   String? _selectedSuffixLength;
   bool _selectedAutoMult = true;
-  TextEditingController controllerLogDays = TextEditingController(text: torx.show_log_days.value.toString());
   TextEditingController controllerSingDays = TextEditingController(text: torx.sing_expiration_days.value.toString());
   TextEditingController controllerMultDays = TextEditingController(text: torx.mult_expiration_days.value.toString());
   TextEditingController controllerCustomInputPrivkey = TextEditingController();
@@ -3382,37 +3381,6 @@ class _RouteSettingsState extends State<RouteSettings> {
                         });
                       }),
                 ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_log_days,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Focus(
-                    onFocusChange: (hasFocus) {
-                      hasFocus ? null : _saveIntSetting(torx.show_log_days as Pointer<Int>, "show_log_days", controllerLogDays);
-                    },
-                    child: TextField(
-                      controller: controllerLogDays,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      enableIMEPersonalizedLearning: false,
-                      scribbleEnabled: false,
-                      spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                      showCursor: true,
-                      keyboardType: TextInputType.number,
-                      onEditingComplete: () {
-                        _saveIntSetting(torx.show_log_days as Pointer<Int>, "show_log_days", controllerLogDays);
-                      },
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: color.write_message_text),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                      ),
-                    )),
                 const SizedBox(height: 5),
                 Row(
                   children: [

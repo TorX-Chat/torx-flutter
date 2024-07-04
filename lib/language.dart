@@ -152,7 +152,6 @@ class text {
   static String set_tor = "";
   static String set_cpu = "";
   static String set_suffix = "";
-  static String set_log_days = ""; // (on startup)";
   static String set_validity_sing = "";
   static String set_validity_mult = "";
   static String set_automatic_mult = "";
@@ -342,7 +341,6 @@ void initialize_language() {
     text.set_tor = "Select Custom Tor binary location (effective immediately)";
     text.set_cpu = "Maximum CPU threads for TorX-ID generation";
     text.set_suffix = "Minimum Suffix Length for TorX-ID generation";
-    text.set_log_days = "Number of previous days to show in chat window"; // (on startup)";
     text.set_validity_sing = "Single-Use TorX-ID expiration time (days)";
     text.set_validity_mult = "Multiple-Use TorX-ID expiration time (days)";
     text.set_automatic_mult = "Automatically Accept Incoming Mult Requests";
