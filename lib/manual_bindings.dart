@@ -918,6 +918,14 @@ String getter_string(int n, int i, int f, int offset) {
   return ret;
 }
 
+int get_file_size(String file_path) {
+  Pointer<Utf8> file_path_p = file_path.toNativeUtf8();
+  int size = torx.get_file_size(file_path_p);
+  calloc.free(file_path_p);
+  file_path_p = nullptr;
+  return size;
+}
+
 String protocol_string(int p_iter, int offset) {
   torx.pthread_rwlock_rdlock(torx.mutex_protocols);
   Pointer<Utf8> pointer = torx.protocol_access(p_iter, offset) as Pointer<Utf8>; // DO NOT FREE

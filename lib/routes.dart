@@ -529,17 +529,6 @@ class _RouteChatState extends State<RouteChat> {
         child: Padding(padding: const EdgeInsets.all(8.0), child: child));
   }
 
-  bool is_finished_file(int transferred, int size, String file_path) {
-    final file = File(file_path);
-    if (size > 0 && transferred == size && file.existsSync() && file.lengthSync() == size) {
-      /*    final imageBytes = file.readAsBytesSync();
-      final decodedImage = decodeImage(imageBytes); // requires pub get image // GOAT consider actually checking if valid/existing
-      if (decodedImage == null) return false; */ // TODO BAD IDEA, because this runs every rebuild
-      return true;
-    }
-    return false;
-  }
-
   bool is_image_file(int transferred, int size, String file_path) {
     //  final file = File(file_path);
     if (file_path.endsWith(".jpg") ||
@@ -632,7 +621,7 @@ class _RouteChatState extends State<RouteChat> {
                 torx.torx_free_simple(file_size_text_p as Pointer<Void>);
                 int status = torx.getter_uint8(nnn, INT_MIN, fff, -1, offsetof("file", "status"));
                 //    printf("Checkpoint file: $transferred $status");
-                bool finished_file = is_finished_file(transferred, size, file_path);
+                bool finished_file = size > 0 && size == transferred && size == get_file_size(file_path) ? true : false;
                 bool finished_image = false;
                 if (finished_file) finished_image = is_image_file(transferred, size, file_path);
                 return GestureDetector(
@@ -1310,9 +1299,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
         Color dotColor = ui_statusColor(arrayFriends[index]);
         Pointer<Int> nn_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
         int i = INT_MIN;
-        for (int count_back = 0;
-            (i = torx.set_last_message(nn_p, arrayFriends[index], count_back)) > torx.getter_int(nn_p.value, INT_MIN, -1, -1, offsetof("peer", "min_i")) - 1;
-            count_back++) {
+        for (int count_back = 0; (i = torx.set_last_message(nn_p, arrayFriends[index], count_back)) > INT_MIN; count_back++) {
           if (t_peer.mute[nn_p.value] == 1 && torx.getter_uint8(nn_p.value, INT_MIN, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER) {
             continue; // do not print, these are hidden messages from ignored users
           } else {
