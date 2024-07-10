@@ -934,10 +934,8 @@ class _RouteChatState extends State<RouteChat> {
                       ),
                       iconColor: loggingColor,
                       onTap: () {
-                        //    setState(() {
                         toggleLogging(widget.n);
-                        //  });
-                        Navigator.pop(context); // pop the menu because setState doesn't update it
+                        Navigator.pop(context); // pop the menu because set State doesn't update it (we tried)
                       },
                     ),
                   ),
@@ -950,10 +948,8 @@ class _RouteChatState extends State<RouteChat> {
                         style: TextStyle(color: color.page_title),
                       ),
                       onTap: () {
-                        //    setState(() {
                         toggleMute(widget.n);
-                        //  });
-                        Navigator.pop(context); // pop the menu because setState doesn't update it
+                        Navigator.pop(context); // pop the menu because set State doesn't update it (we tried)
                       },
                     ),
                   ),
@@ -968,10 +964,8 @@ class _RouteChatState extends State<RouteChat> {
                         ),
                         iconColor: blockColor,
                         onTap: () {
-                          //      setState(() {
                           toggleBlock(widget.n);
-                          //      });
-                          Navigator.pop(context); // pop the menu because setState doesn't update it
+                          Navigator.pop(context); // pop the menu because set State doesn't update it (we tried)
                         },
                       ),
                     ),
@@ -1106,26 +1100,30 @@ class _RouteChatState extends State<RouteChat> {
                                     },
                                   );
                           })),
-              if (t_peer.pm_n[widget.n] > -1 || t_peer.edit_n[widget.n] > -1)
-                AnimatedBuilder(
-                    animation: changeNotifierActivity,
-                    builder: (BuildContext context, Widget? snapshot) {
-                      return FloatingActionButton.extended(
-                          onPressed: () {
-                            if (t_peer.edit_n[widget.n] > -1) {
-                              former_text_len = 0;
-                              controllerMessage.clear();
-                            }
-                            setState(() {
-                              t_peer.pm_n[widget.n] = -1;
-                              t_peer.edit_n[widget.n] = -1;
-                              t_peer.edit_i[widget.n] = INT_MIN;
-                            });
-                          },
-                          label: t_peer.pm_n[widget.n] > -1
-                              ? Text("${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], INT_MIN, -1, offsetof("peer", "peernick"))}")
-                              : Text(text.cancel_editing));
-                    }),
+              AnimatedBuilder(
+                  animation: changeNotifierActivity,
+                  builder: (BuildContext context, Widget? snapshot) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (t_peer.pm_n[widget.n] > -1 || t_peer.edit_n[widget.n] > -1)
+                          FloatingActionButton.extended(
+                              onPressed: () {
+                                if (t_peer.edit_n[widget.n] > -1) {
+                                  former_text_len = 0;
+                                  controllerMessage.clear();
+                                }
+                                t_peer.pm_n[widget.n] = -1;
+                                t_peer.edit_n[widget.n] = -1;
+                                t_peer.edit_i[widget.n] = INT_MIN;
+                                changeNotifierActivity.callback(integer: 1); // value is arbitrary
+                              },
+                              label: t_peer.pm_n[widget.n] > -1
+                                  ? Text("${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], INT_MIN, -1, offsetof("peer", "peernick"))}")
+                                  : Text(text.cancel_editing))
+                      ],
+                    );
+                  }),
               Row(
                 children: [
                   //  const Icon(Icons.emoji_emotions_outlined), //  decide whether to implement a unicode emoji picker (homemade is cleaner/safer) or to rely on keyboards to offer
@@ -1152,11 +1150,10 @@ class _RouteChatState extends State<RouteChat> {
                             onChanged: (value) {
                               int text_len = controllerMessage.text.length;
                               if (text_len == 0 || former_text_len == 0) {
-                                setState(() {
-                                  controllerMessage.text.isEmpty
-                                      ? messageIcon = Icon(Icons.attach_file, color: color.torch_off)
-                                      : messageIcon = Icon(Icons.send, color: color.torch_off);
-                                });
+                                controllerMessage.text.isEmpty
+                                    ? messageIcon = Icon(Icons.attach_file, color: color.torch_off)
+                                    : messageIcon = Icon(Icons.send, color: color.torch_off);
+                                changeNotifierSendButton.callback(integer: 1); // value is arbitrary
                               }
                               former_text_len = text_len;
                               //  printf("Checkpoint 1, if after detach, t_peer.unsent may not exist for n=${widget.n}");
@@ -1166,80 +1163,78 @@ class _RouteChatState extends State<RouteChat> {
                           ),
                         )),
                   ),
-                  if (controllerMessage.text.isEmpty)
-                    IconButton(
-                        icon: Icon(Icons.gif_box_outlined, color: color.torch_off),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const RouteStickers()),
-                          );
-                        }),
-                  IconButton(
-                    icon: messageIcon,
-                    onPressed: () async {
-                      if (controllerMessage.text.isEmpty) {
-                        // GOAT file_picker here, allow multiple selections
-                        FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
-                        if (result != null) {
-                          List<File> files = result.paths.map((path) => File(path!)).toList();
-                          int file_iter = 0;
-                          while (file_iter < files.length) {
-                            //        printf("Checkpoint send_file ${files[file_iter].path}"); // GOAT file_picker caches. we don't want caching. https://github.com/miguelpruivo/flutter_file_picker/issues/40 https://github.com/miguelpruivo/flutter_file_picker/issues/1093
-                            Pointer<Utf8> file_path = files[file_iter].absolute.path.toNativeUtf8(); // free'd by calloc.free
-                            if (t_peer.pm_n[widget.n] > -1) {
-                              torx.file_send(t_peer.pm_n[widget.n], file_path);
-                            } else {
-                              torx.file_send(widget.n, file_path);
-                            }
-                            calloc.free(file_path);
-                            file_path = nullptr;
-                            setState(() {
-                              // GOAT rebuild only the listview rather than whole route
-                              // GOAT or, far less expensive, add to it dynamically https://googleflutter.com/flutter-add-item-to-listview-dynamically/
-                            });
-                            file_iter++;
-                          }
-                        }
-                      } else {
-                        Pointer<Utf8> message = controllerMessage.text.toNativeUtf8(); // free'd by calloc.free
-                        if (t_peer.edit_n[widget.n] > -1 && t_peer.edit_i[widget.n] > -1) {
-                          torx.message_edit(t_peer.edit_n[widget.n], t_peer.edit_i[widget.n], message);
-                          setState(() {
-                            t_peer.edit_n[widget.n] = -1;
-                            t_peer.edit_i[widget.n] = INT_MIN;
-                          });
-                        } else if (t_peer.edit_n[widget.n] > -1) {
-                          torx.change_nick(t_peer.edit_n[widget.n], message);
-                          setState(() {
-                            t_peer.edit_n[widget.n] = -1;
-                          });
-                        } else if (t_peer.pm_n[widget.n] > -1) {
-                          torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
-                        } else if (owner == ENUM_OWNER_GROUP_CTRL) {
-                          g = torx.set_g(widget.n, nullptr);
-                          g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
-                          if (owner == ENUM_OWNER_GROUP_CTRL && g_invite_required != 0) {
-                            // date && sign private group messages
-                            torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message as Pointer<Void>, message.length);
-                          } else {
-                            torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
-                          }
-                        } else {
-                          torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
-                        }
-                        calloc.free(message);
-                        message = nullptr;
-                        setState(() {
-                          // setState is to change the icon back to Icons.send
-                          former_text_len = 0;
-                          controllerMessage.clear();
-                        });
-                        //      printf("Checkpoint 2, if after detach, t_peer.unsent may not exist for n=${widget.n}");
-                        t_peer.unsent[widget.n] = "";
-                      }
-                    },
-                  ),
+                  AnimatedBuilder(
+                      animation: changeNotifierSendButton,
+                      builder: (BuildContext context, Widget? snapshot) {
+                        return Row(children: [
+                          if (controllerMessage.text.isEmpty)
+                            IconButton(
+                                icon: Icon(Icons.gif_box_outlined, color: color.torch_off),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const RouteStickers()),
+                                  );
+                                }),
+                          IconButton(
+                            icon: messageIcon,
+                            onPressed: () async {
+                              if (controllerMessage.text.isEmpty) {
+                                // GOAT file_picker here, allow multiple selections
+                                FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
+                                if (result != null) {
+                                  List<File> files = result.paths.map((path) => File(path!)).toList();
+                                  int file_iter = 0;
+                                  while (file_iter < files.length) {
+                                    //        printf("Checkpoint send_file ${files[file_iter].path}"); // GOAT file_picker caches. we don't want caching. https://github.com/miguelpruivo/flutter_file_picker/issues/40 https://github.com/miguelpruivo/flutter_file_picker/issues/1093
+                                    Pointer<Utf8> file_path = files[file_iter].absolute.path.toNativeUtf8(); // free'd by calloc.free
+                                    if (t_peer.pm_n[widget.n] > -1) {
+                                      torx.file_send(t_peer.pm_n[widget.n], file_path);
+                                    } else {
+                                      torx.file_send(widget.n, file_path);
+                                    }
+                                    calloc.free(file_path);
+                                    file_path = nullptr;
+                                    file_iter++;
+                                  }
+                                }
+                              } else {
+                                Pointer<Utf8> message = controllerMessage.text.toNativeUtf8(); // free'd by calloc.free
+                                if (t_peer.edit_n[widget.n] > -1 && t_peer.edit_i[widget.n] > -1) {
+                                  torx.message_edit(t_peer.edit_n[widget.n], t_peer.edit_i[widget.n], message);
+                                  t_peer.edit_n[widget.n] = -1;
+                                  t_peer.edit_i[widget.n] = INT_MIN;
+                                } else if (t_peer.edit_n[widget.n] > -1) {
+                                  torx.change_nick(t_peer.edit_n[widget.n], message);
+                                  setState(() {
+                                    t_peer.edit_n[widget.n] = -1;
+                                  }); // SLOW-ROUTE need to rebuild NICKNAME (maybe on all messages, if group, so this might be ok)
+                                } else if (t_peer.pm_n[widget.n] > -1) {
+                                  torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
+                                } else if (owner == ENUM_OWNER_GROUP_CTRL) {
+                                  g = torx.set_g(widget.n, nullptr);
+                                  g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
+                                  if (owner == ENUM_OWNER_GROUP_CTRL && g_invite_required != 0) {
+                                    // date && sign private group messages
+                                    torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message as Pointer<Void>, message.length);
+                                  } else {
+                                    torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
+                                  }
+                                } else {
+                                  torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
+                                }
+                                calloc.free(message);
+                                message = nullptr;
+                                former_text_len = 0;
+                                controllerMessage.clear();
+                                changeNotifierSendButton.callback(integer: 1); // value is arbitrary
+                                //      printf("Checkpoint 2, if after detach, t_peer.unsent may not exist for n=${widget.n}");
+                                t_peer.unsent[widget.n] = "";
+                              }
+                            },
+                          ),
+                        ]);
+                      }),
                 ],
               ),
             ],
@@ -1599,7 +1594,6 @@ class _RouteLogTorXState extends State<RouteLogTorX> {
             style: TextStyle(color: color.page_title),
           ),
           actions: [
-            //      Text(text.debug_level),
             Align(
               alignment: Alignment.center,
               child: Text(
@@ -3470,8 +3464,8 @@ class _RouteSettingsState extends State<RouteSettings> {
                 ),
                 TextField(
                   onChanged: (value) {
-                    if (value.length == 88) {
-                      setState(() {
+                    setState(() {
+                      if (value.length == 88) {
                         wrongLength = false;
                         Pointer<Utf8> p = value.toNativeUtf8(); // free'd by calloc.free
                         if (torx.b64_decoded_size(p) == 64) {
@@ -3483,9 +3477,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                         }
                         calloc.free(p);
                         p = nullptr;
-                      });
-                    } else {
-                      setState(() {
+                      } else {
                         wrongLength = true;
                         if (value.isEmpty) {
                           inputColor = Colors.transparent;
@@ -3493,8 +3485,8 @@ class _RouteSettingsState extends State<RouteSettings> {
                           inputColor = Colors.orange;
                         }
                         validExternal = false;
-                      });
-                    }
+                      }
+                    });
                   },
                   controller: controllerCustomInputPrivkey,
                   autocorrect: false,

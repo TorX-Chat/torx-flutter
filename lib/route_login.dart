@@ -21,29 +21,6 @@ class _RouteLoginState extends State<RouteLogin> {
   String button_text = text.enter;
   TextEditingController entryLoginController = TextEditingController();
 
-/*
-  void _check_keystate(Timer timer) {
-    if (lockout == false) {
-      timer.cancel();
-      if (keyed == true) {
-        // This must be triggered only by login_cb()
-        setBottomIndex();
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) {
-              return const RouteBottom();
-            },
-          ),
-        );
-      } else {
-        setState(() {
-          button_text = text.enter;
-        });
-        entryLoginController.clear();
-      }
-    }
-  } */
-
   void _submit() {
     if (threadsafe_read_global_Uint8("lockout") == 0) {
       button_text = text.wait;

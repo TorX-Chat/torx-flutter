@@ -830,6 +830,7 @@ typedef FnCwrite_bytes = Void Function(Pointer<Utf8>, Pointer<Void>, Size_t);
 typedef FnDARTwrite_bytes = void Function(Pointer<Utf8>, Pointer<Void>, int);
 
 void register_callbacks() {
+  // WARNING: DO NOT USE ERROR MESSAGES HERE. Only print/printf.
   if (callbacks_registered) {
     return;
   }

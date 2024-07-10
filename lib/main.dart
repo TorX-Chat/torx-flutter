@@ -178,9 +178,11 @@ Future<void> requestPermissions() async {
 
 void initialization_functions(BuildContext? context) {
   if (initialized) {
-    error(0, "Already initialized. Bailing from initialization_functions.");
+    printf("Already initialized. Bailing from initialization_functions."); // DO NOT USE ERROR
     return;
   }
+  register_callbacks(); // !!! GOAT DO NOT PUT ANY TORX FUNCTIONS BEFORE THIS !!! TODO
+
   String tor_location = "$nativeLibraryDir/libtor.so";
   String obfs4proxy_location = "nativeLibraryDir/libobfs4proxy.so"; // This is a FAKE location that is replaced by the library with native_library_directory
   String snowflake_location = "nativeLibraryDir/libsnowflake.so"; // This is a FAKE location that is replaced by the library with native_library_directory
@@ -197,9 +199,7 @@ void initialization_functions(BuildContext? context) {
   torx.tor_data_directory[0] = "${workDir.path}/tor".toNativeUtf8(); // hardcoding this. This will override user settings for sanity purposes.
   torx.pthread_rwlock_unlock(torx.mutex_global_variable);
 
-  register_callbacks(); // !!! GOAT DO NOT PUT ANY TORX FUNCTIONS BEFORE THIS !!! TODO
-
-  torx.initial(); // !!! GOAT DO NOT PUT ANY (other) TORX FUNCTIONS BEFORE THIS (such as set_torrc) !!! TODO
+  torx.initial(); // !!! GOAT DO NOT PUT ANY (other) TORX FUNCTIONS BEFORE THIS (such as set_torrc or errorr) !!! TODO
   printf("WARNING: This is debug build. Remember to check torrc and set proxy if necessary: Socks5Proxy 10.0.2.2:PORT");
 
   Directory dir = Directory(nativeLibraryDir);

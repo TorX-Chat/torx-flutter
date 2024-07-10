@@ -213,9 +213,10 @@ class Callbacks {
     if (error_message == nullptr) {
       return;
     }
-    printf(error_message.toDartString());
-    torxLogBuffer = torxLogBuffer + error_message.toDartString();
-    changeNotifierError.callback(string: error_message.toDartString());
+    String message_string = error_message.toDartString();
+    printf(message_string);
+    torxLogBuffer = torxLogBuffer + message_string;
+    changeNotifierError.callback(string: message_string);
     if (scrollcontroller_log_torx.hasClients &&
         scrollcontroller_log_torx.positions.isNotEmpty &&
         scrollcontroller_log_torx.position.pixels == scrollcontroller_log_torx.position.maxScrollExtent) {
