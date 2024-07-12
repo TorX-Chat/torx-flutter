@@ -362,17 +362,7 @@ class _RouteChatState extends State<RouteChat> {
       statusIcon = SvgPicture.asset(path_logo, color: color.logo, width: 40, height: 40);
       return;
     }
-    IconData chooseIcon(int n) {
-      IconData returnIcon;
-      if (torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "v3auth")) == 1) {
-        returnIcon = Icons.lock;
-      } else {
-        returnIcon = Icons.lock_open;
-      }
-      return returnIcon;
-    }
-
-    statusIcon = Icon(chooseIcon(n), color: ui_statusColor(n), size: 40);
+    statusIcon = Icon(Icons.lock, color: ui_statusColor(n), size: 40);
   }
 
   void setMuteIcon(int n) {
