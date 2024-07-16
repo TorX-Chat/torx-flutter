@@ -426,7 +426,7 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   void toggleKill(int n) {
-    torx.kill_code(n);
+    torx.kill_code(n, nullptr);
     changeNotifierChatList.callback(integer: n); // might be pointless here
   }
 
@@ -1816,7 +1816,7 @@ class _RouteGlobalKillState extends State<RouteGlobalKill> {
                     ),
                     MaterialButton(
                       onPressed: () {
-                        torx.kill_code(-1);
+                        torx.kill_code(-1, nullptr);
                       },
                       height: 20,
                       minWidth: 20,

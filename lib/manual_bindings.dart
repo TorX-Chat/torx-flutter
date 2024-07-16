@@ -766,8 +766,8 @@ typedef FnDARTmessage_resend = int Function(int, int);
 typedef FnCmessage_send = Int Function(Int, Uint16, Pointer<Void>, Uint32);
 typedef FnDARTmessage_send = int Function(int, int, Pointer<Void>, int);
 
-typedef FnCkill_code = Void Function(Int);
-typedef FnDARTkill_code = void Function(int);
+typedef FnCkill_code = Void Function(Int, Pointer<Utf8>);
+typedef FnDARTkill_code = void Function(int, Pointer<Utf8>);
 
 typedef FnCfile_request_internal = Void Function(Int, Int);
 typedef FnDARTfile_request_internal = void Function(int, int);
