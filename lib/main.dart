@@ -87,7 +87,7 @@ class t_peer {
   static List<int> unread = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; //11
   static List<int> pm_n = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]; //11
   static List<int> edit_n = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]; //11
-  static List<int> edit_i = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]; //11
+  static List<int> edit_i = [INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN]; //11
   static List<t_file_class> t_file = [
     t_file_class(),
     t_file_class(),

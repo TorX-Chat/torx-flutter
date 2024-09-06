@@ -285,7 +285,7 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
                         }
                       },
                       onLongPress: () {
-                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, arrayFriends[index], -1, -1, -1));
+                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, arrayFriends[index], INT_MIN, -1, -1));
                       },
                       child: ListTile(
                           leading: Badge(
@@ -1190,7 +1190,7 @@ class _RouteChatState extends State<RouteChat> {
                                 }
                               } else {
                                 Pointer<Utf8> message = controllerMessage.text.toNativeUtf8(); // free'd by calloc.free
-                                if (t_peer.edit_n[widget.n] > -1 && t_peer.edit_i[widget.n] > -1) {
+                                if (t_peer.edit_n[widget.n] > -1 && t_peer.edit_i[widget.n] > INT_MIN) {
                                   torx.message_edit(t_peer.edit_n[widget.n], t_peer.edit_i[widget.n], message);
                                   t_peer.edit_n[widget.n] = -1;
                                   t_peer.edit_i[widget.n] = INT_MIN;
