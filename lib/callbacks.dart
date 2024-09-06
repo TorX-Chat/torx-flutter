@@ -284,9 +284,21 @@ class Callbacks {
     setting_value = nullptr;
   }
 
-  void print_message_cb_ui(int n, int i, int scroll) {
+  void message_new_cb_ui(int n, int i) {
+    print_message(n, i, 1);
+  }
+
+  void message_modified_cb_ui(int n, int i) {
+    print_message(n, i, 2);
+  }
+
+  void message_deleted_cb_ui(int n, int i) {
+    print_message(n, i, 3);
+  }
+
+  void print_message(int n, int i, int scroll) {
     if (n < 0 || i == INT_MIN || scroll < 0) {
-      error(0, "Sanity checkfailed in print_message_cb_ui");
+      error(0, "Sanity checkfailed in print_message");
       return;
     }
     int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));

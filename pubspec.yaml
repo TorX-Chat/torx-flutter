@@ -17,7 +17,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.11+273 # NEVER DECREASE BUILD NUMBER or upgrades will fail
+version: 2.0.11+277 # NEVER DECREASE BUILD NUMBER or upgrades will fail
 
 environment:
   sdk: '>=3.4.0-282.1.beta <4.0.0'
@@ -39,9 +39,9 @@ dependencies:
   ffi: ^2.1.0
   flutter_svg: ^2.0.10+1
   toggle_switch: ^2.0.1
-  share_plus: ^6.3.4 # ^6.3.4 DO NOT UPGRADE. Requires SDK 34/Android 14.
+  share_plus: ^7.2.2 # ^6.3.4 DO NOT UPGRADE. Requires SDK 34/Android 14.
   mobile_scanner: ^2.1.0 # ^2.1.0 DO NOT UPGRADE. Requires SDK 34/Android 14.
-  file_picker: ^5.2.3 # this is better than image_picker, less bloated and more useful
+  file_picker: ^8.1.2 # this is better than image_picker, less bloated and more useful
   intl: ^0.19.0
   flutter_ringtone_player: ^3.2.0
   vibration: ^1.7.7 # ^1.7.7 DO NOT UPGRADE. Requires SDK 34/Android 14.
@@ -52,7 +52,7 @@ dependencies:
   screen_protector: ^1.1.5
   path_provider: ^2.1.2
   photo_view: ^0.15.0
-  open_filex: ^4.4.0
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

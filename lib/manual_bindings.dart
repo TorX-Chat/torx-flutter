@@ -181,8 +181,14 @@ typedef FnDARTfatal_cb = void Function(Pointer<Utf8>);
 typedef FnCcustom_setting_cb = Void Function(Int, Pointer<Utf8>, Pointer<Utf8>, Size_t, Int);
 typedef FnDARTcustom_setting_cb = void Function(int, Pointer<Utf8>, Pointer<Utf8>, int, int);
 
-typedef FnCprint_message_cb = Void Function(Int, Int, Int);
-typedef FnDARTprint_message_cb = void Function(int, int, int);
+typedef FnCmessage_new_cb = Void Function(Int, Int);
+typedef FnDARTmessage_new_cb = void Function(int, int);
+
+typedef FnCmessage_modified_cb = Void Function(Int, Int);
+typedef FnDARTmessage_modified_cb = void Function(int, int);
+
+typedef FnCmessage_deleted_cb = Void Function(Int, Int);
+typedef FnDARTmessage_deleted_cb = void Function(int, int);
 
 typedef FnClogin_cb = Void Function(Int);
 typedef FnDARTlogin_cb = void Function(int);
@@ -256,8 +262,14 @@ typedef FnDARTfatal_setter = void Function(Pointer<NativeFunction<FnCfatal_cb>>)
 typedef FnCcustom_setting_setter = Void Function(Pointer<NativeFunction<FnCcustom_setting_cb>>);
 typedef FnDARTcustom_setting_setter = void Function(Pointer<NativeFunction<FnCcustom_setting_cb>>);
 
-typedef FnCprint_message_setter = Void Function(Pointer<NativeFunction<FnCprint_message_cb>>);
-typedef FnDARTprint_message_setter = void Function(Pointer<NativeFunction<FnCprint_message_cb>>);
+typedef FnCmessage_new_setter = Void Function(Pointer<NativeFunction<FnCmessage_new_cb>>);
+typedef FnDARTmessage_new_setter = void Function(Pointer<NativeFunction<FnCmessage_new_cb>>);
+
+typedef FnCmessage_modified_setter = Void Function(Pointer<NativeFunction<FnCmessage_modified_cb>>);
+typedef FnDARTmessage_modified_setter = void Function(Pointer<NativeFunction<FnCmessage_modified_cb>>);
+
+typedef FnCmessage_deleted_setter = Void Function(Pointer<NativeFunction<FnCmessage_deleted_cb>>);
+typedef FnDARTmessage_deleted_setter = void Function(Pointer<NativeFunction<FnCmessage_deleted_cb>>);
 
 typedef FnClogin_setter = Void Function(Pointer<NativeFunction<FnClogin_cb>>);
 typedef FnDARTlogin_setter = void Function(Pointer<NativeFunction<FnClogin_cb>>);
@@ -856,7 +868,9 @@ void register_callbacks() {
   torx.error_setter(NativeCallable<FnCerror_cb>.listener(Callbacks().error_cb_ui).nativeFunction);
   torx.fatal_setter(NativeCallable<FnCfatal_cb>.listener(Callbacks().fatal_cb_ui).nativeFunction);
   torx.custom_setting_setter(NativeCallable<FnCcustom_setting_cb>.listener(Callbacks().custom_setting_cb_ui).nativeFunction);
-  torx.print_message_setter(NativeCallable<FnCprint_message_cb>.listener(Callbacks().print_message_cb_ui).nativeFunction);
+  torx.message_new_setter(NativeCallable<FnCmessage_new_cb>.listener(Callbacks().message_new_cb_ui).nativeFunction);
+  torx.message_modified_setter(NativeCallable<FnCmessage_modified_cb>.listener(Callbacks().message_modified_cb_ui).nativeFunction);
+  torx.message_deleted_setter(NativeCallable<FnCmessage_deleted_cb>.listener(Callbacks().message_deleted_cb_ui).nativeFunction);
   torx.login_setter(NativeCallable<FnClogin_cb>.listener(Callbacks().login_cb_ui).nativeFunction);
   torx.peer_loaded_setter(NativeCallable<FnCpeer_loaded_cb>.listener(Callbacks().peer_loaded_cb_ui).nativeFunction);
   torx.cleanup_setter(NativeCallable<FnCcleanup_cb>.listener(Callbacks().cleanup_cb_ui).nativeFunction);
@@ -1030,7 +1044,11 @@ class torx {
 
   static final custom_setting_setter = dynamicLibrary.lookupFunction<FnCcustom_setting_setter, FnDARTcustom_setting_setter>('custom_setting_setter');
 
-  static final print_message_setter = dynamicLibrary.lookupFunction<FnCprint_message_setter, FnDARTprint_message_setter>('print_message_setter');
+  static final message_new_setter = dynamicLibrary.lookupFunction<FnCmessage_new_setter, FnDARTmessage_new_setter>('message_new_setter');
+
+  static final message_modified_setter = dynamicLibrary.lookupFunction<FnCmessage_modified_setter, FnDARTmessage_modified_setter>('message_modified_setter');
+
+  static final message_deleted_setter = dynamicLibrary.lookupFunction<FnCmessage_deleted_setter, FnDARTmessage_deleted_setter>('message_deleted_setter');
 
   static final login_setter = dynamicLibrary.lookupFunction<FnClogin_setter, FnDARTlogin_setter>('login_setter');
 
