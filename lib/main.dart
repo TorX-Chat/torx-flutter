@@ -3,13 +3,13 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:chat/callbacks.dart';
 import 'package:chat/stickers.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -132,7 +132,7 @@ void resumptionTasks() {
       changeNotifierTotalIncoming.callback(integer: 0);
     }
     if (launcherBadges && totalIncoming > 0 || totalUnreadPeer > 0 || totalUnreadGroup > 0) {
-      FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+      AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
     }
   }
 }
@@ -792,6 +792,6 @@ Future<void> main() async {
   if (autoRunOnBoot) resumptionTasks(); // necessary to remove foreground service
   runApp(const TorX()); // UI Thread, which will be suspended while in background, unlike other methods called from main()
 
-  launcherBadges = await FlutterAppBadger.isAppBadgeSupported();
+  launcherBadges = await AppBadgePlus.isSupported();
   error(0, "Checkpoint launcherBadges: $launcherBadges");
 }

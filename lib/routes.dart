@@ -3,9 +3,9 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
+import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
@@ -1366,7 +1366,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
               changeNotifierTotalUnread.callback(integer: -4);
               changeNotifierChatList.callback(integer: t_peer.unread[arrayFriends[index]]);
               if (launcherBadges) {
-                FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+                AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
               }
             }
             //    printf("Checkpoint RouteChat n=${arrayFriends[index]}");
@@ -2175,7 +2175,7 @@ class _RouteHomeState extends State<RouteHome> {
                   totalIncoming--;
                   changeNotifierTotalIncoming.callback(integer: totalIncoming);
                   if (launcherBadges) {
-                    FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+                    AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
                   }
                 },
                 height: 20,
@@ -2197,7 +2197,7 @@ class _RouteHomeState extends State<RouteHome> {
                     totalIncoming--;
                     changeNotifierTotalIncoming.callback(integer: totalIncoming);
                     if (launcherBadges) {
-                      FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+                      AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
                     }
                   }
                   setState(() {

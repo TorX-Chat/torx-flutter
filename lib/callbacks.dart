@@ -1,10 +1,10 @@
 // ignore_for_file: non_constant_identifier_names, camel_case_types
 
 import 'dart:ffi';
+import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:vibration/vibration.dart';
 import 'change_notifiers.dart';
@@ -105,7 +105,7 @@ class Callbacks {
   void incoming_friend_request_cb_ui(int n) {
     totalIncoming++;
     if (launcherBadges) {
-      FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+      AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
     }
     changeNotifierTotalIncoming.callback(integer: -1);
     changeNotifierDataTables.callback(integer: n);
@@ -251,7 +251,7 @@ class Callbacks {
             }
           }
           if (launcherBadges) {
-            FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+            AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
           }
           changeNotifierTotalUnread.callback(integer: -3);
         }
@@ -325,7 +325,7 @@ class Callbacks {
               payload: "$n $group_pm",
               fln: flutterLocalNotificationsPlugin);
           Vibration.vibrate(); // Vibrate regardless of mute setting, if current chat not open or application is not in the foreground
-          FlutterRingtonePlayer.play(looping: false, fromAsset: "lib/other/beep.wav"); // Make sound if not muted
+          FlutterRingtonePlayer().play(looping: false, fromAsset: "lib/other/beep.wav"); // Make sound if not muted
         }
         t_peer.unread[nn]++;
         if (owner == ENUM_OWNER_GROUP_CTRL) {
@@ -334,7 +334,7 @@ class Callbacks {
           totalUnreadPeer++;
         }
         if (launcherBadges) {
-          FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+          AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
         }
         changeNotifierTotalUnread.callback(integer: -2);
       }
@@ -363,7 +363,7 @@ class Callbacks {
 
         t_peer.unread[nn] = 0;
         if (launcherBadges) {
-          FlutterAppBadger.updateBadgeCount(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+          AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
         }
         changeNotifierChatList.callback(integer: -1);
         changeNotifierTotalUnread.callback(integer: -1);

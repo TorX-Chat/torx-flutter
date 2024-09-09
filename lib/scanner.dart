@@ -25,7 +25,8 @@ class RouteScan extends StatelessWidget {
           ),
           actions: [
             IconButton(
-              icon: ValueListenableBuilder(
+              icon: cameraController.value.torchState == TorchState.on ? Icon(Icons.flash_on, color: color.torch_on) : Icon(Icons.flash_off, color: color.torch_off)
+              /*ValueListenableBuilder(
                 valueListenable: cameraController.torchState,
                 builder: (context, state, child) {
                   switch (state) {
@@ -35,7 +36,8 @@ class RouteScan extends StatelessWidget {
                       return Icon(Icons.flash_on, color: color.torch_on);
                   }
                 },
-              ),
+              )*/ // This is suitable for old versions, 2.1.0
+              ,
               iconSize: size_medium_icon,
               onPressed: () => cameraController.toggleTorch(),
             ),
@@ -51,7 +53,9 @@ class RouteScan extends StatelessWidget {
               },
             ),
             IconButton(
-              icon: ValueListenableBuilder(
+              icon:
+                  cameraController.value.cameraDirection == CameraFacing.front ? Icon(Icons.camera_front, color: color.torch_off) : Icon(Icons.camera_rear, color: color.torch_off)
+              /*ValueListenableBuilder(
                 valueListenable: cameraController.cameraFacingState,
                 builder: (context, state, child) {
                   switch (state) {
@@ -61,7 +65,8 @@ class RouteScan extends StatelessWidget {
                       return Icon(Icons.camera_rear, color: color.torch_off);
                   }
                 },
-              ),
+              )*/ // This is suitable for old versions, 2.1.0
+              ,
               iconSize: size_medium_icon,
               onPressed: () => cameraController.switchCamera(),
             ),
@@ -70,7 +75,7 @@ class RouteScan extends StatelessWidget {
         body: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
-            MobileScanner(
+            /*  MobileScanner(
                 allowDuplicates: false,
                 controller: cameraController,
                 onDetect: (barcode, args) async {
@@ -84,8 +89,8 @@ class RouteScan extends StatelessWidget {
                     //    printf("checkpoint FOUND IMAGE POSITION BODY");
                   }
                   Navigator.pop(context);
-                }),
-            /*    MobileScanner(
+                }),*/ // This is suitable for old versions, 2.1.0
+            MobileScanner(
               controller: cameraController,
               onDetect: (capture) {
                 final List<Barcode> barcodes = capture.barcodes;
@@ -95,7 +100,7 @@ class RouteScan extends StatelessWidget {
                 }
                 Navigator.pop(context);
               },
-            ), */ // DO NOT DELETE. Will be utilized when upgrading mobile_scanner, after SDK 34 transition
+            ), // DO NOT DELETE. Will be utilized when upgrading mobile_scanner, after SDK 34 transition
             // GOAT overlay follows mobilescanner. put any text or whatever as children HERE
           ],
         ));
