@@ -24,23 +24,15 @@ class RouteScan extends StatelessWidget {
             style: TextStyle(color: color.page_title),
           ),
           actions: [
-            IconButton(
-              icon: cameraController.value.torchState == TorchState.on ? Icon(Icons.flash_on, color: color.torch_on) : Icon(Icons.flash_off, color: color.torch_off)
-              /*ValueListenableBuilder(
-                valueListenable: cameraController.torchState,
+            ValueListenableBuilder(
+                valueListenable: cameraController,
                 builder: (context, state, child) {
-                  switch (state) {
-                    case TorchState.off:
-                      return Icon(Icons.flash_off, color: color.torch_off);
-                    case TorchState.on:
-                      return Icon(Icons.flash_on, color: color.torch_on);
-                  }
-                },
-              )*/ // This is suitable for old versions, 2.1.0
-              ,
-              iconSize: size_medium_icon,
-              onPressed: () => cameraController.toggleTorch(),
-            ),
+                  return IconButton(
+                    icon: cameraController.value.torchState == TorchState.on ? Icon(Icons.flash_on, color: color.torch_on) : Icon(Icons.flash_off, color: color.torch_off),
+                    iconSize: size_medium_icon,
+                    onPressed: () => cameraController.toggleTorch(),
+                  );
+                }),
             IconButton(
               icon: Icon(Icons.image, color: color.torch_off),
               iconSize: size_medium_icon,
@@ -52,52 +44,33 @@ class RouteScan extends StatelessWidget {
                 }
               },
             ),
-            IconButton(
-              icon:
-                  cameraController.value.cameraDirection == CameraFacing.front ? Icon(Icons.camera_front, color: color.torch_off) : Icon(Icons.camera_rear, color: color.torch_off)
-              /*ValueListenableBuilder(
-                valueListenable: cameraController.cameraFacingState,
+            ValueListenableBuilder(
+                valueListenable: cameraController,
                 builder: (context, state, child) {
-                  switch (state) {
-                    case CameraFacing.front:
-                      return Icon(Icons.camera_front, color: color.torch_off);
-                    case CameraFacing.back:
-                      return Icon(Icons.camera_rear, color: color.torch_off);
-                  }
-                },
-              )*/ // This is suitable for old versions, 2.1.0
-              ,
-              iconSize: size_medium_icon,
-              onPressed: () => cameraController.switchCamera(),
-            ),
+                  return IconButton(
+                    icon: cameraController.value.cameraDirection == CameraFacing.front
+                        ? Icon(Icons.camera_front, color: color.torch_off)
+                        : Icon(Icons.camera_rear, color: color.torch_off),
+                    iconSize: size_medium_icon,
+                    onPressed: () => cameraController.switchCamera(),
+                  );
+                })
           ],
         ),
         body: Stack(
           clipBehavior: Clip.hardEdge,
           children: [
-            /*  MobileScanner(
-                allowDuplicates: false,
-                controller: cameraController,
-                onDetect: (barcode, args) async {
-                  if (barcode.rawValue == null) {
-                    // no barcode found, bad error that should not happen
-                    entryAddPeeronionController.clear();
-                    //  printf("checkpoint NO IMAGE POSITION BODY");
-                  } else {
-                    // barcode found
-                    entryAddPeeronionController.text = barcode.rawValue!;
-                    //    printf("checkpoint FOUND IMAGE POSITION BODY");
-                  }
-                  Navigator.pop(context);
-                }),*/ // This is suitable for old versions, 2.1.0
             MobileScanner(
               controller: cameraController,
               onDetect: (capture) {
                 final List<Barcode> barcodes = capture.barcodes;
                 for (final barcode in barcodes) {
-                  printf('Barcode found! ${barcode.rawValue}');
-                  entryAddPeeronionController.text = barcode.rawValue!;
+                  if (barcode.rawValue != null) {
+                    printf('Barcode found! ${barcode.rawValue}');
+                    entryAddPeeronionController.text = barcode.rawValue!;
+                  }
                 }
+                cameraController.dispose(); // necessary or crash occurs
                 Navigator.pop(context);
               },
             ), // DO NOT DELETE. Will be utilized when upgrading mobile_scanner, after SDK 34 transition

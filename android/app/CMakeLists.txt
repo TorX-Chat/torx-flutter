@@ -19,7 +19,7 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 # ??? CMAKE_PREFIX_PATH ==
 
 #set($ENV{TORX_TAG} "dev")			### XXX XXX XXX
-#set($ENV{LAN_REPO} "http://10.8.88.1/") 	### XXX XXX XXX
+#set($ENV{LAN_REPO} "http://10.8.88.11/") 	### XXX XXX XXX
 #set($ENV{BUILD_BINARIES} 1)
 
 ## XXX -D BUILD_BINARIES=? (1) Determines dependencies should be re-built (tor , obfs4proxy, snowflake ), or just flutter UI + torx + deps (0), which requires JNILIBS folder populated already XXX ##
