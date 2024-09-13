@@ -341,7 +341,6 @@ class RouteChat extends StatefulWidget {
 class _RouteChatState extends State<RouteChat> {
   ScrollController scrollController = ScrollController();
   TextEditingController controllerNick = TextEditingController(text: global_n > -1 ? getter_string(global_n, INT_MIN, -1, offsetof("peer", "peernick")) : null);
-  Icon messageIcon = Icon(Icons.attach_file, color: color.torch_off);
   Widget statusIcon = const Icon(Icons.lock_open);
   String statusText = "";
   Widget loggingIcon = const Icon(Icons.article);
@@ -830,7 +829,6 @@ class _RouteChatState extends State<RouteChat> {
     setStatus(widget.n);
     //  controllerNick.text = Pointer<Utf8>.fromAddress(torx.torx_loo kup(globalCurrentRouteChatN, 8, 0, 0).address).toDartString();
     controllerMessage.text = t_peer.unsent[widget.n];
-    controllerMessage.text.isEmpty ? messageIcon = Icon(Icons.attach_file, color: color.torch_off) : messageIcon = Icon(Icons.send, color: color.torch_off);
     SpellCheckConfiguration? ime_enabled_spellCheckConfiguration = const SpellCheckConfiguration.disabled();
     if (keyboard_privacy == false) {
       ime_enabled_spellCheckConfiguration = null;
@@ -1140,9 +1138,6 @@ class _RouteChatState extends State<RouteChat> {
                             onChanged: (value) {
                               int text_len = controllerMessage.text.length;
                               if (text_len == 0 || former_text_len == 0) {
-                                controllerMessage.text.isEmpty
-                                    ? messageIcon = Icon(Icons.attach_file, color: color.torch_off)
-                                    : messageIcon = Icon(Icons.send, color: color.torch_off);
                                 changeNotifierSendButton.callback(integer: 1); // value is arbitrary
                               }
                               former_text_len = text_len;
@@ -1167,7 +1162,7 @@ class _RouteChatState extends State<RouteChat> {
                                   );
                                 }),
                           IconButton(
-                            icon: messageIcon,
+                            icon: controllerMessage.text.isEmpty ? Icon(Icons.attach_file, color: color.torch_off) : Icon(Icons.send, color: color.torch_off),
                             onPressed: () async {
                               if (controllerMessage.text.isEmpty) {
                                 // GOAT file_picker here, allow multiple selections
