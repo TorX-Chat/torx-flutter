@@ -46,8 +46,9 @@ bool callbacks_registered = false;
 bool launcherBadges = true;
 String torLogBuffer = ""; // global
 String torxLogBuffer = "";
-String nativeLibraryDir = "";
-Directory workDir = Directory("");
+String? temporaryDir; // WARNING: Use String? instead of Directory? because Directory interpolates incorrectly to String (it adds a bunk prefix)
+String? nativeLibraryDir;
+String? applicationDocumentsDir;
 bool initialized = false; // initialization_functions() only
 
 const double size_large_icon = 50;
@@ -161,22 +162,22 @@ Future<void> _startForegroundService() async {
   );
   AndroidFlutterLocalNotificationsPlugin? flnp = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   if (flnp != null) {
-    flnp.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
+    await flnp.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
   }
 }
 
-Future<void> _stopForegroundService() async {
+void _stopForegroundService() {
   AndroidFlutterLocalNotificationsPlugin? flnp = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
   if (flnp != null) {
     flnp.stopForegroundService();
   }
 }
 
-Future<void> requestPermissions() async {
+void requestPermissions() {
   //  Map<Permission, PermissionStatus> statuses =
   //await FlutterForegroundTask.requestIgnoreBatteryOptimization();
   //await FlutterForegroundTask.requestNotificationPermission();
-  await [Permission.notification].request();
+  [Permission.notification].request();
   //  await platform.invokeMethod('requestStoragePermission');
 }
 
@@ -197,20 +198,20 @@ void initialization_functions(BuildContext? context) {
   torx.tor_location[0] = tor_location.toNativeUtf8();
   torx.obfs4proxy_location[0] = obfs4proxy_location.toNativeUtf8();
   torx.snowflake_location[0] = snowflake_location.toNativeUtf8();
-  torx.native_library_directory[0] = nativeLibraryDir.toNativeUtf8();
+  torx.native_library_directory[0] = nativeLibraryDir!.toNativeUtf8();
   torx.reduced_memory.value = 2; // 1 == 256mb, 2 == 64mb
-  torx.working_dir[0] = workDir.path.toNativeUtf8(); // necessary before initial on systems where $HOME is not set
-  torx.tor_data_directory[0] = "${workDir.path}/tor".toNativeUtf8(); // hardcoding this. This will override user settings for sanity purposes.
+  torx.working_dir[0] = applicationDocumentsDir!.toNativeUtf8(); // necessary before initial on systems where $HOME is not set
+  torx.tor_data_directory[0] = "$applicationDocumentsDir/tor".toNativeUtf8(); // hardcoding this. This will override user settings for sanity purposes.
   torx.pthread_rwlock_unlock(torx.mutex_global_variable);
 
+  printf("Tor Location: $tor_location");
   torx.initial(); // !!! GOAT DO NOT PUT ANY (other) TORX FUNCTIONS BEFORE THIS (such as set_torrc or errorr) !!! TODO
   printf("WARNING: This is debug build. Remember to check torrc and set proxy if necessary: Socks5Proxy 10.0.2.2:PORT");
 
-  Directory dir = Directory(nativeLibraryDir);
-  dir.list(recursive: false).forEach((f) {
+  Directory(nativeLibraryDir!).list(recursive: false).forEach((f) {
     error(0, f.toString());
   });
-  error(0, "Working dir: ${workDir.path}");
+  error(0, "Working dir: $applicationDocumentsDir");
 
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH, "Sticker", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, "Sticker Date Signed", "", 0, 2 * 4, crypto_sign_BYTES, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
@@ -235,19 +236,19 @@ class TorX extends StatefulWidget {
 }
 
 class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserver {
-  void _screenshotInit() async {
+  void _screenshotInit() {
     if (preventScreenshots && Platform.isAndroid) {
-      await ScreenProtector.protectDataLeakageOn();
+      ScreenProtector.protectDataLeakageOn();
     } else if (preventScreenshots && Platform.isIOS) {
-      await ScreenProtector.protectDataLeakageOff();
+      ScreenProtector.protectDataLeakageOff();
     }
   }
 
-  void _screenshotDispose() async {
+  void _screenshotDispose() {
     if (preventScreenshots && Platform.isAndroid) {
-      await ScreenProtector.protectDataLeakageOff();
+      ScreenProtector.protectDataLeakageOff();
     } else if (preventScreenshots && Platform.isIOS) {
-      await ScreenProtector.preventScreenshotOff();
+      ScreenProtector.preventScreenshotOff();
     }
   }
 
@@ -279,7 +280,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
     globalAppLifecycleState = state;
     switch (state) {
       case AppLifecycleState.resumed:
@@ -294,7 +295,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       case AppLifecycleState.paused:
         error(0, "Checkpoint AppLifecycleState.paused");
         //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.paused', body: '', fln: flutterLocalNotificationsPlugin);
-        _startForegroundService(); // was here but not anymore after switching foregroudn providers
+        await _startForegroundService(); // 2024/09/22 MUST AWAIT otherwise it won't happen. DO NOT REMOVE AWAIT.
         writeUnread();
         break;
       case AppLifecycleState.detached:
@@ -619,7 +620,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
   ];
 }
 
-void printf(Object? str) {
+void printf(String str) {
   if (kDebugMode) {
     print(str);
   }
@@ -666,12 +667,13 @@ void changeNick(int n, TextEditingController tec) {
   }
 }
 
-Future<bool> write_test(String path) async {
+bool write_test(String path) {
+  // MUST BE ASYNC / FUTURE / AWAIT (probably due to 'try')
   try {
     final testFile = File('$path/jgIYZZHLdU9gCKud1VxptmJlH3zWd0bA'); // Random string must not clash with any file on user's device
-    await testFile.create();
-    await testFile.writeAsString('test');
-    await testFile.delete();
+    testFile.createSync(); // WARNING: MUST BE ASYNC OR THIS FUNCTION WILL FAILS (probably due to 'try')
+    testFile.writeAsStringSync('test'); // WARNING: MUST BE ASYNC OR THIS FUNCTION WILL FAILS (probably due to 'try')
+    testFile.deleteSync(); // WARNING: MUST BE ASYNC OR THIS FUNCTION WILL FAILS (probably due to 'try')
     return true;
   } catch (e) {
     error(0, "Directory is not writable. Choose a different directory.");
@@ -796,7 +798,8 @@ Future<void> main() async {
   }
 
   nativeLibraryDir = await nativeLibraryPath();
-  workDir = await getApplicationDocumentsDirectory(); // getTemporaryDirectory getApplicationSupportDirectory getApplicationDocumentsDirectory
+  applicationDocumentsDir = (await getApplicationDocumentsDirectory()).path; // getTemporaryDirectory getApplicationSupportDirectory getApplicationDocumentsDirectory
+  temporaryDir = (await getTemporaryDirectory()).path;
 
   if (autoRunOnBoot) resumptionTasks(); // necessary to remove foreground service
   runApp(const TorX()); // UI Thread, which will be suspended while in background, unlike other methods called from main()

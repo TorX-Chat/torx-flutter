@@ -14,6 +14,17 @@ class RouteScan extends StatelessWidget {
   RouteScan({super.key});
   MobileScannerController cameraController = MobileScannerController();
 
+  void processCapture(BarcodeCapture capture) {
+    final List<Barcode> barcodes = capture.barcodes;
+    for (final barcode in barcodes) {
+      String? result = barcode.rawValue;
+      if (result != null) {
+        entryAddPeeronionController.text = result;
+      }
+    }
+    cameraController.dispose(); // necessary or crash occurs
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,8 +50,16 @@ class RouteScan extends StatelessWidget {
               onPressed: () async {
                 FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowMultiple: false, allowedExtensions: ["png", "jpg", "gif", "jpeg"]);
                 if (result != null) {
-                  String image = result.paths.first!;
-                  await cameraController.analyzeImage(image); // if found, it will trigger as if it scanned from camera (see below)
+                  String? image = result.paths.first;
+                  if (image != null) {
+                    BarcodeCapture? capture = await cameraController.analyzeImage(image);
+                    if (capture != null) {
+                      processCapture(capture);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
+                  }
                 }
               },
             ),
@@ -63,17 +82,10 @@ class RouteScan extends StatelessWidget {
             MobileScanner(
               controller: cameraController,
               onDetect: (capture) {
-                final List<Barcode> barcodes = capture.barcodes;
-                for (final barcode in barcodes) {
-                  if (barcode.rawValue != null) {
-                    printf('Barcode found! ${barcode.rawValue}');
-                    entryAddPeeronionController.text = barcode.rawValue!;
-                  }
-                }
-                cameraController.dispose(); // necessary or crash occurs
+                processCapture(capture);
                 Navigator.pop(context);
               },
-            ), // DO NOT DELETE. Will be utilized when upgrading mobile_scanner, after SDK 34 transition
+            ),
             // GOAT overlay follows mobilescanner. put any text or whatever as children HERE
           ],
         ));

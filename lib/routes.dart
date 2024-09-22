@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:share_plus/share_plus.dart';
@@ -69,7 +68,7 @@ class Noti {
 // NOTICE: showsUserInterface: false ---> Response runs in a different isolate. Will not work without interprocess communication. (Neither C nor Dart). 2024/04/15 ALSO DOES NOT WORK WITH INTERPROCESS COMMUNICATION
 // Old: Different isolate, C works, Dart everything is initialized. DO NOT READ OR SET GLOBAL VARIABLES INCLUDING t_peer, and ChangeNotifiers don't work. Use print_message_cb() for any UI thread stuff ( ctrl+f "section 9jfj20f0w" ).
 
-  static Future initialize(FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) async {
+  static dynamic initialize(FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) {
     var androidInitialize = const AndroidInitializationSettings('ic_notification_foreground'); // NOTE: arg is icon
 //      var androidInitialize = const AndroidInitializationSettings('icon_square');
 /*var iOSInitialize = IOSInitializationSettings(); */
@@ -83,11 +82,11 @@ class Noti {
       android: androidInitialize,
       iOS: initializationSettingsDarwin,
     );
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings, onDidReceiveNotificationResponse: response, onDidReceiveBackgroundNotificationResponse: response);
+    flutterLocalNotificationsPlugin.initialize(initializationSettings, onDidReceiveNotificationResponse: response, onDidReceiveBackgroundNotificationResponse: response);
     flutterLocalNotificationsPlugin.cancelAll(); // perhaps this will kill any hangovers after a detach
   }
 
-  static Future showBigTextNotification({var id = 0, required String title, required String body, String? payload, required FlutterLocalNotificationsPlugin fln}) async {
+  static dynamic showBigTextNotification({var id = 0, required String title, required String body, String? payload, required FlutterLocalNotificationsPlugin fln}) {
     AndroidNotificationDetails
         androidPlatformChannelSpecifics = // GOAT use payload as GroupKey, so that messages are grouped per user (does not work. also changing 'channelId' to payload does not work.)
         AndroidNotificationDetails('jykliDPA9dbXfvX', 'Message Notifier',
@@ -111,7 +110,7 @@ class Noti {
                 inputs: [const AndroidNotificationActionInput()]),
           //    AndroidNotificationAction('dismiss', text.dismiss, cancelNotification: true) // does NOT work
         ]);
-    await fln.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
+    fln.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
   }
 }
 
@@ -622,8 +621,8 @@ class _RouteChatState extends State<RouteChat> {
                       Pointer<Utf8> download_dir = torx.download_dir[0];
                       torx.pthread_rwlock_unlock(torx.mutex_global_variable);
                       if ((filename == file_path || file_path == "") && download_dir == nullptr) {
-                        String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-                        if (selectedDirectory != null && await write_test(selectedDirectory)) {
+                        String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
+                        if (selectedDirectory != null && write_test(selectedDirectory)) {
                           String path = "$selectedDirectory/$filename";
                           Pointer<Utf8> file_path_p = path.toNativeUtf8(); // free'd by calloc.free
                           torx.file_set_path(nnn, fff, file_path_p);
@@ -1676,9 +1675,8 @@ class RouteShowQr extends StatefulWidget {
 }
 
 Future<void> saveQr(String data) async {
-//  final picData = await genQr(data);
-  String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-  if (selectedDirectory != null && await write_test(selectedDirectory)) {
+  String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
+  if (selectedDirectory != null && write_test(selectedDirectory)) {
     //  printf("Selected dir: $selectedDirectory");
     int datetime = (DateTime.now()).millisecondsSinceEpoch; // seconds since epoch is safe because it has no timezone attached
     Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
@@ -1722,13 +1720,9 @@ class _RouteShowQr extends State<RouteShowQr> {
                 ),
                 MaterialButton(
                   onPressed: () async {
-                    //          final picData = await genQr(torxid.toDartString());
-
-                    Directory tempDir = await getTemporaryDirectory();
-                    String tempPath = tempDir.path;
                     // final ts = DateTime.now().millisecondsSinceEpoch.toString();
                     String path =
-                        '$tempPath/qr.png'; // might want to make this name unique if sending them in rapid succession causes corruption. depends on how OS handles sharing. if so, use above line
+                        '$temporaryDir/qr.png'; // might want to make this name unique if sending them in rapid succession causes corruption. depends on how OS handles sharing. if so, use above line
                     Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
                     Pointer<Utf8> data_p = widget.data.toNativeUtf8(); // free'd by calloc.free
                     Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
@@ -1745,7 +1739,7 @@ class _RouteShowQr extends State<RouteShowQr> {
                     data_p = nullptr;
                     calloc.free(destination);
                     destination = nullptr;
-                    await Share.shareXFiles(
+                    Share.shareXFiles(
                       [XFile(path)],
                     );
                     // GOAT delete getTemporaryDirectory().path/qr.png on program startup and shutdown
@@ -2455,12 +2449,9 @@ class _widget_route_generateState extends State<widget_route_generate> {
                     if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated != nullptr)
                       MaterialButton(
                         onPressed: () async {
-                          //          final picData = await genQr(Pointer<Utf8>.fromAddress(torx.torx_loo kup(changeNotifierOnionReady.section.integer, 5, 0, 0).address).toDartString());
-                          Directory tempDir = await getTemporaryDirectory();
-                          String tempPath = tempDir.path;
                           // final ts = DateTime.now().millisecondsSinceEpoch.toString();
                           String path =
-                              '$tempPath/qr.png'; // might want to make this name unique if sending them in rapid succession causes corruption. depends on how OS handles sharing. if so, use above line
+                              '$temporaryDir/qr.png'; // might want to make this name unique if sending them in rapid succession causes corruption. depends on how OS handles sharing. if so, use above line
                           Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
                           Pointer<Void> qr_raw = torx.qr_bool(generated, 8); // free'd by torx_free
                           Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
@@ -2474,7 +2465,7 @@ class _widget_route_generateState extends State<widget_route_generate> {
                           size_p = nullptr;
                           calloc.free(destination);
                           destination = nullptr;
-                          await Share.shareXFiles(
+                          Share.shareXFiles(
                             [XFile(path)],
                           );
                           // GOAT delete getTemporaryDirectory().path/qr.png on program startup and shutdown
@@ -3230,10 +3221,10 @@ class _RouteSettingsState extends State<RouteSettings> {
                 Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                   MaterialButton(
                     onPressed: () async {
-                      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+                      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
                       Pointer<Utf8> name = "download_dir".toNativeUtf8();
                       if (selectedDirectory != null) {
-                        if (await write_test(selectedDirectory) == false) {
+                        if (write_test(selectedDirectory) == false) {
                           calloc.free(name);
                           name = nullptr;
                           return; // not writable
