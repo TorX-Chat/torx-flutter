@@ -43,8 +43,8 @@ dependencies:
   mobile_scanner: ^5.2.3
   file_picker: ^8.1.2 # this is better than image_picker, less bloated and more useful
   intl: ^0.19.0
-  flutter_ringtone_player: ^4.0.0
-  vibration: ^2.0.0
+  flutter_ringtone_player: ^4.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications
+  vibration: ^2.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications
   flutter_local_notifications: ^17.1.2
   permission_handler: ^11.3.1
   percent_indicator: ^4.2.2

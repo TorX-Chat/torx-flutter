@@ -159,13 +159,17 @@ Future<void> _startForegroundService() async {
     playSound: false, // NOTE: Cannot be changed without changing channel name
     silent: true,
   );
-  await flutterLocalNotificationsPlugin
-      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-      ?.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
+  AndroidFlutterLocalNotificationsPlugin? flnp = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  if (flnp != null) {
+    flnp.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
+  }
 }
 
 Future<void> _stopForegroundService() async {
-  await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.stopForegroundService();
+  AndroidFlutterLocalNotificationsPlugin? flnp = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+  if (flnp != null) {
+    flnp.stopForegroundService();
+  }
 }
 
 Future<void> requestPermissions() async {
@@ -342,13 +346,14 @@ Image generate_qr(String data) {
 /* DO NOT DELETE: was once useful for getting screen 'position' (x,y) (for showMenu, which is useless) and may one be again */
 Offset offs = const Offset(0, 0);
 RelativeRect getPosition(context) {
+  OverlayState? os = Navigator.of(context).overlay;
   RelativeRect position;
-  if (offs == const Offset(0, 0)) // this is to handle an error we can't work out in RoutePopoverList jfwoqiefhwoif
+  if (offs == const Offset(0, 0) || os == null) // this is to handle an error we can't work out in RoutePopoverList jfwoqiefhwoif
   {
     position = RelativeRect.fill;
   } else {
     final RenderBox button = context.findRenderObject()! as RenderBox;
-    final RenderBox overlay = Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+    final RenderBox overlay = os.context.findRenderObject()! as RenderBox;
     position = RelativeRect.fromRect(
       Rect.fromPoints(
         button.localToGlobal(offs, ancestor: overlay),
@@ -550,7 +555,9 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 t_peer.edit_n[global_n] = n;
                 t_peer.edit_i[global_n] = i;
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
-                controllerMessage?.text = t_peer.unsent[global_n] = getter_string(n, i, -1, offsetof("message", "message"));
+                if (controllerMessage != null) {
+                  controllerMessage.text = t_peer.unsent[global_n] = getter_string(n, i, -1, offsetof("message", "message"));
+                }
                 Navigator.pop(context);
               })),
     if (message_owner == ENUM_OWNER_GROUP_PEER)
@@ -575,7 +582,9 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 t_peer.edit_i[global_n] = INT_MIN;
                 t_peer.edit_n[global_n] = n;
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
-                controllerMessage?.text = t_peer.unsent[global_n] = getter_string(n, INT_MIN, -1, offsetof("peer", "peernick"));
+                if (controllerMessage != null) {
+                  controllerMessage.text = t_peer.unsent[global_n] = getter_string(n, INT_MIN, -1, offsetof("peer", "peernick"));
+                }
                 Navigator.pop(context);
               })),
     if (message_owner == ENUM_OWNER_GROUP_PEER)

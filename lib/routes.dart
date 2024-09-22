@@ -30,15 +30,17 @@ void response(NotificationResponse notificationResponse) {
 /*    if (notificationResponse.actionId == 'reply') {
       printf("there is a reply!");
     }*/
-  if (notificationResponse.payload == null || notificationResponse.input == null) {
+  String? payload = notificationResponse.payload;
+  String? input = notificationResponse.input;
+  if (payload == null || input == null) {
     printf("Noti fail or user clicked dismiss?");
     return;
   }
-  List<String> parts = notificationResponse.payload!.split(' ');
+  List<String> parts = payload.split(' ');
   int n = int.parse(parts[0]);
   int group_pm = int.parse(parts[1]);
 //    printf("Checkpoint notification response: $n $group_pm ${notificationResponse.input}");
-  Pointer<Utf8> message = notificationResponse.input!.toNativeUtf8(); // free'd by calloc.free
+  Pointer<Utf8> message = input.toNativeUtf8(); // free'd by calloc.free
   int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
   if (group_pm != 0) {
     torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
