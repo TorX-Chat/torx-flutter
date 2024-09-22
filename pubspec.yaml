@@ -53,6 +53,10 @@ dependencies:
   photo_view: ^0.15.0
   open_filex: ^4.5.0
   app_badge_plus: ^1.1.5
+  media_scanner:
+    git:
+      url: https://github.com/TruongAnim/media_scanner.git # alt: https://github.com/wukgdu/media_scanner.git
+      ref: 773ec684e1130cb12e6287c0aa13cee6de694c9e # alt: master
 
 dev_dependencies:
   flutter_test:

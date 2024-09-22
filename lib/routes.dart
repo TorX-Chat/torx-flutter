@@ -23,6 +23,7 @@ import 'package:photo_view/photo_view.dart';
 //import 'package:photo_view/photo_view_gallery.dart';
 import 'package:open_filex/open_filex.dart';
 import 'stickers.dart';
+import 'package:media_scanner/media_scanner.dart';
 
 @pragma("vm:entry-point") // Should be top level / not in class. NOTE: THIS LINE IS ABSOLUTELY necessary by flutter_local_notifications to prevent tree-shaking the code
 void response(NotificationResponse notificationResponse) {
@@ -1683,8 +1684,10 @@ Future<void> saveQr(String data) async {
     Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
     Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
     Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
-    Pointer<Utf8> destination = "$selectedDirectory/qr$datetime.png".toNativeUtf8(); // free'd by calloc.free
+    String path = "$selectedDirectory/qr$datetime.png";
+    Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
     torx.write_bytes(destination, png, size_p.value);
+    MediaScanner.loadMedia(path: path);
     torx.torx_free_simple(qr_raw);
     qr_raw = nullptr;
     torx.torx_free_simple(png);

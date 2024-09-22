@@ -13,6 +13,7 @@ import 'main.dart';
 import 'manual_bindings.dart';
 import 'routes.dart';
 import 'stickers.dart';
+import 'package:media_scanner/media_scanner.dart';
 
 /*
 Future.microtask(() {
@@ -84,6 +85,13 @@ class Callbacks {
   }
 
   void transfer_progress_cb_ui(int n, int f, int transferred) {
+    int size = torx.getter_uint64(n, INT_MIN, f, -1, offsetof("file", "size"));
+    if (size == transferred) {
+      String file_path = getter_string(n, INT_MIN, f, offsetof("file", "file_path"));
+      if (size == get_file_size(file_path)) {
+        MediaScanner.loadMedia(path: file_path);
+      }
+    }
     t_peer.t_file[n].changeNotifierTransferProgress[f].callback();
   }
 
