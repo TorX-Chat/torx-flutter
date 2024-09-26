@@ -487,6 +487,9 @@ typedef FnDARTmessage_remove = void Function(int, int, int);
 typedef FnCmessage_sort = Void Function(Int);
 typedef FnDARTmessage_sort = void Function(int);
 
+typedef FnCmessage_load_more = Pointer<Int> Function(Pointer<Int>, Int);
+typedef FnDARTmessage_load_more = Pointer<Int> Function(Pointer<Int>, int);
+
 typedef FnCset_time = Void Function(Pointer<Time_t>);
 typedef FnDARTset_time = void Function(Pointer<Time_t>);
 
@@ -696,6 +699,9 @@ typedef FnDARTsql_insert_peer = int Function(int, int, int, Pointer<Utf8>, Point
 
 typedef FnCsql_update_peer = Int Function(Int);
 typedef FnDARTsql_update_peer = int Function(int);
+
+typedef FnCsql_populate_message = Int Function(Int, Uint32, Uint32);
+typedef FnDARTsql_populate_message = int Function(int, int, int);
 
 typedef FnCsql_populate_peer = Int Function();
 typedef FnDARTsql_populate_peer = int Function();
@@ -1194,6 +1200,8 @@ class torx {
 
   static final message_sort = dynamicLibrary.lookupFunction<FnCmessage_sort, FnDARTmessage_sort>('message_sort');
 
+  static final message_load_more = dynamicLibrary.lookupFunction<FnCmessage_load_more, FnDARTmessage_load_more>('message_load_more');
+
   static final set_time = dynamicLibrary.lookupFunction<FnCset_time, FnDARTset_time>('set_time');
 
   static final message_time_string = dynamicLibrary.lookupFunction<FnCmessage_time_string, FnDARTmessage_time_string>('message_time_string');
@@ -1333,6 +1341,8 @@ class torx {
   static final sql_insert_peer = dynamicLibrary.lookupFunction<FnCsql_insert_peer, FnDARTsql_insert_peer>('sql_insert_peer');
 
   static final sql_update_peer = dynamicLibrary.lookupFunction<FnCsql_update_peer, FnDARTsql_update_peer>('sql_update_peer');
+
+  static final sql_populate_message = dynamicLibrary.lookupFunction<FnCsql_populate_message, FnDARTsql_populate_message>('sql_populate_message');
 
   static final sql_populate_peer = dynamicLibrary.lookupFunction<FnCsql_populate_peer, FnDARTsql_populate_peer>('sql_populate_peer');
 

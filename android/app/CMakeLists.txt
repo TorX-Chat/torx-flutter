@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.14)
 # XXX building for ios / android https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html
 
 set(CMAKE_SYSTEM_NAME Android) # Must be before project
-set(CMAKE_SYSTEM_VERSION 21) # TODO NOT WORKING in our dependancy builds. Defaulting to 1. use __ANDROID_MIN_SDK_VERSION__ ?
 set(CMAKE_TLS_VERIFY TRUE)
 
 project(fake LANGUAGES C) # the output of this is fake/junk
@@ -18,17 +17,15 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 # ANDROID_TOOLCHAIN TODO set
 # ??? CMAKE_PREFIX_PATH ==
 
-#set($ENV{TORX_TAG} "dev")			### XXX XXX XXX
-#set($ENV{LAN_REPO} "http://10.8.88.11/") 	### XXX XXX XXX
-#set($ENV{BUILD_BINARIES} 1)
+#set($ENV{TORX_TAG} "dev")			### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
+#set($ENV{LAN_REPO} "http://10.8.88.11/") 	### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
 
-## XXX -D BUILD_BINARIES=? (1) Determines dependencies should be re-built (tor , obfs4proxy, snowflake ), or just flutter UI + torx + deps (0), which requires JNILIBS folder populated already XXX ##
-if($ENV{TORX_TAG})
+if($ENV{TORX_TAG}) ### TODO Should probably be if(DEFINED ENV{TORX_TAG}), but Flutter is problematic
 	set(TAG_REPO "$ENV{TORX_TAG}")
 else()
 	set(TAG_REPO "main")
 endif()
-if($ENV{LAN_REPO})
+if($ENV{LAN_REPO}) ### TODO Should probably be if(DEFINED ENV{LAN_REPO}), but Flutter is problematic
 	message(STATUS "Using LAN repository: $ENV{LAN_REPO}")
 	set(REPO_TOR "$ENV{LAN_REPO}/tor.git")
 	set(REPO_OBFS "$ENV{LAN_REPO}/obfs4.git")
@@ -42,9 +39,16 @@ else()
 	set(REPO_TORX "https://github.com/TorX-Chat/libtorx/")
 endif()
 
-set(JNILIBS_DIR ../../../../../../../../../android/app/src/main/jniLibs/${ANDROID_ABI}/)
+set(JNILIBS_DIR_SHORT ../../android/app/src/main/jniLibs/${ANDROID_ABI}/)
+set(REQUIRED_LIBS "libtor.so" "libobfs4proxy.so" "libsnowflake.so" "libevent_core-2.2.so" "libevent_pthreads-2.2.so" "libsodium.so" "libsqlcipher.so" "libpng16.so" )
+foreach(LIB ${REQUIRED_LIBS})
+	if(NOT EXISTS "${JNILIBS_DIR_SHORT}/${LIB}")
+		set(ENV{BUILD_BINARIES} 1) ### NOTE: For some reason, MUST be ENV here but $ENV elsewhere
+	endif()
+endforeach()
+set(JNILIBS_DIR ../../../../../../../${JNILIBS_DIR_SHORT})
 
-set(ANDROID_VERSION ${CMAKE_SYSTEM_VERSION}) ## find a way to set this properly from env variables, or ANDROID_PLATFORM (is an int), or ANDROID_API_LEVEL (i think also int?? not sure tho)
+set(ANDROID_VERSION 21) ## find a way to set this properly from env variables, or ANDROID_PLATFORM (is an int), or ANDROID_API_LEVEL (i think also int?? not sure tho) #set(CMAKE_SYSTEM_VERSION 21) # TODO NOT WORKING in our dependancy builds. Defaulting to 1. use __ANDROID_MIN_SDK_VERSION__ ?
 set(ANDROID_PLATFORM ${ANDROID_VERSION})
 if("${ANDROID_ABI}" STREQUAL "arm64-v8a")
 	set(TOR_PLATFORM aarch64-linux-android )

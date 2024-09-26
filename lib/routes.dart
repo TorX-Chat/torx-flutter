@@ -552,6 +552,15 @@ class _RouteChatState extends State<RouteChat> {
             : 0;
   }
 
+  int ui_load_more_messages(int n) {
+    Pointer<Int> count_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+    Pointer<Int> ret = torx.message_load_more(count_p, n);
+    torx.torx_free_simple(ret as Pointer<Void>);
+    int count = count_p.value;
+    malloc.free(count_p);
+    return count;
+  }
+
   Widget ui_message_builder(int n, int i) {
     int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
     int group_pm = protocol_int(p_iter, "group_pm");
@@ -1055,22 +1064,28 @@ class _RouteChatState extends State<RouteChat> {
                           // if determined to still be too expensive, add to it dynamically https://googleflutter.com/flutter-add-item-to-listview-dynamically/
                           animation: changeNotifierMessage,
                           builder: (BuildContext context, Widget? snapshot) {
-                            int msg_count;
+                            int starting_msg_count;
                             if (g > -1) {
-                              msg_count = torx.getter_group_uint32(g, offsetof("group", "msg_count"));
+                              starting_msg_count = torx.getter_group_uint32(g, offsetof("group", "msg_count"));
                             } else {
-                              msg_count = torx.getter_int(widget.n, INT_MIN, -1, -1, offsetof("peer", "max_i")) + 1;
+                              starting_msg_count = torx.getter_int(widget.n, INT_MIN, -1, -1, offsetof("peer", "max_i")) + 1;
                             }
+                            int current_msg_count = starting_msg_count; // UNSURE OF VALUE (if any)
                             return owner == ENUM_OWNER_GROUP_CTRL
                                 ? ListView.builder(
                                     reverse: true,
                                     shrinkWrap: true,
                                     controller: scrollController,
-                                    itemCount: msg_count,
+                                    //      itemCount: current_msg_count,
                                     itemBuilder: (context, index) {
+                                      if (index == current_msg_count - 1) {
+                                        current_msg_count += ui_load_more_messages(widget.n);
+                                      } else if (index > current_msg_count - 1) {
+                                        return null;
+                                      }
                                       Pointer<Int> n_p = malloc(8); // free'd by calloc.free
                                       Pointer<Int> i_p = malloc(8); // free'd by calloc.free
-                                      torx.group_get_index(n_p, i_p, g, msg_count - 1 - index);
+                                      torx.group_get_index(n_p, i_p, g, current_msg_count - 1 - index);
                                       int n = n_p.value;
                                       int i = i_p.value;
                                       calloc.free(n_p);
@@ -1084,9 +1099,16 @@ class _RouteChatState extends State<RouteChat> {
                                     reverse: true,
                                     shrinkWrap: true,
                                     controller: scrollController,
-                                    itemCount: msg_count,
+                                    //    itemCount: current_msg_count, // REMOVED PERMANENTLY to support unlimited scroll
                                     itemBuilder: (context, index) {
-                                      return message_builder(widget.n, msg_count - 1 - index);
+                                      int i = starting_msg_count - 1 - index;
+                                      int min_i = torx.getter_int(widget.n, INT_MIN, -1, -1, offsetof("peer", "min_i"));
+                                      if (i == min_i) {
+                                        /*current_msg_count += */ ui_load_more_messages(widget.n);
+                                      } else if (i < min_i) {
+                                        return null;
+                                      }
+                                      return message_builder(widget.n, i);
                                     },
                                   );
                           })),

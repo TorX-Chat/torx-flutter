@@ -20,6 +20,8 @@ import 'manual_bindings.dart';
 import 'language.dart';
 import 'change_notifiers.dart';
 import 'package:screen_protector/screen_protector.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
+import 'package:vibration/vibration.dart';
 
 /* Global Variables */
 int current_index = 0;
@@ -472,7 +474,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
     }
   }
   printf("Checkpoint generate_message_menu protocol $protocol: $n $i $f $s");
-  if (n > 0) {
+  if (n > -1) {
     setIgnoreIcon(n);
     setBlockIcon(n);
   }
@@ -618,6 +620,85 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 Navigator.pop(context);
               })),
   ];
+}
+
+void print_message(int n, int i, int scroll) {
+  if (n < 0 || i == INT_MIN) {
+    error(0, "Sanity checkfailed in print_message");
+    return;
+  }
+  int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
+  if (stat == ENUM_MESSAGE_RECV && scroll == 1) {
+    int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+    int notifiable = protocol_int(p_iter, "notifiable");
+    if (notifiable == 0) {
+      return;
+    }
+    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
+    int nn = n;
+    if (owner == ENUM_OWNER_GROUP_PEER) {
+      int g = torx.set_g(n, nullptr);
+      nn = torx.getter_group_int(g, offsetof("group", "n"));
+      owner = ENUM_OWNER_GROUP_CTRL;
+    }
+    int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
+    if (nn != global_n || globalAppLifecycleState != AppLifecycleState.resumed) {
+      if (t_peer.mute[n] == 0 && t_peer.mute[nn] == 0) {
+        int group_pm = protocol_int(p_iter, "group_pm");
+        Noti.showBigTextNotification(
+            title: getter_string(n, INT_MIN, -1, offsetof("peer", "peernick")),
+            body: null_terminated_len != 0 ? getter_string(n, i, -1, offsetof("message", "message")) : protocol_string(p_iter, offsetof("protocols", "name")),
+            payload: "$n $group_pm",
+            fln: flutterLocalNotificationsPlugin);
+        Vibration.vibrate(); // Vibrate regardless of mute setting, if current chat not open or application is not in the foreground
+        FlutterRingtonePlayer().play(looping: false, fromAsset: "lib/other/beep.wav"); // Make sound if not muted
+      }
+      t_peer.unread[nn]++;
+      if (owner == ENUM_OWNER_GROUP_CTRL) {
+        totalUnreadGroup++;
+      } else {
+        totalUnreadPeer++;
+      }
+      if (launcherBadges) {
+        AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+      }
+      changeNotifierTotalUnread.callback(integer: -2);
+    }
+    /*         FlutterRingtonePlayer.play(
+          android: AndroidSounds.notification,
+          ios: IosSounds.glass,
+          looping: false, // Android only - API >= 28
+//        volume: 0.1, // Android only - API >= 28
+          asAlarm: false, // Android only - all APIs
+        ); */
+  } else if (stat != ENUM_MESSAGE_RECV && scroll == 1) {
+    // "section 9jfj20f0w" this appears to be for clearing notifications after responding via notification
+    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
+    int nn = n;
+    if (owner == ENUM_OWNER_GROUP_PEER) {
+      int g = torx.set_g(n, nullptr);
+      nn = torx.getter_group_int(g, offsetof("group", "n"));
+      owner = ENUM_OWNER_GROUP_CTRL;
+    }
+    if (t_peer.unread[nn] > 0) {
+      if (owner == ENUM_OWNER_GROUP_CTRL) {
+        totalUnreadGroup -= t_peer.unread[nn];
+      } else {
+        totalUnreadPeer -= t_peer.unread[nn];
+      }
+
+      t_peer.unread[nn] = 0;
+      if (launcherBadges) {
+        AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+      }
+      changeNotifierChatList.callback(integer: -1);
+      changeNotifierTotalUnread.callback(integer: -1);
+    }
+  }
+  changeNotifierMessage.callback(n: n, i: i, scroll: scroll);
+  if (scroll == 1 || scroll == 2) {
+    changeNotifierChatList.callback(integer: n); // for the last_message
+  }
 }
 
 void printf(String str) {
