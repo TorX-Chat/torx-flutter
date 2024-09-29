@@ -3213,6 +3213,31 @@ class _RouteSettingsState extends State<RouteSettings> {
                 Row(
                   children: [
                     Text(
+                      text.set_save_all_stickers,
+                      style: TextStyle(color: color.page_subtitle),
+                    )
+                  ],
+                ),
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  Switch(
+                    value: save_all_stickers,
+                    activeColor: const Color(0xFF6200EE),
+                    onChanged: (value) {
+                      if (value == false) {
+                        set_setting_string(0, -1, "save_all_stickers", "0");
+                      } else if (value == true) {
+                        set_setting_string(0, -1, "save_all_stickers", "1");
+                      }
+                      setState(() {
+                        save_all_stickers = value;
+                      });
+                    },
+                  ),
+                ]),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Text(
                       text.keyboard_privacy,
                       style: TextStyle(color: color.page_subtitle),
                     )

@@ -700,8 +700,8 @@ typedef FnDARTsql_insert_peer = int Function(int, int, int, Pointer<Utf8>, Point
 typedef FnCsql_update_peer = Int Function(Int);
 typedef FnDARTsql_update_peer = int Function(int);
 
-typedef FnCsql_populate_message = Int Function(Int, Uint32, Uint32);
-typedef FnDARTsql_populate_message = int Function(int, int, int);
+typedef FnCsql_populate_message = Int Function(Int, Uint32, Uint32, Time_t);
+typedef FnDARTsql_populate_message = int Function(int, int, int, int);
 
 typedef FnCsql_populate_peer = Int Function();
 typedef FnDARTsql_populate_peer = int Function();

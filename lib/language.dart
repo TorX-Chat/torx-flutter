@@ -148,6 +148,7 @@ class text {
   static String set_onionid_or_torxid = "";
   static String set_global_log = "";
   static String set_auto_resume_inbound = "";
+  static String set_save_all_stickers = "";
   static String set_download_directory = "";
   static String set_tor = "";
   static String set_cpu = "";
@@ -337,6 +338,7 @@ void initialize_language() {
     text.set_onionid_or_torxid = "TorX-ID (<=52 char) or OnionID (56 char with checksum)";
     text.set_global_log = "Message Logging (Global Default)";
     text.set_auto_resume_inbound = "Auto-Resume Inbound Transfers";
+    text.set_save_all_stickers = "Save All Stickers";
     text.set_download_directory = "Select Download Directory";
     text.set_tor = "Select Custom Tor binary location (effective immediately)";
     text.set_cpu = "Maximum CPU threads for TorX-ID generation";

@@ -125,7 +125,7 @@ void ui_sticker_delete(int s) {
 }
 
 int ui_sticker_register(Pointer<Uint8> data, int data_len) {
-  Pointer<Uint8> checksum = torx.torx_secure_malloc(CHECKSUM_BIN_LEN) as Pointer<Uint8>; // DO NOT FREE
+  Pointer<Uint8> checksum = torx.torx_secure_malloc(CHECKSUM_BIN_LEN) as Pointer<Uint8>; // DO NOT FREE, goes to sticker.add
   torx.b3sum_bin(checksum, nullptr, data, 0, data_len);
   int s = ui_sticker_set(checksum);
   if (s < 0) {
@@ -136,6 +136,8 @@ int ui_sticker_register(Pointer<Uint8> data, int data_len) {
     for (int iter = MAX_PEERS - 1; iter > -1; iter--) {
       stickers[s].peers.add(-1);
     }
+  } else {
+    torx.torx_free_simple(checksum as Pointer<Void>);
   }
   return s;
 }

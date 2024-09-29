@@ -269,6 +269,14 @@ class Callbacks {
         } else {
           error(0, "Bad keyboard_privacy setting read from storage. Coding error. Report this.");
         }
+      } else if (name == "save_all_stickers") {
+        if (int.parse(setting_value.toDartString()) == 0) {
+          save_all_stickers = false;
+        } else if (int.parse(setting_value.toDartString()) == 1) {
+          save_all_stickers = true;
+        } else {
+          error(0, "Bad save_all_stickers setting read from storage. Coding error. Report this.");
+        }
       } else if (name.startsWith("sticker-gif-")) {
         int s = ui_sticker_register(setting_value as Pointer<Uint8>, setting_value_len);
         stickers[s].saved = true;
@@ -360,13 +368,20 @@ class Callbacks {
         // Old sticker data, do not print or register (such as re-opening peer route)
         error(0, "We already have this sticker data, do not register or print again.");
       } else {
-        // Fresh sticker data. Save it and print it
-        Pointer<Uint8> data_unsigned = data as Pointer<Uint8>;
-        int s = ui_sticker_register(data_unsigned + CHECKSUM_BIN_LEN, data_len - CHECKSUM_BIN_LEN); // this is pointer arithmetic
-        if (save_all_stickers) {
-          ui_sticker_save(s);
+        Pointer<Uint8> checksum = torx.torx_secure_malloc(CHECKSUM_BIN_LEN) as Pointer<Uint8>;
+        if (torx.b3sum_bin(checksum, nullptr, data as Pointer<Uint8>, CHECKSUM_BIN_LEN, data_len - CHECKSUM_BIN_LEN) != data_len - CHECKSUM_BIN_LEN ||
+            torx.memcmp(checksum as Pointer<Void>, data as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
+          error(0, "Received bunk sticker data from peer. Checksum failed. Disgarding sticker.");
+        } else {
+          // Fresh sticker data. Save it and print it
+          Pointer<Uint8> data_unsigned = data as Pointer<Uint8>;
+          int s = ui_sticker_register(data_unsigned + CHECKSUM_BIN_LEN, data_len - CHECKSUM_BIN_LEN); // this is pointer arithmetic
+          if (save_all_stickers) {
+            ui_sticker_save(s);
+          }
+          changeNotifierStickerReady.callback(integer: s);
         }
-        changeNotifierStickerReady.callback(integer: s);
+        torx.torx_free_simple(checksum as Pointer<Void>);
       }
     } else {
       error(0, "Unknown stream data received: protocol=$protocol data_len=$data_len");
