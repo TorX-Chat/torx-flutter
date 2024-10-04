@@ -356,7 +356,6 @@ class _RouteChatState extends State<RouteChat> {
   int g = -1;
   int g_invite_required = 0;
   double msgBorderRadius = 10;
-  List<int> stickers_requested = [];
 
   void setStatusIcon(int n) {
     if (g > -1) {
@@ -744,24 +743,12 @@ class _RouteChatState extends State<RouteChat> {
               )));
     } else if (message_len >= CHECKSUM_BIN_LEN &&
         (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
-      Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
-      int s = ui_sticker_set(message as Pointer<Uint8>);
-      if (s < 0 && stat == ENUM_MESSAGE_RECV) {
-        int y = 0;
-        for (; y < stickers_requested.length && stickers_requested[y] != s; y++) {}
-        if (y == stickers_requested.length) {
-          /* request sticker once per loading of route, same as gtk currently. In the future, we should probably request once per peer, per session, perhaps */
-          stickers_requested.add(s);
-          torx.message_send(n, ENUM_PROTOCOL_STICKER_REQUEST, message as Pointer<Void>, CHECKSUM_BIN_LEN);
-        }
-      }
-      torx.torx_free_simple(message as Pointer<Void>);
-      message = nullptr;
       Image? animated_gif;
+      int s = -1;
       return AnimatedBuilder(
           animation: changeNotifierStickerReady,
           builder: (BuildContext context, Widget? snapshot) {
-            if (s < 0 && stat == ENUM_MESSAGE_RECV) {
+            if (s < 0) {
               Pointer<Utf8> message_local = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
               s = ui_sticker_set(message_local as Pointer<Uint8>);
               torx.torx_free_simple(message_local as Pointer<Void>);

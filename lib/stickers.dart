@@ -34,7 +34,7 @@ class sticker {
 List<sticker> stickers = [];
 
 Image? sticker_generator(int s) {
-  if (stickers.isNotEmpty) {
+  if (stickers.isNotEmpty && s < stickers.length) {
     Uint8List bytes = stickers[s].data.asTypedList(stickers[s].data_len);
     return Image.memory(height: sticker_size * 2, fit: BoxFit.contain, bytes);
   }
@@ -138,6 +138,7 @@ int ui_sticker_register(Pointer<Uint8> data, int data_len) {
     }
   } else {
     torx.torx_free_simple(checksum as Pointer<Void>);
+    checksum = nullptr;
   }
   return s;
 }

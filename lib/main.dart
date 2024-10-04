@@ -104,6 +104,7 @@ class t_peer {
     t_file_class(),
     t_file_class(),
   ]; // 11
+  static List<List<Pointer<Uint8>>> stickers_requested = [[], [], [], [], [], [], [], [], [], [], []]; // 11
 }
 
 AppLifecycleState globalAppLifecycleState = AppLifecycleState.resumed; // This is the appropriate default Enum values below
@@ -486,6 +487,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               title: Text(text.save),
               onTap: () {
                 ui_sticker_save(s);
+                changeNotifierStickerReady.callback(integer: s);
                 Navigator.pop(context);
               })),
     if (s > -1 && n < 0 && i == INT_MIN)
@@ -628,8 +630,35 @@ void print_message(int n, int i, int scroll) {
     return;
   }
   int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
+  int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+  int protocol = protocol_int(p_iter, "protocol");
+  int message_len = torx.getter_uint32(n, i, -1, -1, offsetof("message", "message_len"));
+  if (scroll == 1 &&
+      stat == ENUM_MESSAGE_RECV &&
+      message_len >= CHECKSUM_BIN_LEN &&
+      (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
+    Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
+    int s = ui_sticker_set(message as Pointer<Uint8>);
+    if (s < 0 && stat == ENUM_MESSAGE_RECV) {
+      int y = 0;
+      while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y] as Pointer<Void>, message as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
+        y++;
+      }
+      if (y == t_peer.stickers_requested[n].length) {
+        t_peer.stickers_requested[n].add(message as Pointer<Uint8>);
+        torx.message_send(n, ENUM_PROTOCOL_STICKER_REQUEST, message as Pointer<Void>, CHECKSUM_BIN_LEN);
+      } else {
+        // Already requested this sticker
+        printf("Requested this sticker already. Not requesting again.");
+        torx.torx_free_simple(message as Pointer<Void>); // We free it here, otherwise it gets freed after we remove it from t_peer.stickers_requested
+        message = nullptr;
+      }
+    } else {
+      torx.torx_free_simple(message as Pointer<Void>);
+      message = nullptr;
+    }
+  }
   if (stat == ENUM_MESSAGE_RECV && scroll == 1) {
-    int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
     int notifiable = protocol_int(p_iter, "notifiable");
     if (notifiable == 0) {
       return;
