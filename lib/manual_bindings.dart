@@ -121,6 +121,10 @@ const int ENUM_EXCLUSIVE_GROUP_PM = 1;
 const int ENUM_EXCLUSIVE_GROUP_MSG = 2;
 const int ENUM_EXCLUSIVE_GROUP_MECHANICS = 3;
 
+const int ENUM_NON_STREAM = 0;
+const int ENUM_STREAM_DISCARDABLE = 1;
+const int ENUM_STREAM_NON_DISCARDABLE = 2;
+
 typedef FnCinitialize_n_cb = Void Function(Int);
 typedef FnDARTinitialize_n_cb = void Function(int);
 

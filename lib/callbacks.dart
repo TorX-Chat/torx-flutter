@@ -329,44 +329,7 @@ class Callbacks {
       return;
     }
     printf("Checkpoint stream_cb_ui protocol: $protocol size: $data_len");
-    if (data_len >= CHECKSUM_BIN_LEN && protocol == ENUM_PROTOCOL_STICKER_REQUEST) {
-      if (send_sticker_data == false) {
-        torx.torx_free_simple(data as Pointer<Void>);
-        data = nullptr;
-        error(0, "Error 3 in stream_cb_ui");
-        return;
-      }
-      int s = ui_sticker_set(data as Pointer<Uint8>);
-      if (s > -1) {
-        int relevant_n = n; // TODO for groups, this should be group_n
-        int iter = 0;
-        while (iter < stickers[s].peers.length && stickers[s].peers[iter] != relevant_n && stickers[s].peers[iter] > -1) {
-          iter++;
-        }
-        if (relevant_n != stickers[s].peers[iter]) {
-          //	printf("Checkpoint TRYING s=%d owner=%u\n",s,owner); // FINGERPRINTING
-          if (owner == ENUM_OWNER_GROUP_PEER) {
-            // if not on peer_n(pm), try group_n (public)
-            int g = torx.set_g(n, nullptr);
-            relevant_n = torx.getter_group_int(g, offsetof("group", "n"));
-            owner = torx.getter_uint8(relevant_n, INT_MIN, -1, -1, offsetof("peer", "owner"));
-            stream_cb_ui(n, p_iter, data, data_len); // recurse
-          } else {
-            error(0, "Peer requested a sticker they dont have access to (either they are buggy or malicious, or our MAX_PEERS is too small). Report this.");
-          }
-        } else if (s > -1) {
-          // Peer requested a sticker we have
-          Pointer<Uint8> message = torx.torx_secure_malloc(CHECKSUM_BIN_LEN + stickers[s].data_len) as Pointer<Uint8>;
-          torx.memcpy(message as Pointer<Void>, stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN);
-          torx.memcpy((message + CHECKSUM_BIN_LEN) as Pointer<Void>, stickers[s].data as Pointer<Void>, stickers[s].data_len);
-          torx.message_send(n, ENUM_PROTOCOL_STICKER_DATA_GIF, message as Pointer<Void>, CHECKSUM_BIN_LEN + stickers[s].data_len);
-          torx.torx_free_simple(message as Pointer<Void>);
-          message = nullptr;
-        }
-      } else {
-        error(0, "Peer requested sticker we do not have. Maybe we deleted it.");
-      }
-    } else if (data_len >= CHECKSUM_BIN_LEN && protocol == ENUM_PROTOCOL_STICKER_DATA_GIF) {
+    if (data_len >= CHECKSUM_BIN_LEN && protocol == ENUM_PROTOCOL_STICKER_DATA_GIF) {
       int s_check = ui_sticker_set(data as Pointer<Uint8>);
       if (s_check > -1) {
         // Old sticker data, do not print or register (such as re-opening peer route)

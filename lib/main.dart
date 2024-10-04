@@ -219,8 +219,8 @@ void initialization_functions(BuildContext? context) {
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH, "Sticker", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, "Sticker Date Signed", "", 0, 2 * 4, crypto_sign_BYTES, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH_PRIVATE, "Sticker Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_STICKER_REQUEST, "Sticker Request", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, 1);
-  protocol_registration(ENUM_PROTOCOL_STICKER_DATA_GIF, "Sticker data", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, 1);
+  protocol_registration(ENUM_PROTOCOL_STICKER_REQUEST, "Sticker Request", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, 0);
+  protocol_registration(ENUM_PROTOCOL_STICKER_DATA_GIF, "Sticker data", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
 
   int first_run = threadsafe_read_global_Uint8("first_run");
   printf("First run: $first_run");
@@ -632,39 +632,77 @@ void print_message(int n, int i, int scroll) {
   int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
   int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
   int protocol = protocol_int(p_iter, "protocol");
-  int message_len = torx.getter_uint32(n, i, -1, -1, offsetof("message", "message_len"));
-  if (scroll == 1 &&
-      stat == ENUM_MESSAGE_RECV &&
-      message_len >= CHECKSUM_BIN_LEN &&
-      (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
-    Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
-    int s = ui_sticker_set(message as Pointer<Uint8>);
-    if (s < 0 && stat == ENUM_MESSAGE_RECV) {
-      int y = 0;
-      while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y] as Pointer<Void>, message as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
-        y++;
-      }
-      if (y == t_peer.stickers_requested[n].length) {
-        t_peer.stickers_requested[n].add(message as Pointer<Uint8>);
-        torx.message_send(n, ENUM_PROTOCOL_STICKER_REQUEST, message as Pointer<Void>, CHECKSUM_BIN_LEN);
+
+  if (stat == ENUM_MESSAGE_RECV && scroll == 1) {
+    int message_len = torx.getter_uint32(n, i, -1, -1, offsetof("message", "message_len"));
+    if (message_len >= CHECKSUM_BIN_LEN &&
+        (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
+      Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
+      int s = ui_sticker_set(message as Pointer<Uint8>);
+      if (s < 0) {
+        int y = 0;
+        while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y] as Pointer<Void>, message as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
+          y++;
+        }
+        if (y == t_peer.stickers_requested[n].length) {
+          t_peer.stickers_requested[n].add(message as Pointer<Uint8>);
+          torx.message_send(n, ENUM_PROTOCOL_STICKER_REQUEST, message as Pointer<Void>, CHECKSUM_BIN_LEN);
+        } else {
+          // Already requested this sticker
+          printf("Requested this sticker already. Not requesting again.");
+          torx.torx_free_simple(message as Pointer<Void>); // We free it here, otherwise it gets freed after we remove it from t_peer.stickers_requested
+          message = nullptr;
+        }
       } else {
-        // Already requested this sticker
-        printf("Requested this sticker already. Not requesting again.");
-        torx.torx_free_simple(message as Pointer<Void>); // We free it here, otherwise it gets freed after we remove it from t_peer.stickers_requested
+        torx.torx_free_simple(message as Pointer<Void>);
         message = nullptr;
       }
-    } else {
+    } else if (message_len >= CHECKSUM_BIN_LEN && protocol == ENUM_PROTOCOL_STICKER_REQUEST && send_sticker_data) {
+      Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
+      int s = ui_sticker_set(message as Pointer<Uint8>);
+      if (s > -1) {
+        int relevant_n = n; // TODO for groups, this should be group_n
+        for (int cycle = 0; cycle < 2; cycle++) {
+          int iter = 0;
+          while (iter < stickers[s].peers.length && stickers[s].peers[iter] != relevant_n && stickers[s].peers[iter] > -1) {
+            iter++;
+          }
+          if (relevant_n != stickers[s].peers[iter]) {
+            //	printf("Checkpoint TRYING s=%d owner=%u\n",s,owner); // FINGERPRINTING
+            int owner = torx.getter_uint8(relevant_n, INT_MIN, -1, -1, offsetof("peer", "owner"));
+            if (owner == ENUM_OWNER_GROUP_PEER) {
+              // if not on peer_n(pm), try group_n (public)
+              int g = torx.set_g(n, nullptr);
+              relevant_n = torx.getter_group_int(g, offsetof("group", "n"));
+              continue;
+              //  stream_cb_ui(n, p_iter, message, data_len); // recurse
+            } else {
+              error(0, "Peer requested a sticker they dont have access to (either they are buggy or malicious, or our MAX_PEERS is too small). Report this.");
+            }
+          } else if (s > -1) {
+            // Peer requested a sticker we have
+            Pointer<Uint8> message = torx.torx_secure_malloc(CHECKSUM_BIN_LEN + stickers[s].data_len) as Pointer<Uint8>;
+            torx.memcpy(message as Pointer<Void>, stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN);
+            torx.memcpy((message + CHECKSUM_BIN_LEN) as Pointer<Void>, stickers[s].data as Pointer<Void>, stickers[s].data_len);
+            torx.message_send(n, ENUM_PROTOCOL_STICKER_DATA_GIF, message as Pointer<Void>, CHECKSUM_BIN_LEN + stickers[s].data_len);
+            torx.torx_free_simple(message as Pointer<Void>);
+            message = nullptr;
+          }
+          break;
+        }
+      } else {
+        error(0, "Peer requested sticker we do not have. Maybe we deleted it.");
+      }
       torx.torx_free_simple(message as Pointer<Void>);
       message = nullptr;
     }
-  }
-  if (stat == ENUM_MESSAGE_RECV && scroll == 1) {
+
     int notifiable = protocol_int(p_iter, "notifiable");
     if (notifiable == 0) {
       return;
     }
-    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
     int nn = n;
+    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_GROUP_PEER) {
       int g = torx.set_g(n, nullptr);
       nn = torx.getter_group_int(g, offsetof("group", "n"));
