@@ -27,14 +27,16 @@ endif()
 if($ENV{LAN_REPO}) ### TODO Should probably be if(DEFINED ENV{LAN_REPO}), but Flutter is problematic
 	message(STATUS "Using LAN repository: $ENV{LAN_REPO}")
 	set(REPO_TOR "$ENV{LAN_REPO}/tor.git")
-	set(REPO_OBFS "$ENV{LAN_REPO}/obfs4.git")
+	set(REPO_LYREBIRD "$ENV{LAN_REPO}/lyrebird.git")
+	set(REPO_CONJURE "$ENV{LAN_REPO}/conjure.git")
 	set(REPO_SNOWFLAKE "$ENV{LAN_REPO}/snowflake.git")
 	set(REPO_TORX "$ENV{LAN_REPO}/libtorx.git")
 else()
 	message(STATUS "Using default remote repositories instead of LAN.")
 	set(REPO_TOR "https://gitlab.torproject.org/tpo/core/tor.git") # http://xtlfhaspqtkeeqxk6umggfbr3gyfznvf4jhrge2fujz53433i2fcs3id.onion/tor.git
-	set(REPO_OBFS "https://gitlab.com/Yawning/obfs4/")
-	set(REPO_SNOWFLAKE "https://github.com/keroserene/snowflake/")
+	set(REPO_LYREBIRD "https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git")
+	set(REPO_CONJURE "https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/conjure.git")
+	set(REPO_SNOWFLAKE "https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git")
 	set(REPO_TORX "https://github.com/TorX-Chat/libtorx/")
 endif()
 
@@ -107,20 +109,32 @@ ExternalProject_Add(
 	BUILD_BYPRODUCTS src/app/tor
 )
 ExternalProject_Add(
-	obfs4proxy
-	GIT_REPOSITORY ${REPO_OBFS}
+	lyrebird
+	GIT_REPOSITORY ${REPO_LYREBIRD}
+	GIT_TAG main
 	BUILD_IN_SOURCE 1
 	CONFIGURE_COMMAND ""
-	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o obfs4proxy/libobfs4proxy.so ./obfs4proxy
-	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp obfs4proxy/libobfs4proxy.so ${JNILIBS_DIR}
-	BUILD_BYPRODUCTS obfs4proxy/libobfs4proxy.so
+	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v ./cmd/lyrebird
+	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp lyrebird ${JNILIBS_DIR}/liblyrebird.so
+##	BUILD_BYPRODUCTS lyrebird
+)
+ExternalProject_Add(
+	conjure
+	GIT_REPOSITORY ${REPO_CONJURE}
+	GIT_TAG main
+	BUILD_IN_SOURCE 1
+	CONFIGURE_COMMAND ""
+	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o client/libconjure.so ./client
+	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp client/libconjure.so ${JNILIBS_DIR}
+	BUILD_BYPRODUCTS client/libconjure.so
 )
 ExternalProject_Add(
 	snowflake
 	GIT_REPOSITORY ${REPO_SNOWFLAKE}
+	GIT_TAG main
 	BUILD_IN_SOURCE 1
 	CONFIGURE_COMMAND ""
-	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -o client/libsnowflake.so ./client
+	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=-checklinkname=0 -o client/libsnowflake.so ./client
 	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp client/libsnowflake.so ${JNILIBS_DIR}
 	BUILD_BYPRODUCTS client/libsnowflake.so
 )
@@ -138,7 +152,8 @@ add_dependencies(tor torx) # because openssl libevent and zlib come from it
 add_dependencies(
 	${PROJECT_NAME}
 	torx
-	obfs4proxy
+	lyrebird
+	conjure
 	snowflake
 	tor
 )

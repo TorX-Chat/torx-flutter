@@ -192,14 +192,16 @@ void initialization_functions(BuildContext? context) {
   register_callbacks(); // !!! GOAT DO NOT PUT ANY TORX FUNCTIONS BEFORE THIS !!! TODO
 
   String tor_location = "$nativeLibraryDir/libtor.so";
-  String obfs4proxy_location = "nativeLibraryDir/libobfs4proxy.so"; // This is a FAKE location that is replaced by the library with native_library_directory
+  String lyrebird_location = "nativeLibraryDir/liblyrebird.so"; // This is a FAKE location that is replaced by the library with native_library_directory
+  String conjure_location = "nativeLibraryDir/libconjure.so"; // This is a FAKE location that is replaced by the library with native_library_directory
   String snowflake_location = "nativeLibraryDir/libsnowflake.so"; // This is a FAKE location that is replaced by the library with native_library_directory
 
   torx.torx_debug_level(0);
 
   torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
   torx.tor_location[0] = tor_location.toNativeUtf8();
-  torx.obfs4proxy_location[0] = obfs4proxy_location.toNativeUtf8();
+  torx.lyrebird_location[0] = lyrebird_location.toNativeUtf8();
+  torx.conjure_location[0] = conjure_location.toNativeUtf8();
   torx.snowflake_location[0] = snowflake_location.toNativeUtf8();
   torx.native_library_directory[0] = nativeLibraryDir!.toNativeUtf8();
   torx.reduced_memory.value = 2; // 1 == 256mb, 2 == 64mb

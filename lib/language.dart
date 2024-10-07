@@ -234,10 +234,10 @@ void initialize_language() {
     text.accepted_file = "Accepted a file";
     text.spoiled = "A single-use onion was spoiled";
     text.placeholder_privkey = "Onion Private Key (base64, 88 characters including trailing ==, or select from file)";
-    text.placeholder_identifier = "Peer Nick or Mult Identifier (56 character max)";
-    text.placeholder_add_identifier = "Peer Nick (56 characters max)";
+    text.placeholder_identifier = "Peer Nickname or Mult Identifier";
+    text.placeholder_add_identifier = "Peer Nickname";
     text.placeholder_add_onion = "Peer TorX-ID or OnionID (provided by peer)";
-    text.placeholder_add_group_identifier = "Group Nick (56 characters max)";
+    text.placeholder_add_group_identifier = "Group Nickname";
     text.placeholder_add_group_id = "Public Group ID (provided by peer)";
     text.placeholder_search = "Search";
     text.dark = "Dark";
