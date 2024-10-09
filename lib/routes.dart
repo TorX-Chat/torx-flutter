@@ -1182,24 +1182,27 @@ class _RouteChatState extends State<RouteChat> {
                                                   currently_recording = true;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
                                                   String path = "$temporaryDir/myFile.m4a";
-                                                  List<int> blank = [];
-                                                  File(path).writeAsBytesSync(blank);
-                                                  record.start(const RecordConfig(encoder: AudioEncoder.amrNb, noiseSuppress: true, echoCancel: true), path: path);
-                                                  /*        final stream =
+                                                  File(path).writeAsBytesSync([]);
+                                                  record.start(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true), path: path);
+                                                  /*  final List<Uint8List> recordedDataChunks = [];
+                                                  final stream =
                                                       await record.startStream(const RecordConfig(encoder: AudioEncoder.pcm16bits, noiseSuppress: true, echoCancel: true));
                                                   stream.listen(
-                                                    // TODO must be pcm16bits or .listen doesn't work... however pcm
+                                                    // TODO must be pcm16bits or .listen doesn't work... however PCM cannot be played later
                                                     (data) {
                                                       printf("Chicken");
                                                       //    blank.addAll(record.convertBytesToInt16(Uint8List.fromList(data)));
-                                                      blank.addAll(data);
+                                                      recordedDataChunks.add(data);
                                                     },
                                                     onDone: () async {
-                                                      bytes = Uint8List.fromList(blank);
-                                                      int length = await stream.length;
+                                                      bytes = Uint8List.fromList(recordedDataChunks.expand((x) => x).toList());
+                                                      int length = bytes.length;
                                                       printf("Checkpoint length: $length");
                                                     },
-                                                  ); */
+                                                    onError: (error) {
+                                                      printf("Error recording audio: $error");
+                                                    },
+                                                  );*/
                                                 }
                                               },
                                               onLongPressCancel: () async {
@@ -1226,11 +1229,10 @@ class _RouteChatState extends State<RouteChat> {
                                                   final path = await record.stop();
                                                   final player = AudioPlayer();
                                                   if (path != null) {
-                                                    printf("Playing bytes: $path");
                                                     bytes = await File(path).readAsBytes();
                                                     await player.play(BytesSource(bytes));
                                                   } else {
-                                                    await player.play(BytesSource(bytes));
+                                                    await player.play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
                                                   }
                                                 }
                                               },
