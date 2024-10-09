@@ -58,6 +58,7 @@ class ChangeNotifierMessage extends ChangeNotifier {
 
 // NOTICE: We cannot have individual widgets listening on multiple ChangeNotifier(s). Therefore, we must have a ChangeNotifier per widget, not per callback type.
 // RE: numbers, see enum cb_type
+ChangeNotifierInt changeNotifierTextOrAudio = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierSendButton = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierActivity = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierStickerReady = ChangeNotifierInt();

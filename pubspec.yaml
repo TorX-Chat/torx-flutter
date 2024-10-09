@@ -57,6 +57,8 @@ dependencies:
     git:
       url: https://github.com/TruongAnim/media_scanner.git # alt: https://github.com/wukgdu/media_scanner.git
       ref: 773ec684e1130cb12e6287c0aa13cee6de694c9e # alt: master
+  record: ^5.1.2
+  audioplayers: ^6.1.0
 
 dev_dependencies:
   flutter_test:

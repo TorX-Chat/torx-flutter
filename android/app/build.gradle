@@ -42,7 +42,8 @@ android {
         applicationId = "com.torx.chat"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdk = flutter.minSdkVersion
+	minSdkVersion 23 // necessary for record / AAC audio, otherwise need to use PCM
+//        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName

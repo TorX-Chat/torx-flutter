@@ -4,10 +4,12 @@ import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'package:app_badge_plus/app_badge_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
+import 'package:record/record.dart';
 import 'package:share_plus/share_plus.dart';
 import 'colors.dart';
 import 'main.dart';
@@ -812,7 +814,17 @@ class _RouteChatState extends State<RouteChat> {
     }
   }
 
+  late Uint8List bytes;
+  bool show_keyboard = true;
+  bool currently_recording = false;
+  final record = AudioRecorder();
   int former_text_len = t_peer.unsent[global_n].length;
+  @override
+  void dispose() {
+    record.dispose(); // says we have to do this
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     owner = torx.getter_uint8(widget.n, INT_MIN, -1, -1, offsetof("peer", "owner"));
@@ -831,7 +843,6 @@ class _RouteChatState extends State<RouteChat> {
     if (keyboard_privacy == false) {
       ime_enabled_spellCheckConfiguration = null;
     }
-
     return PopScope(
         onPopInvoked: (didPop) {
           scrollController.dispose();
@@ -1135,34 +1146,117 @@ class _RouteChatState extends State<RouteChat> {
                         margin: const EdgeInsets.only(left: 5.0, bottom: 15.0, top: 8.0), // fat fingers
                         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: color.write_message_background),
                         child: Padding(
-                          padding: const EdgeInsets.only(left: 5.0, right: 5.0),
-                          child: TextField(
-                            maxLines: null,
-                            controller: controllerMessage,
-                            autocorrect: !keyboard_privacy, // Android + iOS
-                            enableSuggestions: !keyboard_privacy, // Only affects android
-                            enableIMEPersonalizedLearning: false, // Only affects android
-                            scribbleEnabled: false,
-                            spellCheckConfiguration: ime_enabled_spellCheckConfiguration, // const SpellCheckConfiguration.disabled(), // Android + iOS
-                            showCursor: true,
-                            autofocus: autoFocusKeyboard,
-                            onChanged: (value) {
-                              int text_len = controllerMessage.text.length;
-                              if (text_len == 0 || former_text_len == 0) {
-                                changeNotifierSendButton.callback(integer: 1); // value is arbitrary
-                              }
-                              former_text_len = text_len;
-                              //  printf("Checkpoint 1, if after detach, t_peer.unsent may not exist for n=${widget.n}");
-                              t_peer.unsent[widget.n] = controllerMessage.text;
-                            },
-                            style: TextStyle(color: color.write_message_text),
-                          ),
-                        )),
+                            padding: const EdgeInsets.only(left: 5.0, right: 5.0),
+                            child: AnimatedBuilder(
+                                animation: changeNotifierTextOrAudio,
+                                builder: (BuildContext context, Widget? snapshot) {
+                                  return show_keyboard
+                                      ? TextField(
+                                          maxLines: null,
+                                          controller: controllerMessage,
+                                          autocorrect: !keyboard_privacy, // Android + iOS
+                                          enableSuggestions: !keyboard_privacy, // Only affects android
+                                          enableIMEPersonalizedLearning: false, // Only affects android
+                                          scribbleEnabled: false,
+                                          spellCheckConfiguration: ime_enabled_spellCheckConfiguration, // const SpellCheckConfiguration.disabled(), // Android + iOS
+                                          showCursor: true,
+                                          autofocus: autoFocusKeyboard,
+                                          onChanged: (value) {
+                                            int text_len = controllerMessage.text.length;
+                                            if (text_len == 0 || former_text_len == 0) {
+                                              changeNotifierSendButton.callback(integer: 1); // value is arbitrary
+                                            }
+                                            former_text_len = text_len;
+                                            //  printf("Checkpoint 1, if after detach, t_peer.unsent may not exist for n=${widget.n}");
+                                            t_peer.unsent[widget.n] = controllerMessage.text;
+                                          },
+                                          style: TextStyle(color: color.write_message_text),
+                                        )
+                                      : SizedBox(
+                                          width: double.infinity,
+                                          child: GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onLongPressDown: (yes) async {
+                                                if (await record.hasPermission()) {
+                                                  printf("Start recording");
+                                                  currently_recording = true;
+                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+                                                  String path = "$temporaryDir/myFile.m4a";
+                                                  //  record.start(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true), path: path);
+                                                  (await record.startStream(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true))).listen(
+                                                    // TODO this doesn't work, but we *used to* have it working
+                                                    (data) {
+                                                      // ignore: avoid_print
+                                                      print(
+                                                        record.convertBytesToInt16(Uint8List.fromList(data)),
+                                                      );
+                                                      printf("Chicken");
+                                                      File(path).writeAsBytesSync(data, mode: FileMode.append);
+                                                    },
+                                                    onDone: () {
+                                                      printf('End of stream. File written to $path.');
+                                                    },
+                                                  );
+                                                }
+                                              },
+                                              onLongPressCancel: () async {
+                                                if (currently_recording) {
+                                                  printf("Cancel recording. Too short.");
+                                                  currently_recording = false;
+                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+                                                  await record.cancel();
+                                                }
+                                              },
+                                              onLongPressMoveUpdate: (det) async {
+                                                if (currently_recording && det.localOffsetFromOrigin.distance > 100) {
+                                                  printf("Cancel via drag");
+                                                  currently_recording = false;
+                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+                                                  await record.cancel();
+                                                }
+                                              },
+                                              onLongPressUp: () async {
+                                                if (currently_recording) {
+                                                  printf("Send audio");
+                                                  currently_recording = false;
+                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+                                                  final path = await record.stop();
+                                                  final player = AudioPlayer();
+                                                  if (path != null) {
+                                                    printf("Playing bytes: $path");
+                                                    bytes = await File(path).readAsBytes();
+                                                    await player.play(BytesSource(bytes));
+                                                  } else {
+                                                    await player.play(BytesSource(bytes));
+                                                  }
+                                                }
+                                              },
+                                              child: MaterialButton(
+                                                  onPressed: () {},
+                                                  elevation: 5,
+                                                  color: currently_recording ? color.auth_error : color.auth_button_hover,
+                                                  child: Text(
+                                                    text.hold_to_talk,
+                                                    style: TextStyle(color: color.auth_button_text),
+                                                  ))));
+                                }))),
                   ),
                   AnimatedBuilder(
                       animation: changeNotifierSendButton,
                       builder: (BuildContext context, Widget? snapshot) {
                         return Row(children: [
+                          if (controllerMessage.text.isEmpty)
+                            IconButton(
+                                icon: show_keyboard ? Icon(Icons.mic, color: color.torch_off) : Icon(Icons.keyboard, color: color.torch_off),
+                                onPressed: () {
+                                  if (show_keyboard) {
+                                    show_keyboard = false;
+                                  } else {
+                                    show_keyboard = true;
+                                  }
+                                  changeNotifierTextOrAudio.callback(integer: 1); // value is arbitrary
+                                  changeNotifierSendButton.callback(integer: 1); // value is arbitrary
+                                }),
                           if (controllerMessage.text.isEmpty)
                             IconButton(
                                 icon: Icon(Icons.gif_box_outlined, color: color.torch_off),

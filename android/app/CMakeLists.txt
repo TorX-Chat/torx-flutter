@@ -16,8 +16,8 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 # ANDROID_TOOLCHAIN TODO set
 # ??? CMAKE_PREFIX_PATH ==
 
-#set($ENV{TORX_TAG} "dev")			### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
-#set($ENV{LAN_REPO} "http://10.8.88.11/") 	### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
+set($ENV{TORX_TAG} "dev")			### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
+set($ENV{LAN_REPO} "http://10.8.88.11/") 	### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
 
 if($ENV{TORX_TAG}) ### TODO Should probably be if(DEFINED ENV{TORX_TAG}), but Flutter is problematic
 	set(TAG_REPO "$ENV{TORX_TAG}")
@@ -49,7 +49,7 @@ foreach(LIB ${REQUIRED_LIBS})
 endforeach()
 set(JNILIBS_DIR ../../../../../../../${JNILIBS_DIR_SHORT})
 
-#set(BUILD_TORX_DEPS 0) # Temp override
+set(BUILD_TORX_DEPS 0) # Temp override
 
 set(ANDROID_VERSION 21) ## find a way to set this properly from env variables, or ANDROID_PLATFORM (is an int), or ANDROID_API_LEVEL (i think also int?? not sure tho) #set(CMAKE_SYSTEM_VERSION 21) # TODO NOT WORKING in our dependancy builds. Defaulting to 1. use __ANDROID_MIN_SDK_VERSION__ ?
 set(ANDROID_PLATFORM ${ANDROID_VERSION})
