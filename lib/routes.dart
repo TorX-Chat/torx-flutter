@@ -1182,21 +1182,24 @@ class _RouteChatState extends State<RouteChat> {
                                                   currently_recording = true;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
                                                   String path = "$temporaryDir/myFile.m4a";
-                                                  //  record.start(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true), path: path);
-                                                  (await record.startStream(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true))).listen(
-                                                    // TODO this doesn't work, but we *used to* have it working
+                                                  List<int> blank = [];
+                                                  File(path).writeAsBytesSync(blank);
+                                                  record.start(const RecordConfig(encoder: AudioEncoder.amrNb, noiseSuppress: true, echoCancel: true), path: path);
+                                                  /*        final stream =
+                                                      await record.startStream(const RecordConfig(encoder: AudioEncoder.pcm16bits, noiseSuppress: true, echoCancel: true));
+                                                  stream.listen(
+                                                    // TODO must be pcm16bits or .listen doesn't work... however pcm
                                                     (data) {
-                                                      // ignore: avoid_print
-                                                      print(
-                                                        record.convertBytesToInt16(Uint8List.fromList(data)),
-                                                      );
                                                       printf("Chicken");
-                                                      File(path).writeAsBytesSync(data, mode: FileMode.append);
+                                                      //    blank.addAll(record.convertBytesToInt16(Uint8List.fromList(data)));
+                                                      blank.addAll(data);
                                                     },
-                                                    onDone: () {
-                                                      printf('End of stream. File written to $path.');
+                                                    onDone: () async {
+                                                      bytes = Uint8List.fromList(blank);
+                                                      int length = await stream.length;
+                                                      printf("Checkpoint length: $length");
                                                     },
-                                                  );
+                                                  ); */
                                                 }
                                               },
                                               onLongPressCancel: () async {
