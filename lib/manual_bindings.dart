@@ -1,6 +1,7 @@
 // ignore_for_file: non_constant_identifier_names, camel_case_types, constant_identifier_names
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'callbacks.dart';
 import 'main.dart';
@@ -67,6 +68,9 @@ const int ENUM_PROTOCOL_STICKER_HASH_PRIVATE = 40505;
 const int ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED = 1891;
 const int ENUM_PROTOCOL_STICKER_REQUEST = 24931;
 const int ENUM_PROTOCOL_STICKER_DATA_GIF = 46093;
+const int ENUM_PROTOCOL_AAC_AUDIO_MSG = 28792;
+const int ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE = 33751;
+const int ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED = 36310;
 /*
 const int ENUM_PROTOCOL_AUDIO_WAV = 14433;
   const int ENUM_PROTOCOL_AUDIO_WAV_DATE_SIGNED = 5392;
@@ -928,6 +932,20 @@ int offsetof(String list, String member) {
   return offset;
 }
 
+Uint8List getter_bytes(int n, int i, int f, int offset) {
+  Pointer<Uint32> len = malloc(4); // free'd by calloc.free
+  Pointer<Uint8> pointer = torx.getter_string(len, n, i, f, offset) as Pointer<Uint8>; // free'd by torx_free
+  Uint8List list = Uint8List(len.value);
+  if (pointer != nullptr) {
+    list.setAll(0, pointer.asTypedList(len.value));
+    torx.torx_free_simple(pointer as Pointer<Void>);
+    pointer = nullptr;
+  }
+  calloc.free(len);
+  len = nullptr;
+  return list;
+}
+
 String getter_string(int n, int i, int f, int offset) {
   String ret = "";
   Pointer<Uint32> len = malloc(4); // free'd by calloc.free
@@ -1009,6 +1027,13 @@ int protocol_registration(int protocol, String name, String description, int nul
   calloc.free(description_p);
   description_p = nullptr;
   return ret;
+}
+
+void destroy_file(String path) {
+  Pointer<Utf8> pointer = path.toNativeUtf8();
+  torx.destroy_file(pointer);
+  calloc.free(pointer);
+  pointer = nullptr;
 }
 
 class torx {

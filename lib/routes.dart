@@ -1,5 +1,4 @@
 // ignore_for_file: constant_identifier_names, non_constant_identifier_names, camel_case_types
-import 'dart:async';
 import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
@@ -10,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:record/record.dart';
-import 'package:share_plus/share_plus.dart';
 import 'colors.dart';
 import 'main.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -25,7 +23,6 @@ import 'package:photo_view/photo_view.dart';
 //import 'package:photo_view/photo_view_gallery.dart';
 import 'package:open_filex/open_filex.dart';
 import 'stickers.dart';
-import 'package:media_scanner/media_scanner.dart';
 
 @pragma("vm:entry-point") // Should be top level / not in class. NOTE: THIS LINE IS ABSOLUTELY necessary by flutter_local_notifications to prevent tree-shaking the code
 void response(NotificationResponse notificationResponse) {
@@ -782,6 +779,29 @@ class _RouteChatState extends State<RouteChat> {
                           ],
                         )));
           });
+    } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
+      return message_bubble(
+          stat,
+          group_pm,
+          InkWell(
+              onTap: () async {
+                Uint8List bytes = getter_bytes(n, i, -1, offsetof("message", "message"));
+                final player = AudioPlayer();
+                await player.play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
+              },
+              child: Column(
+                crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Padding(padding: const EdgeInsets.only(right: 10.0), child: SvgPicture.asset(path_logo, color: color.logo, width: 20, height: 20)),
+                    Flexible(
+                      // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
+                      child: Text(text.audio_message, style: TextStyle(color: _colorizeText(stat, group_pm))),
+                    )
+                  ]),
+                  messageTime(n, i)
+                ],
+              )));
     } else {
       return message_bubble(
           stat,
@@ -1185,14 +1205,13 @@ class _RouteChatState extends State<RouteChat> {
                                                   File(path).writeAsBytesSync([]);
                                                   record.start(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true), path: path);
                                                   /*  final List<Uint8List> recordedDataChunks = [];
-                                                  final stream =
-                                                      await record.startStream(const RecordConfig(encoder: AudioEncoder.pcm16bits, noiseSuppress: true, echoCancel: true));
+                                                  final stream = await record.startStream(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true));
                                                   stream.listen(
                                                     // TODO must be pcm16bits or .listen doesn't work... however PCM cannot be played later
                                                     (data) {
-                                                      printf("Chicken");
+                                                      printf("Need to concat the data here");
                                                       //    blank.addAll(record.convertBytesToInt16(Uint8List.fromList(data)));
-                                                      recordedDataChunks.add(data);
+                                                      //  recordedDataChunks.add(data);
                                                     },
                                                     onDone: () async {
                                                       bytes = Uint8List.fromList(recordedDataChunks.expand((x) => x).toList());
@@ -1202,7 +1221,7 @@ class _RouteChatState extends State<RouteChat> {
                                                     onError: (error) {
                                                       printf("Error recording audio: $error");
                                                     },
-                                                  );*/
+                                                  ); */
                                                 }
                                               },
                                               onLongPressCancel: () async {
@@ -1230,8 +1249,31 @@ class _RouteChatState extends State<RouteChat> {
                                                   final player = AudioPlayer();
                                                   if (path != null) {
                                                     bytes = await File(path).readAsBytes();
-                                                    await player.play(BytesSource(bytes));
+                                                    destroy_file(path);
+                                                    final Pointer<Uint8> ptr = malloc(bytes.length);
+                                                    ptr.asTypedList(bytes.length).setAll(0, bytes);
+                                                    if (t_peer.edit_n[widget.n] > -1 && t_peer.edit_i[widget.n] > INT_MIN) {
+                                                      error(0,
+                                                          "Currently no support for modifying an audio message to another audio message. Replace it with text instead, or modify message_edit() to facilitate.");
+                                                    } else if (t_peer.edit_n[widget.n] > -1) {
+                                                      error(0, "Cannot modify peernick to an audio message.");
+                                                    } else if (t_peer.pm_n[widget.n] > -1) {
+                                                      torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, ptr as Pointer<Void>, bytes.length);
+                                                    } else if (owner == ENUM_OWNER_GROUP_CTRL) {
+                                                      g = torx.set_g(widget.n, nullptr);
+                                                      g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
+                                                      if (owner == ENUM_OWNER_GROUP_CTRL && g_invite_required != 0) {
+                                                        // date && sign private group messages
+                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, ptr as Pointer<Void>, bytes.length);
+                                                      } else {
+                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, bytes.length);
+                                                      }
+                                                    } else {
+                                                      torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, bytes.length);
+                                                    }
+                                                    malloc.free(ptr);
                                                   } else {
+                                                    printf("Testing without an intermediary file. If audio plays, it works!");
                                                     await player.play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
                                                   }
                                                 }
@@ -1275,7 +1317,6 @@ class _RouteChatState extends State<RouteChat> {
                             icon: controllerMessage.text.isEmpty ? Icon(Icons.attach_file, color: color.torch_off) : Icon(Icons.send, color: color.torch_off),
                             onPressed: () async {
                               if (controllerMessage.text.isEmpty) {
-                                // GOAT file_picker here, allow multiple selections
                                 FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
                                 if (result != null) {
                                   List<File> files = result.paths.map((path) => File(path!)).toList();
@@ -1432,6 +1473,8 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
               lastMessage = getter_string(nn, i, -1, offsetof("message", "message"));
             } else if (protocol == ENUM_PROTOCOL_GROUP_OFFER || protocol == ENUM_PROTOCOL_GROUP_OFFER_FIRST) {
               lastMessage = text.group_offer;
+            } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
+              lastMessage = text.audio_message;
             } else if (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED) {
               lastMessage = text.sticker;
             } else {
@@ -1783,32 +1826,6 @@ class RouteShowQr extends StatefulWidget {
   State<RouteShowQr> createState() => _RouteShowQr();
 }
 
-Future<void> saveQr(String data) async {
-  String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
-  if (selectedDirectory != null && write_test(selectedDirectory)) {
-    //  printf("Selected dir: $selectedDirectory");
-    int datetime = (DateTime.now()).millisecondsSinceEpoch; // seconds since epoch is safe because it has no timezone attached
-    Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
-    Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-    Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
-    Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
-    String path = "$selectedDirectory/qr$datetime.png";
-    Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
-    torx.write_bytes(destination, png, size_p.value);
-    MediaScanner.loadMedia(path: path);
-    torx.torx_free_simple(qr_raw);
-    qr_raw = nullptr;
-    torx.torx_free_simple(png);
-    png = nullptr;
-    calloc.free(data_p);
-    data_p = nullptr;
-    calloc.free(size_p);
-    size_p = nullptr;
-    calloc.free(destination);
-    destination = nullptr;
-  }
-}
-
 class _RouteShowQr extends State<RouteShowQr> {
   @override
   Widget build(BuildContext context) {
@@ -1830,30 +1847,8 @@ class _RouteShowQr extends State<RouteShowQr> {
                   style: TextStyle(color: color.page_subtitle, fontSize: 12),
                 ),
                 MaterialButton(
-                  onPressed: () async {
-                    // final ts = DateTime.now().millisecondsSinceEpoch.toString();
-                    String path =
-                        '$temporaryDir/qr.png'; // might want to make this name unique if sending them in rapid succession causes corruption. depends on how OS handles sharing. if so, use above line
-                    Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-                    Pointer<Utf8> data_p = widget.data.toNativeUtf8(); // free'd by calloc.free
-                    Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
-                    Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
-                    Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
-                    torx.write_bytes(destination, png, size_p.value);
-                    torx.torx_free_simple(qr_raw);
-                    qr_raw = nullptr;
-                    torx.torx_free_simple(png);
-                    png = nullptr;
-                    calloc.free(size_p);
-                    size_p = nullptr;
-                    calloc.free(data_p);
-                    data_p = nullptr;
-                    calloc.free(destination);
-                    destination = nullptr;
-                    Share.shareXFiles(
-                      [XFile(path)],
-                    );
-                    // GOAT delete getTemporaryDirectory().path/qr.png on program startup and shutdown
+                  onPressed: () {
+                    shareQr(widget.data);
                   },
                   height: 30,
                   minWidth: 60,
@@ -2358,10 +2353,6 @@ class _RouteHomeState extends State<RouteHome> {
 
 // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
-/*
-GOAT:
-  Scan with https://pub.dev/packages/mobile_scanner
-*/
 class widget_route_generate extends StatefulWidget {
   final bool group;
 
@@ -2382,7 +2373,7 @@ class _widget_route_generateState extends State<widget_route_generate> {
     bool group = widget.group;
     int g = -1;
     String group_id = "";
-    Pointer<Utf8> group_id_p = nullptr;
+    String group_id_p = "";
     return Padding(
         padding: const EdgeInsets.all(8.0),
         child: SingleChildScrollView(
@@ -2486,10 +2477,6 @@ class _widget_route_generateState extends State<widget_route_generate> {
                   }
                   g = -1; // do not display QR, do not display ID
                   changeNotifierGroupReady.callback(integer: 1);
-                  if (group_id_p != nullptr) {
-                    calloc.free(group_id_p);
-                    group_id_p = nullptr;
-                  }
                 }
               },
               height: 30,
@@ -2507,11 +2494,7 @@ class _widget_route_generateState extends State<widget_route_generate> {
                 if (g > -1) {
                   group_id = getter_group_id(g);
                   entryAddGenerateGroupOutputController.text = group_id;
-                  if (group_id_p != nullptr) {
-                    calloc.free(group_id_p);
-                    group_id_p = nullptr;
-                  }
-                  group_id_p = group_id.toNativeUtf8();
+                  group_id_p = group_id;
                   changeNotifierGroupReady.callback(integer: 1);
                   entryAddGeneratePeernickController.clear();
                 }
@@ -2543,43 +2526,23 @@ class _widget_route_generateState extends State<widget_route_generate> {
             AnimatedBuilder(
                 animation: group ? changeNotifierGroupReady : changeNotifierOnionReady,
                 builder: (BuildContext context, Widget? snapshot) {
-                  Pointer<Utf8> generated = nullptr;
+                  String generated = "";
                   generated_n = changeNotifierOnionReady.section.integer;
                   if ((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) {
-                    generated =
-                        group ? group_id_p : torx.getter_string(nullptr, changeNotifierOnionReady.section.integer, INT_MIN, -1, offsetof("peer", "torxid")); // GOAT somehow free???
+                    generated = group ? group_id_p : getter_string(changeNotifierOnionReady.section.integer, INT_MIN, -1, offsetof("peer", "torxid"));
                   }
                   //    printf("Group g: $group $g");
                   bool deleted = false;
-                  if (generated != nullptr && generated.toDartString().startsWith('000000')) {
+                  if (generated.isNotEmpty && generated.startsWith('000000')) {
                     deleted = true;
                     group ? entryAddGenerateGroupOutputController.clear() : entryAddGenerateOutputController.clear();
                   }
                   return Column(children: [
-                    if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated != nullptr) generate_qr(generated.toDartString()),
-                    if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated != nullptr)
+                    if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated.isNotEmpty) generate_qr(generated),
+                    if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated.isNotEmpty)
                       MaterialButton(
-                        onPressed: () async {
-                          // final ts = DateTime.now().millisecondsSinceEpoch.toString();
-                          String path =
-                              '$temporaryDir/qr.png'; // might want to make this name unique if sending them in rapid succession causes corruption. depends on how OS handles sharing. if so, use above line
-                          Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-                          Pointer<Void> qr_raw = torx.qr_bool(generated, 8); // free'd by torx_free
-                          Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
-                          Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
-                          torx.write_bytes(destination, png, size_p.value);
-                          torx.torx_free_simple(qr_raw);
-                          qr_raw = nullptr;
-                          torx.torx_free_simple(png);
-                          png = nullptr;
-                          calloc.free(size_p);
-                          size_p = nullptr;
-                          calloc.free(destination);
-                          destination = nullptr;
-                          Share.shareXFiles(
-                            [XFile(path)],
-                          );
-                          // GOAT delete getTemporaryDirectory().path/qr.png on program startup and shutdown
+                        onPressed: () {
+                          shareQr(generated);
                         },
                         height: 30,
                         minWidth: 60,
@@ -2593,7 +2556,7 @@ class _widget_route_generateState extends State<widget_route_generate> {
                     if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated != nullptr)
                       MaterialButton(
                         onPressed: () {
-                          saveQr(generated.toDartString());
+                          saveQr(generated);
                         },
                         height: 20,
                         minWidth: 20,

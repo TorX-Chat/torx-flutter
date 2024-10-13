@@ -7,12 +7,15 @@ import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:chat/callbacks.dart';
 import 'package:chat/stickers.dart';
 import 'package:ffi/ffi.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:media_scanner/media_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
 import 'colors.dart';
 import 'routes.dart';
 import 'route_login.dart';
@@ -223,6 +226,9 @@ void initialization_functions(BuildContext? context) {
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH_PRIVATE, "Sticker Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_REQUEST, "Sticker Request", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_DATA_GIF, "Sticker data", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG, "AAC Audio Message", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, "AAC Audio Message Date Signed", "", 0, 2 * 4, crypto_sign_BYTES, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, "AAC Audio Message Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
 
   int first_run = threadsafe_read_global_Uint8("first_run");
   printf("First run: $first_run");
@@ -330,6 +336,56 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
           primarySwatch: Colors.pink,
         ),
         home: threadsafe_read_global_Uint8("keyed") == 0 ? const RouteLogin() : const RouteBottom());
+  }
+}
+
+void shareQr(String generated) async {
+  String path = '$temporaryDir/qr.png';
+  Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+  Pointer<Utf8> generated_p = generated.toNativeUtf8();
+  Pointer<Void> qr_raw = torx.qr_bool(generated_p, 8); // free'd by torx_free
+  calloc.free(generated_p);
+  generated_p = nullptr;
+  Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
+  Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
+  torx.write_bytes(destination, png, size_p.value);
+  torx.torx_free_simple(qr_raw);
+  qr_raw = nullptr;
+  torx.torx_free_simple(png);
+  png = nullptr;
+  calloc.free(size_p);
+  size_p = nullptr;
+  calloc.free(destination);
+  destination = nullptr;
+  await Share.shareXFiles(
+    [XFile(path)],
+  );
+  destroy_file(path); // MUST AWAIT or this will corrupt
+}
+
+void saveQr(String data) async {
+  String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
+  if (selectedDirectory != null && write_test(selectedDirectory)) {
+    //  printf("Selected dir: $selectedDirectory");
+    int datetime = (DateTime.now()).millisecondsSinceEpoch; // seconds since epoch is safe because it has no timezone attached
+    Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
+    Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+    Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
+    Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
+    String path = "$selectedDirectory/qr$datetime.png";
+    Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
+    torx.write_bytes(destination, png, size_p.value);
+    MediaScanner.loadMedia(path: path);
+    torx.torx_free_simple(qr_raw);
+    qr_raw = nullptr;
+    torx.torx_free_simple(png);
+    png = nullptr;
+    calloc.free(data_p);
+    data_p = nullptr;
+    calloc.free(size_p);
+    size_p = nullptr;
+    calloc.free(destination);
+    destination = nullptr;
   }
 }
 
