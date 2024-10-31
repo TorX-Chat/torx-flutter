@@ -46,7 +46,7 @@ class Callbacks {
   }
 
   void initialize_i_cb_ui(int n, int i) {
-    /* currently null */
+    t_peer.t_message[n].unheard[i] = 1;
   }
 
   void initialize_f_cb_ui(int n, int f) {
@@ -64,7 +64,9 @@ class Callbacks {
   }
 
   void expand_message_struc_cb_ui(int n, int i) {
-    /* currently null */
+    for (int ii = 0; ii < 10; ii++) {
+      t_peer.t_message[n].unheard.add(1);
+    }
   }
 
   void expand_peer_struc_cb_ui(int n) {
@@ -363,6 +365,18 @@ class Callbacks {
       }
     } else {
       error(0, "Unknown stream data received: protocol=$protocol data_len=$data_len");
+    }
+    torx.torx_free_simple(data as Pointer<Void>);
+    data = nullptr;
+  }
+
+  void message_extra_cb_ui(int n, int i, Pointer<Utf8> data, int data_len) {
+    int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+    int protocol = protocol_int(p_iter, "protocol");
+    if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
+      t_peer.t_message[n].unheard[i] = (data as Pointer<Uint8>).value;
+    } else {
+      error(0, "message_extra_cb received $data_len unknown bytes on protocol $protocol");
     }
     torx.torx_free_simple(data as Pointer<Void>);
     data = nullptr;

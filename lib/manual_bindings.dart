@@ -209,6 +209,9 @@ typedef FnDARTcleanup_cb = void Function(int);
 
 typedef FnCstream_cb = Void Function(Int, Int, Pointer<Utf8>, Uint32);
 typedef FnDARTstream_cb = void Function(int, int, Pointer<Utf8>, int);
+
+typedef FnCmessage_extra_cb = Void Function(Int, Int, Pointer<Utf8>, Uint32);
+typedef FnDARTmessage_extra_cb = void Function(int, int, Pointer<Utf8>, int);
 /* NOTE FOR THE FOLLOWING SETTERS: pointer must be the same across both */
 typedef FnCinitialize_n_setter = Void Function(Pointer<NativeFunction<FnCinitialize_n_cb>>);
 typedef FnDARTinitialize_n_setter = void Function(Pointer<NativeFunction<FnCinitialize_n_cb>>);
@@ -290,6 +293,9 @@ typedef FnDARTcleanup_setter = void Function(Pointer<NativeFunction<FnCcleanup_c
 
 typedef FnCstream_setter = Void Function(Pointer<NativeFunction<FnCstream_cb>>);
 typedef FnDARTstream_setter = void Function(Pointer<NativeFunction<FnCstream_cb>>);
+
+typedef FnCmessage_extra_setter = Void Function(Pointer<NativeFunction<FnCmessage_extra_cb>>);
+typedef FnDARTmessage_extra_setter = void Function(Pointer<NativeFunction<FnCmessage_extra_cb>>);
 /* End of setter block */
 typedef FnCpthread_rwlock_rdlock = Int Function(Pointer<Void>);
 typedef FnDARTpthread_rwlock_rdlock = int Function(Pointer<Void>);
@@ -792,6 +798,9 @@ typedef FnDARTmessage_resend = int Function(int, int);
 typedef FnCmessage_send = Int Function(Int, Uint16, Pointer<Void>, Uint32);
 typedef FnDARTmessage_send = int Function(int, int, Pointer<Void>, int);
 
+typedef FnCmessage_extra = Int Function(Int, Int, Pointer<Void>, Uint32);
+typedef FnDARTmessage_extra = int Function(int, int, Pointer<Void>, int);
+
 typedef FnCkill_code = Void Function(Int, Pointer<Utf8>);
 typedef FnDARTkill_code = void Function(int, Pointer<Utf8>);
 
@@ -889,6 +898,7 @@ void register_callbacks() {
   torx.peer_loaded_setter(NativeCallable<FnCpeer_loaded_cb>.listener(Callbacks().peer_loaded_cb_ui).nativeFunction);
   torx.cleanup_setter(NativeCallable<FnCcleanup_cb>.listener(Callbacks().cleanup_cb_ui).nativeFunction);
   torx.stream_setter(NativeCallable<FnCstream_cb>.listener(Callbacks().stream_cb_ui).nativeFunction);
+  torx.message_extra_setter(NativeCallable<FnCmessage_extra_cb>.listener(Callbacks().message_extra_cb_ui).nativeFunction);
 }
 
 String getPath() {
@@ -1092,6 +1102,8 @@ class torx {
   static final cleanup_setter = dynamicLibrary.lookupFunction<FnCcleanup_setter, FnDARTcleanup_setter>('cleanup_setter');
 
   static final stream_setter = dynamicLibrary.lookupFunction<FnCstream_setter, FnDARTstream_setter>('stream_setter');
+
+  static final message_extra_setter = dynamicLibrary.lookupFunction<FnCmessage_extra_setter, FnDARTmessage_extra_setter>('message_extra_setter');
 
   static final pthread_rwlock_rdlock = dynamicLibrary.lookupFunction<FnCpthread_rwlock_rdlock, FnDARTpthread_rwlock_rdlock>('pthread_rwlock_rdlock');
 
@@ -1426,6 +1438,8 @@ class torx {
   static final message_resend = dynamicLibrary.lookupFunction<FnCmessage_resend, FnDARTmessage_resend>('message_resend');
 
   static final message_send = dynamicLibrary.lookupFunction<FnCmessage_send, FnDARTmessage_send>('message_send');
+
+  static final message_extra = dynamicLibrary.lookupFunction<FnCmessage_extra, FnDARTmessage_extra>('message_extra');
 
   static final kill_code = dynamicLibrary.lookupFunction<FnCkill_code, FnDARTkill_code>('kill_code');
 

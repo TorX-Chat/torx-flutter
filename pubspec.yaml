@@ -17,7 +17,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.15+280 # NEVER DECREASE BUILD NUMBER or upgrades will fail
+version: 2.0.16+282 # NEVER DECREASE BUILD NUMBER or upgrades will fail
 
 environment:
   sdk: '>=3.4.0-282.1.beta <4.0.0'
@@ -43,7 +43,7 @@ dependencies:
   mobile_scanner: ^5.2.3
   file_picker: ^8.1.2 # this is better than image_picker, less bloated and more useful
   intl: ^0.19.0
-  flutter_ringtone_player: ^4.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications
+  flutter_ringtone_player: ^4.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications or audioplayers
   vibration: ^2.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications
   flutter_local_notifications: ^17.1.2
   permission_handler: ^11.3.1

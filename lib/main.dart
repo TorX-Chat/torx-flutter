@@ -85,6 +85,11 @@ class t_file_class {
 //  List<int> time_left = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]; //11
 }
 
+class t_message_class {
+  // NOTE: if adding things, be sure to handle them in expand_message_struc_cb() and initialize_i_cb()
+  List<int> unheard = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; //11
+}
+
 class t_peer {
   // NOTE: if adding things, be sure to handle them in expand_peer_struc_cb() and initialize_n_cb()
   // WARNING: These have to be intialized to the proper value (ie, -1 not 0) because the settings can be re-initialized in flutter by lifecycle changes
@@ -106,6 +111,19 @@ class t_peer {
     t_file_class(),
     t_file_class(),
     t_file_class(),
+  ]; // 11
+  static List<t_message_class> t_message = [
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
+    t_message_class(),
   ]; // 11
   static List<List<Pointer<Uint8>>> stickers_requested = [[], [], [], [], [], [], [], [], [], [], []]; // 11
 }
