@@ -68,9 +68,9 @@ const int ENUM_PROTOCOL_STICKER_HASH_PRIVATE = 40505;
 const int ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED = 1891;
 const int ENUM_PROTOCOL_STICKER_REQUEST = 24931;
 const int ENUM_PROTOCOL_STICKER_DATA_GIF = 46093;
-const int ENUM_PROTOCOL_AAC_AUDIO_MSG = 28792;
-const int ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE = 33751;
-const int ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED = 36310;
+const int ENUM_PROTOCOL_AAC_AUDIO_MSG = 43474; // uint32_t duration (milliseconds, big endian) + data
+const int ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE = 29304; // uint32_t duration (milliseconds, big endian) + data
+const int ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED = 47904; // uint32_t duration (milliseconds, big endian) + data
 /*
 const int ENUM_PROTOCOL_AUDIO_WAV = 14433;
   const int ENUM_PROTOCOL_AUDIO_WAV_DATE_SIGNED = 5392;
@@ -942,6 +942,17 @@ int offsetof(String list, String member) {
   return offset;
 }
 
+Uint8List getter_array(int size, int n, int i, int o, int f, int offset) {
+  // WARNING: This function lacks safety checks
+  Pointer<Uint8> array = calloc.allocate(size);
+  torx.getter_array(array as Pointer<Void>, size, n, i, o, f, offset);
+  Uint8List list = Uint8List(size);
+  list.setAll(0, array.asTypedList(size));
+  calloc.free(array);
+  array = nullptr;
+  return list;
+}
+
 Uint8List getter_bytes(int n, int i, int f, int offset) {
   Pointer<Uint32> len = malloc(4); // free'd by calloc.free
   Pointer<Uint8> pointer = torx.getter_string(len, n, i, f, offset) as Pointer<Uint8>; // free'd by torx_free
@@ -980,6 +991,10 @@ int get_file_size(String file_path) {
 }
 
 String protocol_string(int p_iter, int offset) {
+  if (p_iter < 0) {
+    error(0, "Negative p_iter passed to protocol_string. Coding error. Report to UI devs.");
+    return "";
+  }
   torx.pthread_rwlock_rdlock(torx.mutex_protocols);
   Pointer<Utf8> pointer = torx.protocol_access(p_iter, offset) as Pointer<Utf8>; // DO NOT FREE
   String ret = pointer.toDartString();
@@ -988,7 +1003,7 @@ String protocol_string(int p_iter, int offset) {
 }
 
 int protocol_int(int p_iter, String member) {
-  // Returns a member value from the specific p_iter
+  // Returns a member value from the specific p_iter. Note: Cannot return an error if p_iter is -1. Just have to let the program die in protocol_access.
   Pointer<Utf8> parent_p = "protocols".toNativeUtf8(); // free'd by calloc.free
   Pointer<Utf8> member_p = member.toNativeUtf8(); // free'd by calloc.free
   int offset = torx.getter_offset(parent_p, member_p);

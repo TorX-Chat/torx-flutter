@@ -94,8 +94,6 @@ class text {
   static String copy_qr = "";
   static String delete = "";
   static String delete_log = "";
-  static String button_send = "";
-  static String done = "";
   static String hold_to_talk = "";
   static String cancel_editing = "";
   static String private_messaging = "";
@@ -286,8 +284,6 @@ void initialize_language() {
     text.copy_qr = "Copy QR";
     text.delete = "Delete";
     text.delete_log = "Clear Logs";
-    text.button_send = "Send";
-    text.done = "Done";
     text.hold_to_talk = "Hold to Talk";
     text.cancel_editing = "Cancel editing";
     text.private_messaging = "Private Messaging";

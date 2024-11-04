@@ -342,7 +342,7 @@ class RouteChat extends StatefulWidget {
 class _RouteChatState extends State<RouteChat> {
   ScrollController scrollController = ScrollController();
   TextEditingController controllerNick = TextEditingController(text: global_n > -1 ? getter_string(global_n, INT_MIN, -1, offsetof("peer", "peernick")) : null);
-  Widget statusIcon = const Icon(Icons.lock_open);
+  Widget statusIcon = const Icon(Icons.lock_open); // TODO use lock_open_right
   String statusText = "";
   Widget loggingIcon = const Icon(Icons.article);
   Widget muteIcon = const Icon(Icons.notifications_off);
@@ -355,6 +355,7 @@ class _RouteChatState extends State<RouteChat> {
   int g = -1;
   int g_invite_required = 0;
   double msgBorderRadius = 10;
+  AudioPlayer player = AudioPlayer();
 
   void setStatusIcon(int n) {
     if (g > -1) {
@@ -561,6 +562,9 @@ class _RouteChatState extends State<RouteChat> {
 
   Widget ui_message_builder(int n, int i) {
     int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+    if (p_iter < 0) {
+      return const Text("Negative p_iter in ui_message_builder. Coding error Report this to UI Devs.");
+    }
     int group_pm = protocol_int(p_iter, "group_pm");
     int file_offer = protocol_int(p_iter, "file_offer");
     int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
@@ -727,6 +731,9 @@ class _RouteChatState extends State<RouteChat> {
                   torx.group_join_from_i(n, i);
                 }
               },
+              onLongPress: () {
+                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1, -1));
+              },
               child: Column(
                 crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
                 children: [
@@ -780,14 +787,22 @@ class _RouteChatState extends State<RouteChat> {
                         )));
           });
     } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
+      int duration = be32toh(getter_array(4, n, i, -1, -1, offsetof("message", "message")));
       return message_bubble(
           stat,
           group_pm,
           InkWell(
               onTap: () async {
+                if (player.state == PlayerState.playing) {
+                  await player.stop();
+                  if (last_played_n == n && last_played_i == i) {
+                    return;
+                  }
+                }
+                last_played_n = n;
+                last_played_i = i;
                 Uint8List bytes = getter_bytes(n, i, -1, offsetof("message", "message"));
-                final player = AudioPlayer();
-                await player.play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
+                await player.play(BytesSource(bytes.sublist(4) /*, mimeType: "audio/L16"*/));
                 if (t_peer.t_message[n].unheard[i] == 1 && torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
                   t_peer.t_message[n].unheard[i] = 0;
                   Pointer<Uint8> val = malloc(1);
@@ -798,6 +813,9 @@ class _RouteChatState extends State<RouteChat> {
                   val = nullptr;
                 }
               },
+              onLongPress: () {
+                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1, -1));
+              },
               child: Column(
                 crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
                 children: [
@@ -805,7 +823,7 @@ class _RouteChatState extends State<RouteChat> {
                     Padding(padding: const EdgeInsets.only(right: 10.0), child: SvgPicture.asset(path_logo, color: color.logo, width: 20, height: 20)),
                     Flexible(
                       // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
-                      child: Text(text.audio_message, style: TextStyle(color: _colorizeText(stat, group_pm))),
+                      child: Text(" ${(duration / 1000).round()}\" ", style: TextStyle(color: _colorizeText(stat, group_pm))),
                     ),
                     if (stat == ENUM_MESSAGE_RECV && t_peer.t_message[n].unheard[i] == 1) Icon(Icons.circle, color: color.auth_error, size: 18)
                   ]),
@@ -849,6 +867,8 @@ class _RouteChatState extends State<RouteChat> {
   bool currently_recording = false;
   final record = AudioRecorder();
   int former_text_len = t_peer.unsent[global_n].length;
+  int start_time = 0;
+
   @override
   void dispose() {
     record.dispose(); // says we have to do this
@@ -1026,7 +1046,7 @@ class _RouteChatState extends State<RouteChat> {
                     CustomPopupMenuItem(
                       color: color.chat_headerbar,
                       child: ListTile(
-                        leading: Icon(Icons.fireplace_outlined, color: color.torch_off),
+                        leading: Icon(Icons.local_fire_department, color: color.torch_off),
                         title: Text(
                           text.kill,
                           style: TextStyle(color: color.page_title),
@@ -1046,7 +1066,7 @@ class _RouteChatState extends State<RouteChat> {
                   CustomPopupMenuItem(
                     color: color.chat_headerbar,
                     child: ListTile(
-                      leading: Icon(Icons.delete, color: color.torch_off),
+                      leading: Icon(Icons.delete_forever, color: color.torch_off),
                       title: Text(
                         text.delete,
                         style: TextStyle(color: color.page_title),
@@ -1066,7 +1086,7 @@ class _RouteChatState extends State<RouteChat> {
                   CustomPopupMenuItem(
                     color: color.chat_headerbar,
                     child: ListTile(
-                      leading: Icon(Icons.delete, color: color.torch_off),
+                      leading: Icon(Icons.clear_all, color: color.torch_off),
                       title: Text(
                         text.delete_log,
                         style: TextStyle(color: color.page_title),
@@ -1152,6 +1172,7 @@ class _RouteChatState extends State<RouteChat> {
                                 if (t_peer.edit_n[widget.n] > -1) {
                                   former_text_len = 0;
                                   controllerMessage.clear();
+                                  changeNotifierSendButton.callback(integer: 1); // value is arbitrary
                                 }
                                 t_peer.pm_n[widget.n] = -1;
                                 t_peer.edit_n[widget.n] = -1;
@@ -1207,12 +1228,14 @@ class _RouteChatState extends State<RouteChat> {
                                           child: GestureDetector(
                                               behavior: HitTestBehavior.opaque,
                                               onLongPressDown: (yes) async {
+                                                printf("Check recording permission");
                                                 if (await record.hasPermission()) {
                                                   printf("Start recording");
                                                   currently_recording = true;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
                                                   String path = "$temporaryDir/myFile.m4a";
                                                   File(path).writeAsBytesSync([]);
+                                                  start_time = DateTime.now().millisecondsSinceEpoch;
                                                   record.start(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true), path: path);
                                                   /*  final List<Uint8List> recordedDataChunks = [];
                                                   final stream = await record.startStream(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true));
@@ -1255,31 +1278,33 @@ class _RouteChatState extends State<RouteChat> {
                                                   printf("Send audio");
                                                   currently_recording = false;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+                                                  int duration = DateTime.now().millisecondsSinceEpoch - start_time;
+                                                  printf("Checkpoint duration: ${DateTime.now().millisecondsSinceEpoch} - $start_time = $duration milliseconds");
                                                   final path = await record.stop();
-                                                  final player = AudioPlayer();
                                                   if (path != null) {
                                                     bytes = await File(path).readAsBytes();
                                                     destroy_file(path);
-                                                    final Pointer<Uint8> ptr = malloc(bytes.length);
-                                                    ptr.asTypedList(bytes.length).setAll(0, bytes);
+                                                    final Pointer<Uint8> ptr = malloc(4 + bytes.length);
+                                                    ptr.asTypedList(4).setAll(0, htobe32(duration));
+                                                    (ptr + 4).asTypedList(bytes.length).setAll(0, bytes);
                                                     if (t_peer.edit_n[widget.n] > -1 && t_peer.edit_i[widget.n] > INT_MIN) {
                                                       error(0,
                                                           "Currently no support for modifying an audio message to another audio message. Replace it with text instead, or modify message_edit() to facilitate.");
                                                     } else if (t_peer.edit_n[widget.n] > -1) {
                                                       error(0, "Cannot modify peernick to an audio message.");
                                                     } else if (t_peer.pm_n[widget.n] > -1) {
-                                                      torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, ptr as Pointer<Void>, bytes.length);
+                                                      torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, ptr as Pointer<Void>, 4 + bytes.length);
                                                     } else if (owner == ENUM_OWNER_GROUP_CTRL) {
                                                       g = torx.set_g(widget.n, nullptr);
                                                       g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
                                                       if (owner == ENUM_OWNER_GROUP_CTRL && g_invite_required != 0) {
                                                         // date && sign private group messages
-                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, ptr as Pointer<Void>, bytes.length);
+                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, ptr as Pointer<Void>, 4 + bytes.length);
                                                       } else {
-                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, bytes.length);
+                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, 4 + bytes.length);
                                                       }
                                                     } else {
-                                                      torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, bytes.length);
+                                                      torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, 4 + bytes.length);
                                                     }
                                                     malloc.free(ptr);
                                                   } else {
@@ -1350,6 +1375,7 @@ class _RouteChatState extends State<RouteChat> {
                                   torx.message_edit(t_peer.edit_n[widget.n], t_peer.edit_i[widget.n], message);
                                   t_peer.edit_n[widget.n] = -1;
                                   t_peer.edit_i[widget.n] = INT_MIN;
+                                  changeNotifierActivity.callback(integer: 1); // value is arbitrary
                                 } else if (t_peer.edit_n[widget.n] > -1) {
                                   torx.change_nick(t_peer.edit_n[widget.n], message);
                                   setState(() {

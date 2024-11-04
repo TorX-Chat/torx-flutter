@@ -43,6 +43,8 @@ const String path_logo = 'lib/other/svg/logo_torx.svg';
 // bool cancelAfterReply = true; // cancel notifications after replying (DOES NOT WORK, not important)
 
 int generated_n = -1;
+int last_played_n = -1;
+int last_played_i = INT_MIN;
 int totalUnreadPeer = 0;
 int totalUnreadGroup = 0;
 int totalIncoming = 0; // incoming peer requests, ++'d from incoming_friend_request_cb_ui
@@ -255,6 +257,18 @@ void initialization_functions(BuildContext? context) {
   initialize_theme(context);
   requestPermissions();
   initialized = true;
+}
+
+Uint8List htobe32(int value) {
+  value = value & 0xFFFFFFFF; // Ensure the value fits within 32 bits by masking with 0xFFFFFFFF (???)
+  final byteData = ByteData(4);
+  byteData.setUint32(0, value, Endian.big);
+  return byteData.buffer.asUint8List();
+}
+
+int be32toh(Uint8List bytes) {
+  final byteData = ByteData.sublistView(bytes);
+  return byteData.getUint32(0, Endian.big);
 }
 
 class TorX extends StatefulWidget {
@@ -705,8 +719,11 @@ void print_message(int n, int i, int scroll) {
     error(0, "Sanity checkfailed in print_message");
     return;
   }
-  int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
   int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+  if (p_iter < 0) {
+    return; // message deleted
+  }
+  int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
   int protocol = protocol_int(p_iter, "protocol");
 
   if (stat == ENUM_MESSAGE_RECV && scroll == 1) {

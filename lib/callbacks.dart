@@ -372,6 +372,10 @@ class Callbacks {
 
   void message_extra_cb_ui(int n, int i, Pointer<Utf8> data, int data_len) {
     int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+    if (p_iter < 0) {
+      error(0, "message_extra_cb_ui hit a negative p_iter. Coding error. Report this.");
+      return;
+    }
     int protocol = protocol_int(p_iter, "protocol");
     if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
       t_peer.t_message[n].unheard[i] = (data as Pointer<Uint8>).value;
