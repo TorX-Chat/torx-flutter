@@ -864,8 +864,8 @@ class _RouteChatState extends State<RouteChat> {
                 last_played_i = i;
                 Uint8List bytes = getter_bytes(n, i, -1, offsetof("message", "message"));
                 await player.play(BytesSource(bytes.sublist(4) /*, mimeType: "audio/L16"*/));
-                if (t_peer.t_message[n].unheard[i] == 1 && torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
-                  t_peer.t_message[n].unheard[i] = 0;
+                if (t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1 && torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
+                  t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 0;
                   Pointer<Uint8> val = malloc(1);
                   val.value = 0;
                   torx.message_extra(n, i, val as Pointer<Void>, 1);
@@ -886,7 +886,7 @@ class _RouteChatState extends State<RouteChat> {
                       // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
                       child: Text(" ${(duration / 1000).round()}\" ", style: TextStyle(color: _colorizeText(stat, group_pm))),
                     ),
-                    if (stat == ENUM_MESSAGE_RECV && t_peer.t_message[n].unheard[i] == 1) Icon(Icons.circle, color: color.auth_error, size: 18)
+                    if (stat == ENUM_MESSAGE_RECV && t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1) Icon(Icons.circle, color: color.auth_error, size: 18)
                   ]),
                   messageTime(n, i)
                 ],

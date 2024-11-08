@@ -107,7 +107,7 @@ class Callbacks {
   }
 
   void initialize_i_cb_ui(int n, int i) {
-    t_peer.t_message[n].unheard[i] = 1;
+    t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 1;
   }
 
   void initialize_f_cb_ui(int n, int f) {
@@ -125,8 +125,13 @@ class Callbacks {
   }
 
   void expand_message_struc_cb_ui(int n, int i) {
-    for (int ii = 0; ii < 10; ii++) {
-      t_peer.t_message[n].unheard.add(1);
+    if (i > -1) {
+      for (int ii = 0; ii < 10; ii++) {
+        t_peer.t_message[n].unheard.add(1);
+      }
+    } else {
+      t_peer.t_message[n].offset -= 10;
+      t_peer.t_message[n].unheard.insertAll(0, List.filled(10, 1));
     }
   }
 
@@ -439,7 +444,7 @@ class Callbacks {
     }
     int protocol = protocol_int(p_iter, "protocol");
     if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
-      t_peer.t_message[n].unheard[i] = (data as Pointer<Uint8>).value;
+      t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = (data as Pointer<Uint8>).value;
     } else {
       error(0, "message_extra_cb received $data_len unknown bytes on protocol $protocol");
     }

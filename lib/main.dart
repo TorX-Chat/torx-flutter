@@ -150,7 +150,8 @@ class t_file_class {
 
 class t_message_class {
   // NOTE: if adding things, be sure to handle them in expand_message_struc_cb() and initialize_i_cb()
-  List<int> unheard = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; //11
+  List<int> unheard = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 21
+  int offset = -10; // yes, default is -10. YOU MUST UTILIZE THIS.
 }
 
 class t_peer {
