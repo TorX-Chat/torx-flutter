@@ -284,6 +284,7 @@ void initialization_functions(BuildContext? context) {
   torx.torx_debug_level(0);
 
   torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+//  torx.show_log_messages.value = 15;
   torx.tor_location[0] = tor_location.toNativeUtf8();
   torx.lyrebird_location[0] = lyrebird_location.toNativeUtf8();
   torx.conjure_location[0] = conjure_location.toNativeUtf8();
@@ -659,6 +660,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               title: Text(text.start),
               onTap: () {
                 int nnn = handle_stuff(n, i);
+                if (nnn < 0) return;
                 torx.file_accept(nnn, f);
                 Navigator.pop(context);
               })),
@@ -669,6 +671,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               title: Text(text.pause),
               onTap: () {
                 int nnn = handle_stuff(n, i);
+                if (nnn < 0) return;
                 torx.file_accept(nnn, f);
                 Navigator.pop(context);
               })),
@@ -679,6 +682,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               title: Text(text.reject),
               onTap: () {
                 int nnn = handle_stuff(n, i);
+                if (nnn < 0) return;
                 torx.file_cancel(nnn, f);
                 Navigator.pop(context);
               })),
@@ -689,6 +693,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               title: Text(text.cancel),
               onTap: () {
                 int nnn = handle_stuff(n, i);
+                if (nnn < 0) return;
                 torx.file_cancel(nnn, f);
                 Navigator.pop(context);
               })),
@@ -986,6 +991,10 @@ bool write_test(String path) {
 
 int handle_stuff(int n, int i) {
   int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+  if (p_iter < 0) {
+    error(0, "Negative p_iter in handle_stuff. Probably a deleted message. Possible coding error. Report this.");
+    return -1;
+  }
   int group_msg = protocol_int(p_iter, "group_msg");
   int nnn = n;
   int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));

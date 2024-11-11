@@ -667,6 +667,10 @@ class _RouteChatState extends State<RouteChat> {
               )));
     } else if (file_offer > 0) {
       int nnn = handle_stuff(n, i);
+      if (nnn < 0) {
+        // THIS SHOULD NEVER OCCUR
+        return const Text("Negative p_iter in ui_message_builder. Coding error Report this to UI Devs.");
+      }
       int fff = torx.set_f_from_i(n, i);
       // NOTE: this is SENT OR RECEIVED file offer
       return message_bubble(
@@ -1155,6 +1159,7 @@ class _RouteChatState extends State<RouteChat> {
                       iconColor: color.torch_off,
                       onTap: () {
                         torx.delete_log(widget.n);
+                        Navigator.pop(context); // pop the menu (and in the process rebuild)
                       },
                     ),
                   ),
