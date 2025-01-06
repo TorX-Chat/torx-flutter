@@ -347,7 +347,7 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
                         }
                       },
                       onLongPress: () {
-                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, arrayFriends[index], INT_MIN, -1, -1));
+                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, arrayFriends[index], INT_MIN, -1));
                       },
                       child: ListTile(
                           leading: Badge(
@@ -624,7 +624,7 @@ class _RouteChatState extends State<RouteChat> {
   Widget ui_message_builder(int n, int i) {
     int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
     if (p_iter < 0) {
-      return const Text("Negative p_iter in ui_message_builder. Coding error Report this to UI Devs.");
+      return const Text("Negative p_iter in ui_message_builder. Coding error. Report this to UI Devs.");
     }
     int group_pm = protocol_int(p_iter, "group_pm");
     int file_offer = protocol_int(p_iter, "file_offer");
@@ -633,11 +633,6 @@ class _RouteChatState extends State<RouteChat> {
     int protocol = protocol_int(p_iter, "protocol");
     int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
     int message_len = torx.getter_uint32(n, i, -1, -1, offsetof("message", "message_len"));
-    /*  int f = -1;
-
-    if (file_checksum > 0) {
-      f = torx.set_f_from_i(n, i);
-    } */
 
     if (null_terminated_len > 0) {
       int stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
@@ -651,7 +646,7 @@ class _RouteChatState extends State<RouteChat> {
                 offs = touchDetail.globalPosition;
               },
               onLongPress: () {
-                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1, -1));
+                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
               },
               child: Column(
                 crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -666,27 +661,29 @@ class _RouteChatState extends State<RouteChat> {
                 ],
               )));
     } else if (file_offer > 0) {
-      int nnn = handle_stuff(n, i);
-      if (nnn < 0) {
-        // THIS SHOULD NEVER OCCUR
-        return const Text("Negative p_iter in ui_message_builder. Coding error Report this to UI Devs.");
+      Pointer<Int> file_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+      int f = torx.set_f_from_i(file_n_p, n, i);
+      int file_n = file_n_p.value;
+      calloc.free(file_n_p);
+      file_n_p = nullptr;
+      if (f < 0) {
+        return const Text("Negative f from set_f_from_i. Coding error. Report this to UI Devs.");
       }
-      int fff = torx.set_f_from_i(n, i);
       // NOTE: this is SENT OR RECEIVED file offer
       return message_bubble(
           stat,
           group_pm,
           AnimatedBuilder(
-              animation: t_peer.t_file[nnn].changeNotifierTransferProgress[fff],
+              animation: t_peer.t_file[file_n].changeNotifierTransferProgress[f],
               builder: (BuildContext context, Widget? snapshot) {
-                String filename = getter_string(nnn, INT_MIN, fff, offsetof("file", "filename"));
-                String file_path = getter_string(nnn, INT_MIN, fff, offsetof("file", "file_path"));
-                int size = torx.getter_uint64(nnn, INT_MIN, fff, -1, offsetof("file", "size"));
-                int transferred = torx.calculate_transferred(nnn, fff);
-                Pointer<Utf8> file_size_text_p = torx.file_progress_string(nnn, fff);
+                String filename = getter_string(file_n, INT_MIN, f, offsetof("file", "filename"));
+                String file_path = getter_string(file_n, INT_MIN, f, offsetof("file", "file_path"));
+                int size = torx.getter_uint64(file_n, INT_MIN, f, -1, offsetof("file", "size"));
+                int transferred = torx.calculate_transferred(file_n, f);
+                Pointer<Utf8> file_size_text_p = torx.file_progress_string(file_n, f);
                 String file_size_text = file_size_text_p.toDartString();
                 torx.torx_free_simple(file_size_text_p as Pointer<Void>);
-                int status = torx.getter_uint8(nnn, INT_MIN, fff, -1, offsetof("file", "status"));
+                int status = torx.getter_uint8(file_n, INT_MIN, f, -1, offsetof("file", "status"));
                 //    printf("Checkpoint file: $transferred $status");
                 bool finished_file = size > 0 && size == transferred && size == get_file_size(file_path) ? true : false;
                 bool finished_image = false;
@@ -702,11 +699,11 @@ class _RouteChatState extends State<RouteChat> {
                         if (selectedDirectory != null && write_test(selectedDirectory)) {
                           String path = "$selectedDirectory/$filename";
                           Pointer<Utf8> file_path_p = path.toNativeUtf8(); // free'd by calloc.free
-                          torx.file_set_path(nnn, fff, file_path_p);
+                          torx.file_set_path(file_n, f, file_path_p);
                           calloc.free(file_path_p);
                           file_path_p = nullptr;
                           //    printf("Checkpoint accept_file: $path");
-                          torx.file_accept(nnn, fff); // NOTE: having this in two places because this function is async
+                          torx.file_accept(file_n, f); // NOTE: having this in two places because this function is async
                           //    printf("Checkpoint have accepted file");
                         }
                       } else if (finished_file && finished_image) {
@@ -718,14 +715,14 @@ class _RouteChatState extends State<RouteChat> {
                         OpenFilex.open(file_path);
                       } else {
                         //    printf("Checkpoint should pause or start file transfer: $file_path");
-                        torx.file_accept(nnn, fff); // NOTE: having this in two places because this function is async
+                        torx.file_accept(file_n, f); // NOTE: having this in two places because this function is async
                       }
                     },
                     onLongPressStart: (touchDetail) {
                       offs = touchDetail.globalPosition;
                     },
                     onLongPress: () {
-                      showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, fff, -1));
+                      showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
                     },
                     child: Column(
                       crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -797,7 +794,7 @@ class _RouteChatState extends State<RouteChat> {
                 }
               },
               onLongPress: () {
-                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1, -1));
+                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
               },
               child: Column(
                 crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -831,7 +828,7 @@ class _RouteChatState extends State<RouteChat> {
                 s > -1 && (animated_gif = sticker_generator(s)) != null
                     ? InkWell(
                         onLongPress: () {
-                          showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1, s));
+                          showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, s));
                         },
                         child: Column(
                           crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -839,7 +836,7 @@ class _RouteChatState extends State<RouteChat> {
                         ))
                     : InkWell(
                         onLongPress: () {
-                          showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1, s));
+                          showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, s));
                         },
                         child: Column(
                           crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -879,7 +876,7 @@ class _RouteChatState extends State<RouteChat> {
                 }
               },
               onLongPress: () {
-                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1, -1));
+                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
               },
               child: Column(
                 crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
@@ -1530,28 +1527,28 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
       ),
       itemBuilder: (context, index) {
         Color dotColor = ui_statusColor(arrayFriends[index]);
-        Pointer<Int> nn_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+        Pointer<Int> last_message_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
         int i = INT_MIN;
-        for (int count_back = 0; (i = torx.set_last_message(nn_p, arrayFriends[index], count_back)) > INT_MIN; count_back++) {
-          if (t_peer.mute[nn_p.value] == 1 && torx.getter_uint8(nn_p.value, INT_MIN, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER) {
+        for (int count_back = 0; (i = torx.set_last_message(last_message_n_p, arrayFriends[index], count_back)) > INT_MIN; count_back++) {
+          if (t_peer.mute[last_message_n_p.value] == 1 && torx.getter_uint8(last_message_n_p.value, INT_MIN, -1, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER) {
             continue; // do not print, these are hidden messages from ignored users
           } else {
             break;
           }
         }
-        int nn = nn_p.value;
-        calloc.free(nn_p);
-        nn_p = nullptr;
+        int last_message_n = last_message_n_p.value;
+        calloc.free(last_message_n_p);
+        last_message_n_p = nullptr;
         String prefix = "";
         String lastMessage = "";
         int p_iter;
-        if (i > INT_MIN && (p_iter = torx.getter_int(nn, i, -1, -1, offsetof("message", "p_iter"))) > -1) {
-          int max_i = torx.getter_int(nn, INT_MIN, -1, -1, offsetof("peer", "max_i"));
-          if (max_i > INT_MIN || t_peer.unsent[nn].isNotEmpty) {
+        if (i > INT_MIN && (p_iter = torx.getter_int(last_message_n, i, -1, -1, offsetof("message", "p_iter"))) > -1) {
+          int max_i = torx.getter_int(last_message_n, INT_MIN, -1, -1, offsetof("peer", "max_i"));
+          if (max_i > INT_MIN || t_peer.unsent[last_message_n].isNotEmpty) {
             int protocol = protocol_int(p_iter, "protocol");
             int file_offer = protocol_int(p_iter, "file_offer");
             int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
-            int stat = torx.getter_uint8(nn, i, -1, -1, offsetof("message", "stat"));
+            int stat = torx.getter_uint8(last_message_n, i, -1, -1, offsetof("message", "stat"));
             if (t_peer.unsent[arrayFriends[index]].isNotEmpty) {
               prefix = text.draft;
             } else if (stat == ENUM_MESSAGE_RECV && t_peer.unread[arrayFriends[index]] > 0) {
@@ -1564,15 +1561,14 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
             if (t_peer.unsent[arrayFriends[index]].isNotEmpty) {
               lastMessage = t_peer.unsent[arrayFriends[index]];
             } else if (file_offer > 0) {
-              int nnn = nn;
-              if (protocol == ENUM_PROTOCOL_FILE_OFFER_GROUP || protocol == ENUM_PROTOCOL_FILE_OFFER_GROUP_DATE_SIGNED) {
-                int g = torx.set_g(nn, nullptr);
-                nnn = torx.getter_group_int(g, offsetof("group", "n"));
-              }
-              int f = torx.set_f_from_i(nnn, i);
-              f > -1 ? lastMessage = getter_string(nnn, INT_MIN, f, offsetof("file", "filename")) : lastMessage = "Invalid file offer";
+              Pointer<Int> file_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+              int f = torx.set_f_from_i(file_n_p, last_message_n, i);
+              int file_n = file_n_p.value;
+              calloc.free(file_n_p);
+              file_n_p = nullptr;
+              f > -1 ? lastMessage = getter_string(file_n, INT_MIN, f, offsetof("file", "filename")) : lastMessage = "Invalid file offer";
             } else if (null_terminated_len > 0) {
-              lastMessage = getter_string(nn, i, -1, offsetof("message", "message"));
+              lastMessage = getter_string(last_message_n, i, -1, offsetof("message", "message"));
             } else if (protocol == ENUM_PROTOCOL_GROUP_OFFER || protocol == ENUM_PROTOCOL_GROUP_OFFER_FIRST) {
               lastMessage = text.group_offer;
             } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {

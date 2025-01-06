@@ -583,8 +583,8 @@ typedef FnDARTmessage_sign = Pointer<Utf8> Function(Pointer<Uint32>, Pointer<Uin
 typedef FnCcalculate_transferred = Uint64 Function(Int, Int);
 typedef FnDARTcalculate_transferred = int Function(int, int);
 
-typedef FnCcalculate_section_start = Uint64 Function(Uint64, Uint8, Int);
-typedef FnDARTcalculate_section_start = int Function(int, int, int);
+typedef FnCcalculate_section_start = Uint64 Function(Pointer<Uint64>, Uint64, Uint8, Int16);
+typedef FnDARTcalculate_section_start = int Function(Pointer<Uint64>, int, int, int);
 
 typedef FnCvptoi = Int Function(Pointer<Void>);
 typedef FnDARTvptoi = int Function(Pointer<Void>);
@@ -604,8 +604,8 @@ typedef FnDARTset_f = int Function(int, Pointer<Utf8>, int);
 typedef FnCset_g_from_i = Int Function(Pointer<Uint32>, Int, Int);
 typedef FnDARTset_g_from_i = int Function(Pointer<Uint32>, int, int);
 
-typedef FnCset_f_from_i = Int Function(Int, Int);
-typedef FnDARTset_f_from_i = int Function(int, int);
+typedef FnCset_f_from_i = Int Function(Pointer<Int>, Int, Int);
+typedef FnDARTset_f_from_i = int Function(Pointer<Int>, int, int);
 
 typedef FnCset_o = Int Function(Int, Int, Int);
 typedef FnDARTset_o = int Function(int, int, int);
@@ -651,9 +651,6 @@ typedef FnDARTrefined_list = Pointer<Int> Function(Pointer<Int>, int, int, Point
 
 typedef FnCstripbuffer = Size_t Function(Pointer<Utf8>);
 typedef FnDARTstripbuffer = int Function(Pointer<Utf8>);
-
-typedef FnCpeer_offline = Void Function(Int, Int8);
-typedef FnDARTpeer_offline = void Function(int, int);
 
 typedef FnCrandport = Uint16 Function(Uint16);
 typedef FnDARTrandport = int Function(int);
@@ -829,10 +826,10 @@ typedef FnDARTdestroy_file = void Function(Pointer<Utf8>);
 typedef FnCinitialize_split_info = Int Function(Int, Int);
 typedef FnDARTinitialize_split_info = int Function(int, int);
 
-typedef FnCsplit_update = Void Function(Int, Int, Int);
+typedef FnCsplit_update = Void Function(Int, Int, Int16);
 typedef FnDARTsplit_update = void Function(int, int, int);
 
-typedef FnCsection_update = Void Function(Int, Int, Uint64, Size_t, Int8, Uint16, Uint64, Int);
+typedef FnCsection_update = Void Function(Int, Int, Uint64, Size_t, Int8, Int16, Uint64, Int);
 typedef FnDARTsection_update = void Function(int, int, int, int, int, int, int, int);
 
 typedef FnCb3sum_bin = Size_t Function(Pointer<Uint8>, Pointer<Utf8>, Pointer<Uint8>, Uint64, Uint64);
@@ -865,8 +862,8 @@ typedef FnDARTmessage_extra = int Function(int, int, Pointer<Void>, int);
 typedef FnCkill_code = Void Function(Int, Pointer<Utf8>);
 typedef FnDARTkill_code = void Function(int, Pointer<Utf8>);
 
-typedef FnCfile_request_internal = Void Function(Int, Int);
-typedef FnDARTfile_request_internal = void Function(int, int);
+typedef FnCfile_request_internal = Void Function(Int, Int, Int8);
+typedef FnDARTfile_request_internal = void Function(int, int, int);
 
 typedef FnCfile_set_path = Void Function(Int, Int, Pointer<Utf8>);
 typedef FnDARTfile_set_path = void Function(int, int, Pointer<Utf8>);
@@ -880,8 +877,8 @@ typedef FnDARTfile_cancel = void Function(int, int);
 typedef FnCfile_send = Int Function(Int, Pointer<Utf8>);
 typedef FnDARTfile_send = int Function(int, Pointer<Utf8>);
 
-typedef FnCsend_prep = Int Function(Int, Int, Int, Int8);
-typedef FnDARTsend_prep = int Function(int, int, int, int);
+typedef FnCsend_prep = Int Function(Int, Int, Int, Int, Int8);
+typedef FnDARTsend_prep = int Function(int, int, int, int, int);
 
 typedef FnCtorx_events = Pointer<Void> Function(Pointer<Void>);
 typedef FnDARTtorx_events = Pointer<Void> Function(Pointer<Void>);
@@ -1376,8 +1373,6 @@ class torx {
   static final refined_list = dynamicLibrary.lookupFunction<FnCrefined_list, FnDARTrefined_list>('refined_list');
 
   static final stripbuffer = dynamicLibrary.lookupFunction<FnCstripbuffer, FnDARTstripbuffer>('stripbuffer');
-
-  static final peer_offline = dynamicLibrary.lookupFunction<FnCpeer_offline, FnDARTpeer_offline>('peer_offline');
 
   static final randport = dynamicLibrary.lookupFunction<FnCrandport, FnDARTrandport>('randport');
 

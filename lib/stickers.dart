@@ -270,7 +270,7 @@ class _RouteStickersState extends State<RouteStickers> {
                                   Navigator.pop(context);
                                 },
                                 onLongPress: () {
-                                  showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, null, -1, INT_MIN, -1, index));
+                                  showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, null, -1, INT_MIN, index));
                                 },
                                 child: Container(
                                     decoration: BoxDecoration(

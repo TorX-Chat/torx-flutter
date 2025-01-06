@@ -581,13 +581,16 @@ void toggleBlock(int n) {
   changeNotifierChatList.callback(integer: n);
 }
 
-List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingController? controllerMessage, int n, int i, int f, int s) {
+List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingController? controllerMessage, int n, int i, int s) {
   int message_owner = -1;
   int stat = -1;
   int file_status = -1;
   int p_iter = -1;
   int null_terminated_len = 0;
+  int file_checksum = 0;
   int protocol = 0;
+  int file_n = -1;
+  int f = -1;
   Icon ignoreIcon = const Icon(Icons.notifications_off);
   String ignoreText = text.unignore;
   Color blockColor = color.torch_off;
@@ -615,19 +618,26 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
 
   if (n > -1) {
     message_owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
-    if (f > -1) {
-      file_status = torx.getter_uint8(n, INT_MIN, f, -1, offsetof("file", "status"));
-    }
+
     if (i > INT_MIN) {
       stat = torx.getter_uint8(n, i, -1, -1, offsetof("message", "stat"));
       p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
       if (p_iter > -1) {
         null_terminated_len = protocol_int(p_iter, "null_terminated_len");
         protocol = protocol_int(p_iter, "protocol");
+        file_checksum = protocol_int(p_iter, "file_checksum");
+        if (file_checksum > 0) {
+          Pointer<Int> file_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+          f = torx.set_f_from_i(file_n_p, n, i);
+          file_n = file_n_p.value;
+          calloc.free(file_n_p);
+          file_n_p = nullptr;
+          if (f > -1) file_status = torx.getter_uint8(n, INT_MIN, f, -1, offsetof("file", "status"));
+        }
       }
     }
   }
-  printf("Checkpoint generate_message_menu protocol $protocol: $n $i $f $s");
+  printf("Checkpoint generate_message_menu protocol $protocol: $n $i $s");
   if (n > -1) {
     setIgnoreIcon(n);
     setBlockIcon(n);
@@ -659,9 +669,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               leading: const Icon(Icons.start),
               title: Text(text.start),
               onTap: () {
-                int nnn = handle_stuff(n, i);
-                if (nnn < 0) return;
-                torx.file_accept(nnn, f);
+                torx.file_accept(file_n, f);
                 Navigator.pop(context);
               })),
     if (f > -1 && (file_status == ENUM_FILE_OUTBOUND_ACCEPTED || file_status == ENUM_FILE_INBOUND_ACCEPTED))
@@ -670,9 +678,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               leading: const Icon(Icons.pause),
               title: Text(text.pause),
               onTap: () {
-                int nnn = handle_stuff(n, i);
-                if (nnn < 0) return;
-                torx.file_accept(nnn, f);
+                torx.file_accept(file_n, f);
                 Navigator.pop(context);
               })),
     if (f > -1 && (stat == ENUM_MESSAGE_RECV))
@@ -681,9 +687,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               leading: const Icon(Icons.cancel),
               title: Text(text.reject),
               onTap: () {
-                int nnn = handle_stuff(n, i);
-                if (nnn < 0) return;
-                torx.file_cancel(nnn, f);
+                torx.file_cancel(file_n, f);
                 Navigator.pop(context);
               })),
     if (f > -1 && (stat != ENUM_MESSAGE_RECV))
@@ -692,9 +696,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               leading: const Icon(Icons.cancel),
               title: Text(text.cancel),
               onTap: () {
-                int nnn = handle_stuff(n, i);
-                if (nnn < 0) return;
-                torx.file_cancel(nnn, f);
+                torx.file_cancel(file_n, f);
                 Navigator.pop(context);
               })),
     if (f < 0 && null_terminated_len > 0)
@@ -987,22 +989,6 @@ bool write_test(String path) {
     error(0, "Directory is not writable. Choose a different directory.");
     return false;
   }
-}
-
-int handle_stuff(int n, int i) {
-  int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
-  if (p_iter < 0) {
-    error(0, "Negative p_iter in handle_stuff. Probably a deleted message. Possible coding error. Report this.");
-    return -1;
-  }
-  int group_msg = protocol_int(p_iter, "group_msg");
-  int nnn = n;
-  int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
-  if (group_msg != 0 && owner == ENUM_OWNER_GROUP_PEER) {
-    int g = torx.set_g(n, nullptr);
-    nnn = torx.getter_group_int(g, offsetof("group", "n"));
-  }
-  return nnn;
 }
 
 String getter_group_id(int g) {
