@@ -415,44 +415,44 @@ typedef FnDARTgetter_offset = int Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef FnCgetter_size = Size_t Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTgetter_size = int Function(Pointer<Utf8>, Pointer<Utf8>);
 
-typedef FnCsetter = Void Function(Int, Int, Int, Int, Size_t, Pointer<Void>, Size_t);
-typedef FnDARTsetter = void Function(int, int, int, int, int, Pointer<Void>, int);
+typedef FnCsetter = Void Function(Int, Int, Int, Size_t, Pointer<Void>, Size_t);
+typedef FnDARTsetter = void Function(int, int, int, int, Pointer<Void>, int);
 
-typedef FnCgetter_byte = UnsignedChar Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_byte = int Function(int, int, int, int, int);
+typedef FnCgetter_byte = UnsignedChar Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_byte = int Function(int, int, int, int);
 
-typedef FnCgetter_array = Void Function(Pointer<Void>, Size_t, Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_array = void Function(Pointer<Void>, int, int, int, int, int, int);
+typedef FnCgetter_array = Void Function(Pointer<Void>, Size_t, Int, Int, Int, Size_t);
+typedef FnDARTgetter_array = void Function(Pointer<Void>, int, int, int, int, int);
 
-typedef FnCgetter_int8 = Int8 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_int8 = int Function(int, int, int, int, int);
+typedef FnCgetter_int8 = Int8 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_int8 = int Function(int, int, int, int);
 
-typedef FnCgetter_int16 = Int16 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_int16 = int Function(int, int, int, int, int);
+typedef FnCgetter_int16 = Int16 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_int16 = int Function(int, int, int, int);
 
-typedef FnCgetter_int32 = Int32 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_int32 = int Function(int, int, int, int, int);
+typedef FnCgetter_int32 = Int32 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_int32 = int Function(int, int, int, int);
 
-typedef FnCgetter_int64 = Int64 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_int64 = int Function(int, int, int, int, int);
+typedef FnCgetter_int64 = Int64 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_int64 = int Function(int, int, int, int);
 
-typedef FnCgetter_uint8 = Uint8 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_uint8 = int Function(int, int, int, int, int);
+typedef FnCgetter_uint8 = Uint8 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_uint8 = int Function(int, int, int, int);
 
-typedef FnCgetter_uint16 = Uint16 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_uint16 = int Function(int, int, int, int, int);
+typedef FnCgetter_uint16 = Uint16 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_uint16 = int Function(int, int, int, int);
 
-typedef FnCgetter_uint32 = Uint32 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_uint32 = int Function(int, int, int, int, int);
+typedef FnCgetter_uint32 = Uint32 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_uint32 = int Function(int, int, int, int);
 
-typedef FnCgetter_uint64 = Uint64 Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_uint64 = int Function(int, int, int, int, int);
+typedef FnCgetter_uint64 = Uint64 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_uint64 = int Function(int, int, int, int);
 
-typedef FnCgetter_int = Int Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_int = int Function(int, int, int, int, int);
+typedef FnCgetter_int = Int Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_int = int Function(int, int, int, int);
 
-typedef FnCgetter_time = Time_t Function(Int, Int, Int, Int, Size_t);
-typedef FnDARTgetter_time = int Function(int, int, int, int, int);
+typedef FnCgetter_time = Time_t Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_time = int Function(int, int, int, int);
 
 typedef FnCsetter_group = Void Function(Int, Size_t, Pointer<Void>, Size_t);
 typedef FnDARTsetter_group = void Function(int, int, Pointer<Void>, int);
@@ -796,9 +796,6 @@ typedef FnDARTsql_delete_setting = int Function(int, int, Pointer<Utf8>);
 typedef FnCsql_delete_peer = Int Function(Int);
 typedef FnDARTsql_delete_peer = int Function(int);
 
-typedef FnCis_inbound_transfer = Int Function(Uint8);
-typedef FnDARTis_inbound_transfer = int Function(int);
-
 typedef FnCprocess_pause_cancel = Void Function(Int, Int, Uint16, Uint8);
 typedef FnDARTprocess_pause_cancel = void Function(int, int, int, int);
 
@@ -1000,10 +997,10 @@ int offsetof(String list, String member) {
   return offset;
 }
 
-Uint8List getter_array(int size, int n, int i, int o, int f, int offset) {
+Uint8List getter_array(int size, int n, int i, int f, int offset) {
   // WARNING: This function lacks safety checks
   Pointer<Uint8> array = calloc.allocate(size);
-  torx.getter_array(array as Pointer<Void>, size, n, i, o, f, offset);
+  torx.getter_array(array as Pointer<Void>, size, n, i, f, offset);
   Uint8List list = Uint8List(size);
   list.setAll(0, array.asTypedList(size));
   calloc.free(array);
@@ -1469,8 +1466,6 @@ class torx {
   static final sql_delete_setting = dynamicLibrary.lookupFunction<FnCsql_delete_setting, FnDARTsql_delete_setting>('sql_delete_setting');
 
   static final sql_delete_peer = dynamicLibrary.lookupFunction<FnCsql_delete_peer, FnDARTsql_delete_peer>('sql_delete_peer');
-
-  static final is_inbound_transfer = dynamicLibrary.lookupFunction<FnCis_inbound_transfer, FnDARTis_inbound_transfer>('is_inbound_transfer');
 
   static final process_pause_cancel = dynamicLibrary.lookupFunction<FnCprocess_pause_cancel, FnDARTprocess_pause_cancel>('process_pause_cancel');
 

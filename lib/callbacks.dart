@@ -153,7 +153,7 @@ class Callbacks {
   }
 
   void transfer_progress_cb_ui(int n, int f, int transferred) {
-    int size = torx.getter_uint64(n, INT_MIN, f, -1, offsetof("file", "size"));
+    int size = torx.getter_uint64(n, INT_MIN, f, offsetof("file", "size"));
     if (size == transferred) {
       String file_path = getter_string(n, INT_MIN, f, offsetof("file", "file_path"));
       if (size == get_file_size(file_path)) {
@@ -203,7 +203,7 @@ class Callbacks {
         IconButton(
           icon: const Icon(Icons.thumb_down),
           onPressed: () {
-            int peer_index = torx.getter_int(n, INT_MIN, -1, -1, offsetof("peer", "peer_index"));
+            int peer_index = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "peer_index"));
             torx.takedown_onion(peer_index, 1);
           },
         ),
@@ -226,7 +226,7 @@ class Callbacks {
   }
 
   void peer_online_cb_ui(int n) {
-    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
+    int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (n == global_n || owner == ENUM_OWNER_GROUP_PEER) {
       changeNotifierOnlineOffline.callback(integer: n);
     }
@@ -317,7 +317,7 @@ class Callbacks {
         t_peer.mute[n] = int.parse(setting_value.toDartString());
       } else if (name == "unread") {
         if (log_unread) {
-          int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
+          int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
           t_peer.unread[n] = int.parse(setting_value.toDartString());
           if (t_peer.unread[n] > 0) {
             if (owner == ENUM_OWNER_GROUP_CTRL) {
@@ -388,8 +388,8 @@ class Callbacks {
       return;
     }
     int protocol = protocol_int(p_iter, "protocol");
-    int owner = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "owner"));
-    int status = torx.getter_uint8(n, INT_MIN, -1, -1, offsetof("peer", "status"));
+    int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+    int status = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status"));
     if ((owner == ENUM_OWNER_GROUP_PEER && t_peer.mute[n] != 0) || status == ENUM_STATUS_BLOCKED) {
       torx.torx_free_simple(data as Pointer<Void>);
       data = nullptr;
@@ -437,7 +437,7 @@ class Callbacks {
   }
 
   void message_extra_cb_ui(int n, int i, Pointer<Utf8> data, int data_len) {
-    int p_iter = torx.getter_int(n, i, -1, -1, offsetof("message", "p_iter"));
+    int p_iter = torx.getter_int(n, i, -1, offsetof("message", "p_iter"));
     if (p_iter < 0) {
       error(0, "message_extra_cb_ui hit a negative p_iter. Coding error. Report this.");
       return;
