@@ -568,8 +568,8 @@ typedef FnDARTmessage_time_string = Pointer<Utf8> Function(int, int);
 typedef FnCfile_progress_string = Pointer<Utf8> Function(Int, Int);
 typedef FnDARTfile_progress_string = Pointer<Utf8> Function(int, int);
 
-typedef FnCtransfer_progress = Void Function(Int, Int, Uint64);
-typedef FnDARTtransfer_progress = void Function(int, int, int);
+typedef FnCtransfer_progress = Void Function(Int, Int);
+typedef FnDARTtransfer_progress = void Function(int, int);
 
 typedef FnCmessage_sign = Pointer<Utf8> Function(Pointer<Uint32>, Pointer<Uint8>, Time_t, Time_t, Int, Pointer<Utf8>, Uint32);
 typedef FnDARTmessage_sign = Pointer<Utf8> Function(Pointer<Uint32>, Pointer<Uint8>, int, int, int, Pointer<Utf8>, int);
