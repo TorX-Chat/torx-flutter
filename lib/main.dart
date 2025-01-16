@@ -632,7 +632,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
           file_n = file_n_p.value;
           calloc.free(file_n_p);
           file_n_p = nullptr;
-          if (f > -1) file_status = torx.getter_uint8(n, INT_MIN, f, offsetof("file", "status")); // TODO DEPRECIATE FILE STATUS TODO
+          if (f > -1) file_status = torx.file_status_get(n, f);
         }
       }
     }
@@ -663,7 +663,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 changeNotifierStickerReady.callback(integer: s);
                 Navigator.pop(context);
               })),
-    if (f > -1 && (/*file_status == ENUM_FILE_OUTBOUND_PENDING || */ file_status == ENUM_FILE_INBOUND_PENDING))
+    if (f > -1 && file_status == ENUM_FILE_INACTIVE_ACCEPTED)
       PopupMenuItem(
           child: ListTile(
               leading: const Icon(Icons.start),
@@ -672,7 +672,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 torx.file_accept(file_n, f);
                 Navigator.pop(context);
               })),
-    if (f > -1 && (file_status == ENUM_FILE_OUTBOUND_ACCEPTED || file_status == ENUM_FILE_INBOUND_ACCEPTED))
+    if (f > -1 && (file_status == ENUM_FILE_ACTIVE_IN || file_status == ENUM_FILE_ACTIVE_OUT || file_status == ENUM_FILE_ACTIVE_IN_OUT))
       PopupMenuItem(
           child: ListTile(
               leading: const Icon(Icons.pause),
@@ -681,7 +681,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 torx.file_accept(file_n, f);
                 Navigator.pop(context);
               })),
-    if (f > -1 && (stat == ENUM_MESSAGE_RECV))
+    if (f > -1 && stat == ENUM_MESSAGE_RECV && file_status != ENUM_FILE_INACTIVE_CANCELLED)
       PopupMenuItem(
           child: ListTile(
               leading: const Icon(Icons.cancel),
@@ -690,7 +690,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 torx.file_cancel(file_n, f);
                 Navigator.pop(context);
               })),
-    if (f > -1 && (stat != ENUM_MESSAGE_RECV))
+    if (f > -1 && stat != ENUM_MESSAGE_RECV && file_status != ENUM_FILE_INACTIVE_CANCELLED)
       PopupMenuItem(
           child: ListTile(
               leading: const Icon(Icons.cancel),

@@ -112,16 +112,13 @@ const int ENUM_MESSAGE_RECV = 1;
 const int ENUM_MESSAGE_FAIL = 2;
 const int ENUM_MESSAGE_SENT = 3;
 
-const int ENUM_FILE_OUTBOUND_PENDING = 1;
-const int ENUM_FILE_OUTBOUND_ACCEPTED = 2;
-const int ENUM_FILE_OUTBOUND_COMPLETED = 3;
-const int ENUM_FILE_OUTBOUND_REJECTED = 4;
-const int ENUM_FILE_INBOUND_PENDING = 5;
-const int ENUM_FILE_INBOUND_ACCEPTED = 6;
-const int ENUM_FILE_INBOUND_COMPLETED = 7;
-const int ENUM_FILE_INBOUND_REJECTED = 8;
-const int ENUM_FILE_OUTBOUND_CANCELLED = 9;
-const int ENUM_FILE_INBOUND_CANCELLED = 10;
+const int ENUM_FILE_INACTIVE_AWAITING_ACCEPTANCE_INBOUND = 0;
+const int ENUM_FILE_ACTIVE_OUT = 1;
+const int ENUM_FILE_ACTIVE_IN = 2;
+const int ENUM_FILE_ACTIVE_IN_OUT = 3;
+const int ENUM_FILE_INACTIVE_ACCEPTED = 4;
+const int ENUM_FILE_INACTIVE_CANCELLED = 5;
+const int ENUM_FILE_INACTIVE_COMPLETE = 6;
 
 // UI Protocols
 const int ENUM_PROTOCOL_STICKER_HASH = 29812;
@@ -177,7 +174,7 @@ const int crypto_box_SEEDBYTES = 32;
 const int crypto_sign_BYTES = 64;
 const int crypto_sign_PUBLICKEYBYTES = 32;
 const int CHECKSUM_BIN_LEN = 32;
-const int GROUP_ID_SIZE = 32;
+const int GROUP_ID_SIZE = crypto_box_SEEDBYTES;
 const int GROUP_OFFER_LEN = GROUP_ID_SIZE + 4 + 1;
 const int GROUP_OFFER_FIRST_LEN = GROUP_ID_SIZE + 4 + 1 + 56 + crypto_sign_PUBLICKEYBYTES;
 
@@ -508,7 +505,7 @@ typedef FnDARTthreadsafe_read_uint16 = int Function(Pointer<Void>, Pointer<Uint1
 typedef FnCthreadsafe_read_uint32 = Uint32 Function(Pointer<Void>, Pointer<Uint32>);
 typedef FnDARTthreadsafe_read_uint32 = int Function(Pointer<Void>, Pointer<Uint32>);
 
-typedef FnCthreadsafe_read_uint64 = Uint32 Function(Pointer<Void>, Pointer<Uint64>);
+typedef FnCthreadsafe_read_uint64 = Uint64 Function(Pointer<Void>, Pointer<Uint64>);
 typedef FnDARTthreadsafe_read_uint64 = int Function(Pointer<Void>, Pointer<Uint64>);
 
 typedef FnCprotocol_lookup = Int Function(Uint16);
@@ -565,9 +562,6 @@ typedef FnDARTmessage_sort = void Function(int);
 typedef FnCmessage_load_more = Pointer<Int> Function(Pointer<Int>, Int);
 typedef FnDARTmessage_load_more = Pointer<Int> Function(Pointer<Int>, int);
 
-typedef FnCset_time = Void Function(Pointer<Time_t>);
-typedef FnDARTset_time = void Function(Pointer<Time_t>);
-
 typedef FnCmessage_time_string = Pointer<Utf8> Function(Int, Int);
 typedef FnDARTmessage_time_string = Pointer<Utf8> Function(int, int);
 
@@ -610,7 +604,10 @@ typedef FnDARTset_f_from_i = int Function(Pointer<Int>, int, int);
 typedef FnCset_o = Int Function(Int, Int, Int);
 typedef FnDARTset_o = int Function(int, int, int);
 
-typedef FnCrandom_string = Void Function(Pointer<Utf8>, UnsignedInt);
+typedef FnCset_r = Int Function(Int, Int, Int);
+typedef FnDARTset_r = int Function(int, int, int);
+
+typedef FnCrandom_string = Void Function(Pointer<Utf8>, Size_t);
 typedef FnDARTrandom_string = void Function(Pointer<Utf8>, int);
 
 typedef FnCed25519_pk_from_onion = Void Function(Pointer<Uint8>, Pointer<Utf8>);
@@ -630,9 +627,6 @@ typedef FnDARTwhich = Pointer<Utf8> Function(Pointer<Utf8>);
 
 typedef FnCtorx_realloc = Pointer<Void> Function(Pointer<Void>, Size_t);
 typedef FnDARTtorx_realloc = Pointer<Void> Function(Pointer<Void>, int);
-
-//typedef FnCerror_ll = Void Function();
-//typedef FnDARTerror_ll = void Function();
 
 typedef FnCzero_n = Void Function(Int);
 typedef FnDARTzero_n = void Function(int);
@@ -694,9 +688,6 @@ typedef FnDARTbroadcast_add = void Function(int, Pointer<Uint8>);
 typedef FnCbroadcast_prep = Void Function(Pointer<Uint8>, Int);
 typedef FnDARTbroadcast_prep = void Function(Pointer<Uint8>, int);
 
-typedef FnCbroadcast = Void Function(Int, Pointer<Uint8>);
-typedef FnDARTbroadcast = void Function(int, Pointer<Uint8>);
-
 typedef FnCgroup_join = Int Function(Int, Pointer<Uint8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>);
 typedef FnDARTgroup_join = int Function(int, Pointer<Uint8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>);
 
@@ -742,9 +733,6 @@ typedef FnDARTonion_from_torxid = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnCcustom_input = Int Function(Uint8, Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTcustom_input = int Function(int, Pointer<Utf8>, Pointer<Utf8>);
 
-typedef FnCload_peer_struc = Int Function(Int, Uint8, Uint8, Pointer<Utf8>, Uint8, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>);
-typedef FnDARTload_peer_struc = int Function(int, int, int, Pointer<Utf8>, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>, Pointer<Uint8>, Pointer<Uint8>);
-
 typedef FnCload_onion = Void Function(Int);
 typedef FnDARTload_onion = void Function(int);
 
@@ -765,9 +753,6 @@ typedef FnDARTsql_insert_message = int Function(int, int);
 
 typedef FnCsql_update_message = Int Function(Int, Int);
 typedef FnDARTsql_update_message = int Function(int, int);
-
-typedef FnCsql_insert_peer = Int Function(Uint8, Uint8, Uint8, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, Int);
-typedef FnDARTsql_insert_peer = int Function(int, int, int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Utf8>, int);
 
 typedef FnCsql_update_peer = Int Function(Int);
 typedef FnDARTsql_update_peer = int Function(int);
@@ -796,14 +781,8 @@ typedef FnDARTsql_delete_setting = int Function(int, int, Pointer<Utf8>);
 typedef FnCsql_delete_peer = Int Function(Int);
 typedef FnDARTsql_delete_peer = int Function(int);
 
-typedef FnCprocess_pause_cancel = Void Function(Int, Int, Uint16, Uint8);
-typedef FnDARTprocess_pause_cancel = void Function(int, int, int, int);
-
-typedef FnCprocess_file_offer_outbound = Int Function(Int, Pointer<Uint8>, Uint8, Pointer<Uint8>, Uint64, Time_t, Pointer<Utf8>);
-typedef FnDARTprocess_file_offer_outbound = int Function(int, Pointer<Uint8>, int, Pointer<Uint8>, int, int, Pointer<Utf8>);
-
-typedef FnCprocess_file_offer_inbound = Int Function(Int, Int, Pointer<Utf8>, Uint32);
-typedef FnDARTprocess_file_offer_inbound = int Function(int, int, Pointer<Utf8>, int);
+typedef FnCfile_status_get = Int Function(Int, Int);
+typedef FnDARTfile_status_get = int Function(int, int);
 
 typedef FnCpeer_save = Int Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTpeer_save = int Function(Pointer<Utf8>, Pointer<Utf8>);
@@ -841,9 +820,6 @@ typedef FnDARTtakedown_onion = void Function(int, int);
 typedef FnCblock_peer = Void Function(Int);
 typedef FnDARTblock_peer = void Function(int);
 
-typedef FnCDisableNagle = Void Function(Int);
-typedef FnDARTDisableNagle = void Function(int);
-
 typedef FnCsection_unclaim = Int Function(Int, Int, Int, Int8);
 typedef FnDARTsection_unclaim = int Function(int, int, int, int);
 
@@ -853,8 +829,8 @@ typedef FnDARTmessage_resend = int Function(int, int);
 typedef FnCmessage_send = Int Function(Int, Uint16, Pointer<Void>, Uint32);
 typedef FnDARTmessage_send = int Function(int, int, Pointer<Void>, int);
 
-typedef FnCmessage_extra = Int Function(Int, Int, Pointer<Void>, Uint32);
-typedef FnDARTmessage_extra = int Function(int, int, Pointer<Void>, int);
+typedef FnCmessage_extra = Void Function(Int, Int, Pointer<Void>, Uint32);
+typedef FnDARTmessage_extra = void Function(int, int, Pointer<Void>, int);
 
 typedef FnCkill_code = Void Function(Int, Pointer<Utf8>);
 typedef FnDARTkill_code = void Function(int, Pointer<Utf8>);
@@ -880,17 +856,8 @@ typedef FnDARTsend_prep = int Function(int, int, int, int, int);
 typedef FnCtorx_events = Pointer<Void> Function(Pointer<Void>);
 typedef FnDARTtorx_events = Pointer<Void> Function(Pointer<Void>);
 
-typedef FnCgen_truncated_sha3 = Void Function(Pointer<Uint8>);
-typedef FnDARTgen_truncated_sha3 = void Function(Pointer<Uint8>);
-
 typedef FnCgenerate_onion = Int Function(Uint8, Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTgenerate_onion = int Function(int, Pointer<Utf8>, Pointer<Utf8>);
-
-//typedef FnCremote_connect = Int Function();
-//typedef FnDARTremote_connect = int Function();
-
-typedef FnCsocks_connect = Int Function(Pointer<Utf8>, Pointer<Utf8>);
-typedef FnDARTsocks_connect = int Function(Pointer<Utf8>, Pointer<Utf8>);
 
 typedef FnCcpucount = Int Function();
 typedef FnDARTcpucount = int Function();
@@ -916,8 +883,8 @@ typedef FnDARTqr_utf8 = Pointer<Utf8> Function(Pointer<Void>);
 typedef FnCreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<Void>);
 typedef FnDARTreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<Void>);
 
-typedef FnCwrite_bytes = Void Function(Pointer<Utf8>, Pointer<Void>, Size_t);
-typedef FnDARTwrite_bytes = void Function(Pointer<Utf8>, Pointer<Void>, int);
+typedef FnCwrite_bytes = Size_t Function(Pointer<Utf8>, Pointer<Void>, Size_t);
+typedef FnDARTwrite_bytes = int Function(Pointer<Utf8>, Pointer<Void>, int);
 
 void register_callbacks() {
   // WARNING: DO NOT USE ERROR MESSAGES HERE. Only print/printf.
@@ -1313,8 +1280,6 @@ class torx {
 
   static final message_load_more = dynamicLibrary.lookupFunction<FnCmessage_load_more, FnDARTmessage_load_more>('message_load_more');
 
-  static final set_time = dynamicLibrary.lookupFunction<FnCset_time, FnDARTset_time>('set_time');
-
   static final message_time_string = dynamicLibrary.lookupFunction<FnCmessage_time_string, FnDARTmessage_time_string>('message_time_string');
 
   static final file_progress_string = dynamicLibrary.lookupFunction<FnCfile_progress_string, FnDARTfile_progress_string>('file_progress_string');
@@ -1343,6 +1308,8 @@ class torx {
 
   static final set_o = dynamicLibrary.lookupFunction<FnCset_o, FnDARTset_o>('set_o');
 
+  static final set_r = dynamicLibrary.lookupFunction<FnCset_r, FnDARTset_r>('set_r');
+
   static final random_string = dynamicLibrary.lookupFunction<FnCrandom_string, FnDARTrandom_string>('random_string');
 
   static final ed25519_pk_from_onion = dynamicLibrary.lookupFunction<FnCed25519_pk_from_onion, FnDARTed25519_pk_from_onion>('ed25519_pk_from_onion');
@@ -1356,8 +1323,6 @@ class torx {
   static final which = dynamicLibrary.lookupFunction<FnCwhich, FnDARTwhich>('which');
 
   static final torx_realloc = dynamicLibrary.lookupFunction<FnCtorx_realloc, FnDARTtorx_realloc>('torx_realloc');
-
-//static final error_ll = dynamicLibrary.lookupFunction<FnCerror_ll, FnDARTerror_ll>('error_ll');
 
   static final zero_n = dynamicLibrary.lookupFunction<FnCzero_n, FnDARTzero_n>('zero_n');
 
@@ -1399,8 +1364,6 @@ class torx {
 
   static final broadcast_prep = dynamicLibrary.lookupFunction<FnCbroadcast_prep, FnDARTbroadcast_prep>('broadcast_prep');
 
-  static final broadcast = dynamicLibrary.lookupFunction<FnCbroadcast, FnDARTbroadcast>('broadcast');
-
   static final group_join = dynamicLibrary.lookupFunction<FnCgroup_join, FnDARTgroup_join>('group_join');
 
   static final group_join_from_i = dynamicLibrary.lookupFunction<FnCgroup_join_from_i, FnDARTgroup_join_from_i>('group_join_from_i');
@@ -1431,8 +1394,6 @@ class torx {
 
   static final custom_input = dynamicLibrary.lookupFunction<FnCcustom_input, FnDARTcustom_input>('custom_input');
 
-  static final load_peer_struc = dynamicLibrary.lookupFunction<FnCload_peer_struc, FnDARTload_peer_struc>('load_peer_struc');
-
   static final load_onion = dynamicLibrary.lookupFunction<FnCload_onion, FnDARTload_onion>('load_onion');
 
   static final delete_log = dynamicLibrary.lookupFunction<FnCdelete_log, FnDARTdelete_log>('delete_log');
@@ -1446,8 +1407,6 @@ class torx {
   static final sql_insert_message = dynamicLibrary.lookupFunction<FnCsql_insert_message, FnDARTsql_insert_message>('sql_insert_message');
 
   static final sql_update_message = dynamicLibrary.lookupFunction<FnCsql_update_message, FnDARTsql_update_message>('sql_update_message');
-
-  static final sql_insert_peer = dynamicLibrary.lookupFunction<FnCsql_insert_peer, FnDARTsql_insert_peer>('sql_insert_peer');
 
   static final sql_update_peer = dynamicLibrary.lookupFunction<FnCsql_update_peer, FnDARTsql_update_peer>('sql_update_peer');
 
@@ -1467,11 +1426,7 @@ class torx {
 
   static final sql_delete_peer = dynamicLibrary.lookupFunction<FnCsql_delete_peer, FnDARTsql_delete_peer>('sql_delete_peer');
 
-  static final process_pause_cancel = dynamicLibrary.lookupFunction<FnCprocess_pause_cancel, FnDARTprocess_pause_cancel>('process_pause_cancel');
-
-  static final process_file_offer_outbound = dynamicLibrary.lookupFunction<FnCprocess_file_offer_outbound, FnDARTprocess_file_offer_outbound>('process_file_offer_outbound');
-
-  static final process_file_offer_inbound = dynamicLibrary.lookupFunction<FnCprocess_file_offer_inbound, FnDARTprocess_file_offer_inbound>('process_file_offer_inbound');
+  static final file_status_get = dynamicLibrary.lookupFunction<FnCfile_status_get, FnDARTfile_status_get>('file_status_get');
 
   static final peer_save = dynamicLibrary.lookupFunction<FnCpeer_save, FnDARTpeer_save>('peer_save');
 
@@ -1497,8 +1452,6 @@ class torx {
 
   static final block_peer = dynamicLibrary.lookupFunction<FnCblock_peer, FnDARTblock_peer>('block_peer');
 
-  static final DisableNagle = dynamicLibrary.lookupFunction<FnCDisableNagle, FnDARTDisableNagle>('DisableNagle');
-
   static final section_unclaim = dynamicLibrary.lookupFunction<FnCsection_unclaim, FnDARTsection_unclaim>('section_unclaim');
 
   static final message_resend = dynamicLibrary.lookupFunction<FnCmessage_resend, FnDARTmessage_resend>('message_resend');
@@ -1523,13 +1476,7 @@ class torx {
 
   static final torx_events = dynamicLibrary.lookupFunction<FnCtorx_events, FnDARTtorx_events>('torx_events');
 
-  static final gen_truncated_sha3 = dynamicLibrary.lookupFunction<FnCgen_truncated_sha3, FnDARTgen_truncated_sha3>('gen_truncated_sha3');
-
   static final generate_onion = dynamicLibrary.lookupFunction<FnCgenerate_onion, FnDARTgenerate_onion>('generate_onion');
-
-//static final remote_connect = dynamicLibrary.lookupFunction<FnCremote_connect, FnDARTremote_connect>('remote_connect');
-
-  static final socks_connect = dynamicLibrary.lookupFunction<FnCsocks_connect, FnDARTsocks_connect>('socks_connect');
 
   static final cpucount = dynamicLibrary.lookupFunction<FnCcpucount, FnDARTcpucount>('cpucount');
 

@@ -98,8 +98,7 @@ class text {
 /* From GTK */
   static String title = "";
   static String welcome = "";
-  static String transfer_completed_to = "";
-  static String transfer_completed_from = "";
+  static String transfer_completed = "";
   static String online = "";
   static String new_friend = "";
   static String accepted_file = "";
@@ -288,8 +287,7 @@ void initialize_language() {
     /* From GTK */
     text.title = "TorX";
     text.welcome = "Welcome to TorX";
-    text.transfer_completed_to = "Transfer completed to";
-    text.transfer_completed_from = "Transfer completed from";
+    text.transfer_completed = "Transfer Completed";
     text.online = "Has come online";
     text.new_friend = "Has a new friend request";
     text.accepted_file = "Accepted a file";

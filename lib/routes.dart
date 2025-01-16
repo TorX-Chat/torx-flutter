@@ -605,7 +605,7 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   double calculate_percentage(int size, int transferred, int status) {
-    return transferred >= size && status != ENUM_FILE_OUTBOUND_PENDING
+    return transferred >= size
         ? 1
         : size > 0 && transferred != size
             ? transferred / size
@@ -683,7 +683,7 @@ class _RouteChatState extends State<RouteChat> {
                 Pointer<Utf8> file_size_text_p = torx.file_progress_string(file_n, f);
                 String file_size_text = file_size_text_p.toDartString();
                 torx.torx_free_simple(file_size_text_p as Pointer<Void>);
-                int status = torx.getter_uint8(file_n, INT_MIN, f, offsetof("file", "status")); // TODO DEPRECIATE FILE STATUS TODO
+                int status = torx.file_status_get(file_n, f);
                 //    printf("Checkpoint file: $transferred $status");
                 bool finished_file = size > 0 && size == transferred && size == get_file_size(file_path) ? true : false;
                 bool finished_image = false;
