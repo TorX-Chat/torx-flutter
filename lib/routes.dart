@@ -635,7 +635,6 @@ class _RouteChatState extends State<RouteChat> {
     int message_len = torx.getter_uint32(n, i, -1, offsetof("message", "message_len"));
 
     if (null_terminated_len > 0) {
-      int stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
       return message_bubble(
           stat,
           group_pm,
