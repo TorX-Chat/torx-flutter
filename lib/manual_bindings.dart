@@ -143,7 +143,9 @@ const int ENUM_PROTOCOL_FILE_OFFER = 44443;
 const int ENUM_PROTOCOL_FILE_OFFER_PRIVATE = 62747;
 const int ENUM_PROTOCOL_FILE_OFFER_GROUP = 32918;
 const int ENUM_PROTOCOL_FILE_OFFER_GROUP_DATE_SIGNED = 2125;
-const int ENUM_PROTOCOL_FILE_OFFER_PARTIAL = 56237;
+const int ENUM_PROTOCOL_FILE_OFFER_PARTIAL = 64736;
+const int ENUM_PROTOCOL_FILE_INFO_REQUEST = 63599;
+const int ENUM_PROTOCOL_FILE_PARTIAL_REQUEST = 52469;
 const int ENUM_PROTOCOL_FILE_PIECE = 7795;
 const int ENUM_PROTOCOL_FILE_REQUEST = 27493;
 const int ENUM_PROTOCOL_FILE_PAUSE = 38490;
@@ -198,6 +200,9 @@ typedef FnDARTinitialize_f_cb = void Function(int, int);
 
 typedef FnCinitialize_g_cb = Void Function(Int);
 typedef FnDARTinitialize_g_cb = void Function(int);
+
+typedef FnCshrinkage_cb = Void Function(Int, Int);
+typedef FnDARTshrinkage_cb = void Function(int, int);
 
 typedef FnCexpand_file_struc_cb = Void Function(Int, Int);
 typedef FnDARTexpand_file_struc_cb = void Function(int, int);
@@ -256,6 +261,12 @@ typedef FnDARTmessage_modified_cb = void Function(int, int);
 typedef FnCmessage_deleted_cb = Void Function(Int, Int);
 typedef FnDARTmessage_deleted_cb = void Function(int, int);
 
+typedef FnCmessage_extra_cb = Void Function(Int, Int, Pointer<Utf8>, Uint32);
+typedef FnDARTmessage_extra_cb = void Function(int, int, Pointer<Utf8>, int);
+
+typedef FnCmessage_more_cb = Void Function(Int, Pointer<Int>, Pointer<Int>);
+typedef FnDARTmessage_more_cb = void Function(int, Pointer<Int>, Pointer<Int>);
+
 typedef FnClogin_cb = Void Function(Int);
 typedef FnDARTlogin_cb = void Function(int);
 
@@ -268,8 +279,6 @@ typedef FnDARTcleanup_cb = void Function(int);
 typedef FnCstream_cb = Void Function(Int, Int, Pointer<Utf8>, Uint32);
 typedef FnDARTstream_cb = void Function(int, int, Pointer<Utf8>, int);
 
-typedef FnCmessage_extra_cb = Void Function(Int, Int, Pointer<Utf8>, Uint32);
-typedef FnDARTmessage_extra_cb = void Function(int, int, Pointer<Utf8>, int);
 /* NOTE FOR THE FOLLOWING SETTERS: pointer must be the same across both */
 typedef FnCinitialize_n_setter = Void Function(Pointer<NativeFunction<FnCinitialize_n_cb>>);
 typedef FnDARTinitialize_n_setter = void Function(Pointer<NativeFunction<FnCinitialize_n_cb>>);
@@ -282,6 +291,9 @@ typedef FnDARTinitialize_f_setter = void Function(Pointer<NativeFunction<FnCinit
 
 typedef FnCinitialize_g_setter = Void Function(Pointer<NativeFunction<FnCinitialize_g_cb>>);
 typedef FnDARTinitialize_g_setter = void Function(Pointer<NativeFunction<FnCinitialize_g_cb>>);
+
+typedef FnCshrinkage_setter = Void Function(Pointer<NativeFunction<FnCshrinkage_cb>>);
+typedef FnDARTshrinkage_setter = void Function(Pointer<NativeFunction<FnCshrinkage_cb>>);
 
 typedef FnCexpand_file_struc_setter = Void Function(Pointer<NativeFunction<FnCexpand_file_struc_cb>>);
 typedef FnDARTexpand_file_struc_setter = void Function(Pointer<NativeFunction<FnCexpand_file_struc_cb>>);
@@ -340,6 +352,12 @@ typedef FnDARTmessage_modified_setter = void Function(Pointer<NativeFunction<FnC
 typedef FnCmessage_deleted_setter = Void Function(Pointer<NativeFunction<FnCmessage_deleted_cb>>);
 typedef FnDARTmessage_deleted_setter = void Function(Pointer<NativeFunction<FnCmessage_deleted_cb>>);
 
+typedef FnCmessage_extra_setter = Void Function(Pointer<NativeFunction<FnCmessage_extra_cb>>);
+typedef FnDARTmessage_extra_setter = void Function(Pointer<NativeFunction<FnCmessage_extra_cb>>);
+
+typedef FnCmessage_more_setter = Void Function(Pointer<NativeFunction<FnCmessage_more_cb>>);
+typedef FnDARTmessage_more_setter = void Function(Pointer<NativeFunction<FnCmessage_more_cb>>);
+
 typedef FnClogin_setter = Void Function(Pointer<NativeFunction<FnClogin_cb>>);
 typedef FnDARTlogin_setter = void Function(Pointer<NativeFunction<FnClogin_cb>>);
 
@@ -352,8 +370,6 @@ typedef FnDARTcleanup_setter = void Function(Pointer<NativeFunction<FnCcleanup_c
 typedef FnCstream_setter = Void Function(Pointer<NativeFunction<FnCstream_cb>>);
 typedef FnDARTstream_setter = void Function(Pointer<NativeFunction<FnCstream_cb>>);
 
-typedef FnCmessage_extra_setter = Void Function(Pointer<NativeFunction<FnCmessage_extra_cb>>);
-typedef FnDARTmessage_extra_setter = void Function(Pointer<NativeFunction<FnCmessage_extra_cb>>);
 /* End of setter block */
 typedef FnCpthread_rwlock_rdlock = Int Function(Pointer<Void>);
 typedef FnDARTpthread_rwlock_rdlock = int Function(Pointer<Void>);
@@ -559,8 +575,8 @@ typedef FnDARTmessage_remove = void Function(int, int, int);
 typedef FnCmessage_sort = Void Function(Int);
 typedef FnDARTmessage_sort = void Function(int);
 
-typedef FnCmessage_load_more = Pointer<Int> Function(Pointer<Int>, Int);
-typedef FnDARTmessage_load_more = Pointer<Int> Function(Pointer<Int>, int);
+typedef FnCmessage_load_more = Int Function(Int);
+typedef FnDARTmessage_load_more = int Function(int);
 
 typedef FnCmessage_time_string = Pointer<Utf8> Function(Int, Int);
 typedef FnDARTmessage_time_string = Pointer<Utf8> Function(int, int);
@@ -781,6 +797,15 @@ typedef FnDARTsql_delete_setting = int Function(int, int, Pointer<Utf8>);
 typedef FnCsql_delete_peer = Int Function(Int);
 typedef FnDARTsql_delete_peer = int Function(int);
 
+typedef FnCfile_is_active = Int Function(Int, Int);
+typedef FnDARTfile_is_active = int Function(int, int);
+
+typedef FnCfile_is_cancelled = Int Function(Int, Int);
+typedef FnDARTfile_is_cancelled = int Function(int, int);
+
+typedef FnCfile_is_complete = Int Function(Int, Int);
+typedef FnDARTfile_is_complete = int Function(int, int);
+
 typedef FnCfile_status_get = Int Function(Int, Int);
 typedef FnDARTfile_status_get = int Function(int, int);
 
@@ -897,6 +922,7 @@ void register_callbacks() {
   torx.initialize_i_setter(NativeCallable<FnCinitialize_i_cb>.listener(Callbacks().initialize_i_cb_ui).nativeFunction);
   torx.initialize_f_setter(NativeCallable<FnCinitialize_f_cb>.listener(Callbacks().initialize_f_cb_ui).nativeFunction);
   torx.initialize_g_setter(NativeCallable<FnCinitialize_g_cb>.listener(Callbacks().initialize_g_cb_ui).nativeFunction);
+  torx.shrinkage_setter(NativeCallable<FnCshrinkage_cb>.listener(Callbacks().shrinkage_cb_ui).nativeFunction);
   torx.expand_file_struc_setter(NativeCallable<FnCexpand_file_struc_cb>.listener(Callbacks().expand_file_struc_cb_ui).nativeFunction);
   torx.expand_message_struc_setter(NativeCallable<FnCexpand_message_struc_cb>.listener(Callbacks().expand_message_struc_cb_ui).nativeFunction);
   torx.expand_peer_struc_setter(NativeCallable<FnCexpand_peer_struc_cb>.listener(Callbacks().expand_peer_struc_cb_ui).nativeFunction);
@@ -916,11 +942,12 @@ void register_callbacks() {
   torx.message_new_setter(NativeCallable<FnCmessage_new_cb>.listener(Callbacks().message_new_cb_ui).nativeFunction);
   torx.message_modified_setter(NativeCallable<FnCmessage_modified_cb>.listener(Callbacks().message_modified_cb_ui).nativeFunction);
   torx.message_deleted_setter(NativeCallable<FnCmessage_deleted_cb>.listener(Callbacks().message_deleted_cb_ui).nativeFunction);
+  torx.message_extra_setter(NativeCallable<FnCmessage_extra_cb>.listener(Callbacks().message_extra_cb_ui).nativeFunction);
+  torx.message_more_setter(NativeCallable<FnCmessage_more_cb>.listener(Callbacks().message_more_cb_ui).nativeFunction);
   torx.login_setter(NativeCallable<FnClogin_cb>.listener(Callbacks().login_cb_ui).nativeFunction);
   torx.peer_loaded_setter(NativeCallable<FnCpeer_loaded_cb>.listener(Callbacks().peer_loaded_cb_ui).nativeFunction);
   torx.cleanup_setter(NativeCallable<FnCcleanup_cb>.listener(Callbacks().cleanup_cb_ui).nativeFunction);
   torx.stream_setter(NativeCallable<FnCstream_cb>.listener(Callbacks().stream_cb_ui).nativeFunction);
-  torx.message_extra_setter(NativeCallable<FnCmessage_extra_cb>.listener(Callbacks().message_extra_cb_ui).nativeFunction);
 }
 
 String getPath() {
@@ -1093,6 +1120,8 @@ class torx {
 
   static final initialize_g_setter = dynamicLibrary.lookupFunction<FnCinitialize_g_setter, FnDARTinitialize_g_setter>('initialize_g_setter');
 
+  static final shrinkage_setter = dynamicLibrary.lookupFunction<FnCshrinkage_setter, FnDARTshrinkage_setter>('shrinkage_setter');
+
   static final expand_file_struc_setter = dynamicLibrary.lookupFunction<FnCexpand_file_struc_setter, FnDARTexpand_file_struc_setter>('expand_file_struc_setter');
 
   static final expand_message_struc_setter = dynamicLibrary.lookupFunction<FnCexpand_message_struc_setter, FnDARTexpand_message_struc_setter>('expand_message_struc_setter');
@@ -1132,6 +1161,10 @@ class torx {
 
   static final message_deleted_setter = dynamicLibrary.lookupFunction<FnCmessage_deleted_setter, FnDARTmessage_deleted_setter>('message_deleted_setter');
 
+  static final message_extra_setter = dynamicLibrary.lookupFunction<FnCmessage_extra_setter, FnDARTmessage_extra_setter>('message_extra_setter');
+
+  static final message_more_setter = dynamicLibrary.lookupFunction<FnCmessage_more_setter, FnDARTmessage_more_setter>('message_more_setter');
+
   static final login_setter = dynamicLibrary.lookupFunction<FnClogin_setter, FnDARTlogin_setter>('login_setter');
 
   static final peer_loaded_setter = dynamicLibrary.lookupFunction<FnCpeer_loaded_setter, FnDARTpeer_loaded_setter>('peer_loaded_setter');
@@ -1139,8 +1172,6 @@ class torx {
   static final cleanup_setter = dynamicLibrary.lookupFunction<FnCcleanup_setter, FnDARTcleanup_setter>('cleanup_setter');
 
   static final stream_setter = dynamicLibrary.lookupFunction<FnCstream_setter, FnDARTstream_setter>('stream_setter');
-
-  static final message_extra_setter = dynamicLibrary.lookupFunction<FnCmessage_extra_setter, FnDARTmessage_extra_setter>('message_extra_setter');
 
   static final pthread_rwlock_rdlock = dynamicLibrary.lookupFunction<FnCpthread_rwlock_rdlock, FnDARTpthread_rwlock_rdlock>('pthread_rwlock_rdlock');
 
@@ -1425,6 +1456,12 @@ class torx {
   static final sql_delete_setting = dynamicLibrary.lookupFunction<FnCsql_delete_setting, FnDARTsql_delete_setting>('sql_delete_setting');
 
   static final sql_delete_peer = dynamicLibrary.lookupFunction<FnCsql_delete_peer, FnDARTsql_delete_peer>('sql_delete_peer');
+
+  static final file_is_active = dynamicLibrary.lookupFunction<FnCfile_is_active, FnDARTfile_is_active>('file_is_active');
+
+  static final file_is_cancelled = dynamicLibrary.lookupFunction<FnCfile_is_cancelled, FnDARTfile_is_cancelled>('file_is_cancelled');
+
+  static final file_is_complete = dynamicLibrary.lookupFunction<FnCfile_is_complete, FnDARTfile_is_complete>('file_is_complete');
 
   static final file_status_get = dynamicLibrary.lookupFunction<FnCfile_status_get, FnDARTfile_status_get>('file_status_get');
 

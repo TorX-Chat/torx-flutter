@@ -280,8 +280,8 @@ void initialize_language() {
     text.quit = "Quit";
     text.reply = "Reply";
     text.warning = "Warning";
-    text.queued = "Queued: ";
-    text.draft = "Draft: ";
+    text.queued = "Queued";
+    text.draft = "Draft";
     text.select_sticker = "Select Sticker";
     //text.error = "Error";
     /* From GTK */
@@ -319,7 +319,7 @@ void initialize_language() {
     text.group_offer = "Group Offer";
     text.audio_message = "Audio Message";
     text.sticker = "Sticker";
-    text.current_members = "Current Members: ";
+    text.current_members = "Current Members";
     text.group_private = "Private Group";
     text.group_public = "Public Group";
     text.block = "Block";
@@ -331,7 +331,7 @@ void initialize_language() {
     text.outgoing = "Outgoing Requests";
     text.active_mult = "Active Multi-Use IDs";
     text.active_sing = "Active Single-Use IDs";
-    text.you = "You: ";
+    text.you = "You";
     text.accept = "Accept";
     text.reject = "Reject";
     text.copy = "Copy";
@@ -380,7 +380,7 @@ void initialize_language() {
     text.tooltip_button_delete = "DANGER:\nDelete Keys and Message History";
     text.status_online = "Currently online";
     text.of = "of";
-    text.status_last_seen = "Last seen: ";
+    text.status_last_seen = "Last seen";
     text.status_never = "Never";
     text.edit_torrc = "Edit Torrc";
     text.saving_will_restart_tor = "Saving will restart Tor";

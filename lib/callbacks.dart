@@ -65,7 +65,6 @@ import 'dart:ffi';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'change_notifiers.dart';
 import 'language.dart';
 import 'main.dart';
@@ -102,6 +101,7 @@ class Callbacks {
     t_peer.pm_n[n] = -1;
     t_peer.edit_n[n] = -1;
     t_peer.edit_i[n] = INT_MIN;
+    t_peer.t_message[n] = t_message_class();
     t_peer.t_file[n] = t_file_class();
     t_peer.stickers_requested[n] = [];
   }
@@ -112,15 +112,37 @@ class Callbacks {
 
   void initialize_f_cb_ui(int n, int f) {
     t_peer.t_file[n].changeNotifierTransferProgress[f] = ChangeNotifierTransferProgress();
+    t_peer.t_file[n].previously_completed[f] = 0;
   }
 
   void initialize_g_cb_ui(int g) {
     /* currently null */
   }
 
+  void shrinkage_cb_ui(int n, int shrinkage) {
+    if (shrinkage != 0) {
+      List<int> tmp = [];
+      for (int iter = 0; iter < t_peer.t_message[n].unheard.length - shrinkage.abs(); iter++) {
+        if (shrinkage > 0) {
+          // We shift everything forward
+          tmp.add(t_peer.t_message[n].unheard[iter + shrinkage]);
+        } else {
+          tmp.add(t_peer.t_message[n].unheard[iter]);
+        }
+      }
+      t_peer.t_message[n].unheard.clear();
+      t_peer.t_message[n].unheard = tmp;
+      if (shrinkage > 0) {
+        // We shift everything forward
+        t_peer.t_message[n].offset + shrinkage;
+      }
+    }
+  }
+
   void expand_file_struc_cb_ui(int n, int f) {
     for (int i = 0; i < 10; i++) {
       t_peer.t_file[n].changeNotifierTransferProgress.add(ChangeNotifierTransferProgress());
+      t_peer.t_file[n].previously_completed.add(0);
     }
   }
 
@@ -143,6 +165,7 @@ class Callbacks {
       t_peer.pm_n.add(0);
       t_peer.edit_n.add(0);
       t_peer.edit_i.add(0);
+      t_peer.t_message.add(t_message_class());
       t_peer.t_file.add(t_file_class());
       t_peer.stickers_requested.add([]);
     }
@@ -154,9 +177,11 @@ class Callbacks {
 
   void transfer_progress_cb_ui(int n, int f, int transferred) {
     int size = torx.getter_uint64(n, INT_MIN, f, offsetof("file", "size"));
-    if (size == transferred) {
+    int file_status = torx.file_status_get(n, f);
+    if (t_peer.t_file[n].previously_completed[f] == 0 && (file_status == ENUM_FILE_INACTIVE_COMPLETE || transferred == size)) {
       String file_path = getter_string(n, INT_MIN, f, offsetof("file", "file_path"));
       if (size == get_file_size(file_path)) {
+        t_peer.t_file[n].previously_completed[f] = 1;
         MediaScanner.loadMedia(path: file_path);
       }
     }
@@ -265,9 +290,7 @@ class Callbacks {
   }
 
   void cleanup_cb_ui(int sig_num) {
-    writeUnread();
-    torx.cleanup_lib(sig_num); // do last before calling exit
-    SystemNavigator.pop(); // proper alternative to exit(sig_num); but it will be ignored in iOS
+    cleanup_idle(sig_num);
   }
 
   void tor_log_cb_ui(Pointer<Utf8> message) {
@@ -377,7 +400,12 @@ class Callbacks {
   }
 
   void message_deleted_cb_ui(int n, int i) {
-    print_message(n, i, 3);
+    // XXX WARNING: DO NOT ACCESS .message STRUCT due to shrinkage possibly having occurred
+    changeNotifierMessage.callback(n: n, i: i, scroll: 3);
+    int max_i = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "max_i"));
+    if (i == max_i + 1) {
+      changeNotifierChatList.callback(integer: n); // for the last_message
+    }
   }
 
   void stream_cb_ui(int n, int p_iter, Pointer<Utf8> data, int data_len) {
@@ -452,8 +480,11 @@ class Callbacks {
     data = nullptr;
   }
 
+  void message_more_cb_ui(int loaded, Pointer<Int> loaded_array_n, Pointer<Int> loaded_array_i) {
+    //  printf("Checkpoint message_more_cb_ui is currently non-op. See around call to message_load_more.");
+  }
+
   void login_cb_ui(int value) {
-    printf("Checkpoint login: $value");
     login_failed = true;
     changeNotifierLogin.callback(integer: value);
   }

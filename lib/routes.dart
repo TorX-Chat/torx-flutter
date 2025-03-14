@@ -512,9 +512,9 @@ class _RouteChatState extends State<RouteChat> {
       int last_seen = torx.getter_time(n, INT_MIN, -1, offsetof("peer", "last_seen"));
       if (last_seen > 0) {
         // NOTE: integer size is time_t
-        statusText = text.status_last_seen + DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(last_seen * 1000, isUtc: false));
+        statusText = "${text.status_last_seen}: ${DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(last_seen * 1000, isUtc: false))}";
       } else {
-        statusText = text.status_last_seen + text.status_never;
+        statusText = "${text.status_last_seen}: ${text.status_never}";
       }
     } else {
       statusText = text.status_online;
@@ -604,23 +604,6 @@ class _RouteChatState extends State<RouteChat> {
     return false;
   }
 
-  double calculate_percentage(int size, int transferred, int status) {
-    return transferred >= size
-        ? 1
-        : size > 0 && transferred != size
-            ? transferred / size
-            : 0;
-  }
-
-  int ui_load_more_messages(int n) {
-    Pointer<Int> count_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-    Pointer<Int> ret = torx.message_load_more(count_p, n);
-    torx.torx_free_simple(ret as Pointer<Void>);
-    int count = count_p.value;
-    malloc.free(count_p);
-    return count;
-  }
-
   Widget ui_message_builder(int n, int i) {
     int p_iter = torx.getter_int(n, i, -1, offsetof("message", "p_iter"));
     if (p_iter < 0) {
@@ -682,11 +665,17 @@ class _RouteChatState extends State<RouteChat> {
                 Pointer<Utf8> file_size_text_p = torx.file_progress_string(file_n, f);
                 String file_size_text = file_size_text_p.toDartString();
                 torx.torx_free_simple(file_size_text_p as Pointer<Void>);
-                int status = torx.file_status_get(file_n, f);
-                //    printf("Checkpoint file: $transferred $status");
-                bool finished_file = size > 0 && size == transferred && size == get_file_size(file_path) ? true : false;
                 bool finished_image = false;
-                if (finished_file) finished_image = is_image_file(transferred, size, file_path);
+                if (t_peer.t_file[file_n].previously_completed[f] == 1 || torx.file_is_complete(file_n, f) == 1) {
+                  t_peer.t_file[file_n].previously_completed[f] = 1;
+                  finished_image = is_image_file(transferred, size, file_path);
+                }
+                double fraction = 0;
+                if (transferred == 0 && t_peer.t_file[file_n].previously_completed[f] == 1) {
+                  fraction = 1;
+                } else if (size > 0) {
+                  fraction = transferred / size;
+                }
                 return GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () async {
@@ -705,11 +694,11 @@ class _RouteChatState extends State<RouteChat> {
                           torx.file_accept(file_n, f); // NOTE: having this in two places because this function is async
                           //    printf("Checkpoint have accepted file");
                         }
-                      } else if (finished_file && finished_image) {
+                      } else if (finished_image) {
                         Navigator.push(context, MaterialPageRoute(builder: (context) {
                           return RouteImage(file_path: file_path);
                         }));
-                      } else if (finished_file) {
+                      } else if (t_peer.t_file[file_n].previously_completed[f] == 1) {
                         //      printf("Checkpoint OpenFile $file_path");
                         OpenFilex.open(file_path);
                       } else {
@@ -737,9 +726,9 @@ class _RouteChatState extends State<RouteChat> {
                                     child: CircularPercentIndicator(
                                         radius: 30.0,
                                         lineWidth: 5.0,
-                                        percent: finished_file ? 1 : calculate_percentage(size, transferred, status),
+                                        percent: fraction,
                                         center: Text(
-                                          finished_file ? "100%" : "${(calculate_percentage(size, transferred, status) * 100).toStringAsFixed(0)}%",
+                                          fraction == 1 ? "100%" : "${(fraction * 100).toStringAsFixed(0)}%",
                                           style: TextStyle(color: _colorizeText(stat, group_pm)),
                                         ),
                                         progressColor: Colors.green),
@@ -802,7 +791,7 @@ class _RouteChatState extends State<RouteChat> {
                     Padding(padding: const EdgeInsets.only(right: 10.0), child: SvgPicture.asset(path_logo, color: color.logo, width: 40, height: 40)),
                     Flexible(
                       // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
-                      child: Text("$group_type\n${text.current_members}$peercount\n$group_name", style: TextStyle(color: _colorizeText(stat, group_pm))),
+                      child: Text("$group_type\n${text.current_members}: $peercount\n$group_name", style: TextStyle(color: _colorizeText(stat, group_pm))),
                     )
                   ]),
                   messageTime(n, i)
@@ -1189,7 +1178,7 @@ class _RouteChatState extends State<RouteChat> {
                                     //      itemCount: current_msg_count,
                                     itemBuilder: (context, index) {
                                       if (index == current_msg_count - 1) {
-                                        current_msg_count += ui_load_more_messages(widget.n);
+                                        current_msg_count += torx.message_load_more(widget.n);
                                       } else if (index > current_msg_count - 1) {
                                         return null;
                                       }
@@ -1214,7 +1203,7 @@ class _RouteChatState extends State<RouteChat> {
                                       int i = starting_msg_count - 1 - index;
                                       int min_i = torx.getter_int(widget.n, INT_MIN, -1, offsetof("peer", "min_i"));
                                       if (i == min_i) {
-                                        /*current_msg_count += */ ui_load_more_messages(widget.n);
+                                        /*current_msg_count += */ torx.message_load_more(widget.n);
                                       } else if (i < min_i) {
                                         return null;
                                       }
@@ -1549,13 +1538,13 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
             int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
             int stat = torx.getter_uint8(last_message_n, i, -1, offsetof("message", "stat"));
             if (t_peer.unsent[arrayFriends[index]].isNotEmpty) {
-              prefix = text.draft;
+              prefix = "${text.draft}: ";
             } else if (stat == ENUM_MESSAGE_RECV && t_peer.unread[arrayFriends[index]] > 0) {
               /* no prefix on recv */
             } else if (stat == ENUM_MESSAGE_FAIL && owner != ENUM_OWNER_GROUP_CTRL) {
-              prefix = text.queued;
+              prefix = "${text.queued}: ";
             } else if (stat != ENUM_MESSAGE_RECV) {
-              prefix = text.you;
+              prefix = "${text.you}: ";
             }
             if (t_peer.unsent[arrayFriends[index]].isNotEmpty) {
               lastMessage = t_peer.unsent[arrayFriends[index]];
@@ -3157,11 +3146,7 @@ class _RouteSettingsState extends State<RouteSettings> {
               ),
               MaterialButton(
                 onPressed: () {
-                  flutterLocalNotificationsPlugin.cancelAll();
-                  writeUnread();
-                  torx.cleanup_lib(0);
-                  //Process.killPid(); // can kill stuff if we need to
-                  exit(0);
+                  cleanup_idle(0);
                 },
                 height: 20,
                 minWidth: 20,

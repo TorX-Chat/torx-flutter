@@ -145,11 +145,11 @@ class t_file_class {
     ChangeNotifierTransferProgress(),
     ChangeNotifierTransferProgress(),
   ]; // 11
-//  List<int> time_left = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]; //11
+  List<int> previously_completed = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; //11
 }
 
 class t_message_class {
-  // NOTE: if adding things, be sure to handle them in expand_message_struc_cb() and initialize_i_cb()
+  // NOTE: if adding things, be sure to handle them in expand_message_struc_cb(), initialize_i_cb(), and shrinkage_cb_ui
   List<int> unheard = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 21
   int offset = -10; // yes, default is -10. YOU MUST UTILIZE THIS.
 }
@@ -321,6 +321,16 @@ void initialization_functions(BuildContext? context) {
   requestPermissions();
   initialized = true;
 }
+
+void cleanup_idle(int sig_num) {
+  printf("Checkpoint cleanup_idle: $sig_num");
+  flutterLocalNotificationsPlugin.cancelAll();
+  writeUnread();
+  torx.cleanup_lib(sig_num); // do last before calling exit
+  //Process.killPid(); // can kill stuff if we need to
+  SystemNavigator.pop(); // "proper alternative to exit(sig_num)" BUT DOES NOT END PROGRAM EXECUTION!!! Note: it will be ignored in iOS.
+  exit(sig_num); // This *actually* ends program execution, but it ends it so quick that the error_printf callbacks from cleanup_lib won't trigger, which is fine.
+} // NOTE: There are some flutter local notification / Java warnings after this. Minor issue to resolve not related to our callbacks.
 
 Uint8List htobe32(int value) {
   value = value & 0xFFFFFFFF; // Ensure the value fits within 32 bits by masking with 0xFFFFFFFF (???)
@@ -794,7 +804,6 @@ void print_message(int n, int i, int scroll) {
   }
   int stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
   int protocol = protocol_int(p_iter, "protocol");
-
   if (stat == ENUM_MESSAGE_RECV && scroll == 1) {
     int message_len = torx.getter_uint32(n, i, -1, offsetof("message", "message_len"));
     if (message_len >= CHECKSUM_BIN_LEN &&
@@ -863,9 +872,17 @@ void print_message(int n, int i, int scroll) {
     if (notifiable == 0) {
       return;
     }
+    int group_pm = protocol_int(p_iter, "group_pm");
     int nn = n;
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_GROUP_PEER) {
+      if (group_pm == 0 && stat != ENUM_MESSAGE_RECV) {
+        return; // Do not print OUTBOUND messages on GROUP_PEER unless they are private
+      }
+      int status = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status"));
+      if (stat == ENUM_MESSAGE_RECV && (t_peer.mute[n] == 1 || status == ENUM_STATUS_BLOCKED)) {
+        return; // Do not print inbound messages from muted (ignored) or blocked group peers
+      }
       int g = torx.set_g(n, nullptr);
       nn = torx.getter_group_int(g, offsetof("group", "n"));
       owner = ENUM_OWNER_GROUP_CTRL;
@@ -873,7 +890,6 @@ void print_message(int n, int i, int scroll) {
     int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
     if (nn != global_n || globalAppLifecycleState != AppLifecycleState.resumed) {
       if (t_peer.mute[n] == 0 && t_peer.mute[nn] == 0) {
-        int group_pm = protocol_int(p_iter, "group_pm");
         Noti.showBigTextNotification(
             title: getter_string(n, INT_MIN, -1, offsetof("peer", "peernick")),
             body: null_terminated_len != 0 ? getter_string(n, i, -1, offsetof("message", "message")) : protocol_string(p_iter, offsetof("protocols", "name")),
@@ -920,12 +936,13 @@ void print_message(int n, int i, int scroll) {
       if (launcherBadges) {
         AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
       }
-      changeNotifierChatList.callback(integer: -1);
+      changeNotifierChatList.callback(integer: -1); // TODO is this duplicating below?
       changeNotifierTotalUnread.callback(integer: -1);
     }
   }
   changeNotifierMessage.callback(n: n, i: i, scroll: scroll);
-  if (scroll == 1 || scroll == 2) {
+  int max_i = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "max_i"));
+  if (scroll == 1 || i == max_i + 1) {
     changeNotifierChatList.callback(integer: n); // for the last_message
   }
 }
