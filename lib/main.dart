@@ -231,9 +231,9 @@ Future<void> _startForegroundService() async {
   // And: https://github.com/MaikuB/flutter_local_notifications/blob/5375645b01c845998606b58a3d97b278c5b2cefa/flutter_local_notifications/example/android/app/src/main/AndroidManifest.xml
   // The notification of the foreground service can be updated by method multiple times.
   const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-    'Foreground service channel2',
-    'Foreground service channel2',
-    channelDescription: 'Foreground service channel description',
+    'TorX Foreground Service',
+    'TorX Foreground Service',
+    channelDescription: 'Allows TorX to operate in the background',
     importance: Importance.none,
     priority: Priority.min,
     visibility: NotificationVisibility.secret,
