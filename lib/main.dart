@@ -128,7 +128,7 @@ TextEditingController entryAddPeeronionController = TextEditingController();
 TextEditingController entryAddGeneratePeernickController = TextEditingController();
 TextEditingController entryAddGenerateOutputController = TextEditingController();
 TextEditingController controllerMessage = TextEditingController();
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin(); // Don't call directly, use Noti.
 
 class t_file_class {
   // NOTE: if adding things, be sure to handle them in expand_file_struc_cb() and initialize_f_cb()
@@ -204,8 +204,8 @@ void resumptionTasks() {
   // This is called on startup (by main), on .resume after .pause, and when resuming after .detach (by main, not .resume)
   // Any UI held values will be defaults if this has occured after .detach. This means things like .unread will be zero'd.
   // Find a way to set "resuming from detach" bool that can re-set or re-fetch certain things, like .unread counts and such
-  flutterLocalNotificationsPlugin.cancelAll();
-  _stopForegroundService();
+  Noti.cancelAll(flutterLocalNotificationsPlugin);
+  Noti.stopForegroundService(flutterLocalNotificationsPlugin);
   if (threadsafe_read_global_Uint8("keyed") > 0) {
     if (!callbacks_registered) {
       register_callbacks(); // NECESSARY to call again, in case .detach occured
@@ -223,41 +223,6 @@ void resumptionTasks() {
     if (launcherBadges && totalIncoming > 0 || totalUnreadPeer > 0 || totalUnreadGroup > 0) {
       AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
     }
-  }
-}
-
-Future<void> _startForegroundService() async {
-  // Documentation: https://github.com/MaikuB/flutter_local_notifications/blob/5375645b01c845998606b58a3d97b278c5b2cefa/flutter_local_notifications/lib/src/platform_flutter_local_notifications.dart#L208
-  // And: https://github.com/MaikuB/flutter_local_notifications/blob/5375645b01c845998606b58a3d97b278c5b2cefa/flutter_local_notifications/example/android/app/src/main/AndroidManifest.xml
-  // The notification of the foreground service can be updated by method multiple times.
-  const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-    'TorX Foreground Service',
-    'TorX Foreground Service',
-    channelDescription: 'Allows TorX to operate in the background',
-    importance: Importance.none,
-    priority: Priority.min,
-    visibility: NotificationVisibility.secret,
-    ongoing: true,
-    autoCancel: false,
-    onlyAlertOnce: false,
-    showWhen: false,
-    icon: 'ic_notification_foreground',
-    color: Colors.red,
-    colorized: false,
-    enableVibration: false, // NOTE: Cannot be changed without changing channel name
-    playSound: false, // NOTE: Cannot be changed without changing channel name
-    silent: true,
-  );
-  AndroidFlutterLocalNotificationsPlugin? flnp = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-  if (flnp != null) {
-    await flnp.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
-  }
-}
-
-void _stopForegroundService() {
-  AndroidFlutterLocalNotificationsPlugin? flnp = flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-  if (flnp != null) {
-    flnp.stopForegroundService();
   }
 }
 
@@ -324,7 +289,7 @@ void initialization_functions(BuildContext? context) {
 
 void cleanup_idle(int sig_num) {
   printf("Checkpoint cleanup_idle: $sig_num");
-  flutterLocalNotificationsPlugin.cancelAll();
+  Noti.cancelAll(flutterLocalNotificationsPlugin);
   writeUnread();
   torx.cleanup_lib(sig_num); // do last before calling exit
   //Process.killPid(); // can kill stuff if we need to
@@ -411,7 +376,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       case AppLifecycleState.paused:
         error(0, "Checkpoint AppLifecycleState.paused");
         //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.paused', body: '', fln: flutterLocalNotificationsPlugin);
-        await _startForegroundService(); // 2024/09/22 MUST AWAIT otherwise it won't happen. DO NOT REMOVE AWAIT.
+        await Noti.startForegroundService(flutterLocalNotificationsPlugin); // 2024/09/22 MUST AWAIT otherwise it won't happen. DO NOT REMOVE AWAIT.
         writeUnread();
         break;
       case AppLifecycleState.detached:
@@ -894,7 +859,7 @@ void print_message(int n, int i, int scroll) {
             title: getter_string(n, INT_MIN, -1, offsetof("peer", "peernick")),
             body: null_terminated_len != 0 ? getter_string(n, i, -1, offsetof("message", "message")) : protocol_string(p_iter, offsetof("protocols", "name")),
             payload: "$n $group_pm",
-            fln: flutterLocalNotificationsPlugin);
+            flnp: flutterLocalNotificationsPlugin);
         Vibration.vibrate(); // Vibrate regardless of mute setting, if current chat not open or application is not in the foreground
         FlutterRingtonePlayer().play(looping: false, fromAsset: "lib/other/beep.wav"); // Make sound if not muted
       }

@@ -2,6 +2,17 @@ cmake_minimum_required(VERSION 3.14)
 # FOSS android_sdk (untested) https://wiki.debian.org/AndroidTools
 # XXX building for ios / android https://cmake.org/cmake/help/latest/manual/cmake-toolchains.7.html
 
+################################################################################
+################################################################################
+################################################################################
+##### NOTICE: For debugging messages, just append to a file and find it.   #####
+##### Example:                                                             #####
+#####     file(APPEND file.txt "Current dir: ${CMAKE_CURRENT_LIST_DIR}\n") #####
+##### File should be at android/app/file.txt                               #####
+################################################################################
+################################################################################
+################################################################################
+
 set(CMAKE_SYSTEM_NAME Android) # Must be before project
 set(CMAKE_TLS_VERIFY TRUE)
 
@@ -15,7 +26,6 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 # ANDROID_SYSROOT TODO set
 # ANDROID_TOOLCHAIN TODO set
 # ??? CMAKE_PREFIX_PATH ==
-
 #set($ENV{TORX_TAG} "dev")			### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
 #set($ENV{LAN_REPO} "http://10.8.88.11/") 	### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
 
@@ -40,16 +50,13 @@ else()
 	set(REPO_TORX "https://github.com/TorX-Chat/libtorx/")
 endif()
 
-set(JNILIBS_DIR_SHORT ../../android/app/src/main/jniLibs/${ANDROID_ABI}/)
+set(JNILIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI})
 set(REQUIRED_LIBS "libevent_core-2.2.so" "libevent_pthreads-2.2.so" "libsodium.so" "libsqlcipher.so" "libpng16.so" )
 foreach(LIB ${REQUIRED_LIBS})
-	if(NOT EXISTS "${JNILIBS_DIR_SHORT}/${LIB}")
+	if(NOT EXISTS "${JNILIBS_DIR}/${LIB}")
 		set(BUILD_TORX_DEPS 1) ### NOTE: For some reason, MUST be ENV here but $ENV elsewhere
 	endif()
 endforeach()
-set(JNILIBS_DIR ../../../../../../../${JNILIBS_DIR_SHORT})
-
-#set(BUILD_TORX_DEPS 0) # Temp override
 
 set(ANDROID_VERSION 21) ## find a way to set this properly from env variables, or ANDROID_PLATFORM (is an int), or ANDROID_API_LEVEL (i think also int?? not sure tho) #set(CMAKE_SYSTEM_VERSION 21) # TODO NOT WORKING in our dependancy builds. Defaulting to 1. use __ANDROID_MIN_SDK_VERSION__ ?
 set(ANDROID_PLATFORM ${ANDROID_VERSION})

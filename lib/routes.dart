@@ -121,57 +121,125 @@ void response(NotificationResponse notificationResponse) {
     calloc.free(message);
     message = nullptr;
   }
-  //    flutterLocalNotificationsPlugin.cancel(notificationResponse.id!); // Does not work, either due to isolate or unknown other reason
+  //   Noti.cancel(notificationResponse.id!); // Does not work, either due to isolate or unknown other reason
   // GOAT how can these notification IDs be stored in the proper isolate so that they can be individually closed if going to the N's RouteChat? low priority
 }
 
 class Noti {
 // NOTICE: showsUserInterface: false ---> Response runs in a different isolate. Will not work without interprocess communication. (Neither C nor Dart). 2024/04/15 ALSO DOES NOT WORK WITH INTERPROCESS COMMUNICATION
 // Old: Different isolate, C works, Dart everything is initialized. DO NOT READ OR SET GLOBAL VARIABLES INCLUDING t_peer, and ChangeNotifiers don't work. Use print_message_cb() for any UI thread stuff ( ctrl+f "section 9jfj20f0w" ).
+  static bool notificationsInitialized = false; // NOTE: Globally defined variable, accessible as Noti.notificationsInitialized
 
-  static dynamic initialize(FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin) {
-    var androidInitialize = const AndroidInitializationSettings('ic_notification_foreground'); // NOTE: arg is icon
+  static dynamic initialize(FlutterLocalNotificationsPlugin flnp) {
+    if (!notificationsInitialized) {
+      notificationsInitialized = true;
+      var androidInitialize = const AndroidInitializationSettings('ic_notification_foreground'); // NOTE: arg is icon
 //      var androidInitialize = const AndroidInitializationSettings('icon_square');
 /*var iOSInitialize = IOSInitializationSettings(); */
-    const DarwinInitializationSettings initializationSettingsDarwin = DarwinInitializationSettings(
-      requestSoundPermission: false,
-      requestBadgePermission: false,
-      requestAlertPermission: false,
+      const DarwinInitializationSettings initializationSettingsDarwin = DarwinInitializationSettings(
+        requestSoundPermission: false,
+        requestBadgePermission: false,
+        requestAlertPermission: false,
 //    onDidReceiveLocalNotification: response(),
-    );
-    var initializationSettings = InitializationSettings(
-      android: androidInitialize,
-      iOS: initializationSettingsDarwin,
-    );
-    flutterLocalNotificationsPlugin.initialize(initializationSettings, onDidReceiveNotificationResponse: response, onDidReceiveBackgroundNotificationResponse: response);
-    flutterLocalNotificationsPlugin.cancelAll(); // perhaps this will kill any hangovers after a detach
+      );
+      var initializationSettings = InitializationSettings(
+        android: androidInitialize,
+        iOS: initializationSettingsDarwin,
+      );
+      flnp.initialize(initializationSettings, onDidReceiveNotificationResponse: response, onDidReceiveBackgroundNotificationResponse: response);
+      flnp.cancelAll(); // perhaps this will kill any hangovers after a detach (doubt it)
+    } else {
+      printf("Noti already initialized. Not re-initializing.");
+    }
   }
 
-  static dynamic showBigTextNotification({var id = 0, required String title, required String body, String? payload, required FlutterLocalNotificationsPlugin fln}) {
-    AndroidNotificationDetails
-        androidPlatformChannelSpecifics = // GOAT use payload as GroupKey, so that messages are grouped per user (does not work. also changing 'channelId' to payload does not work.)
-        AndroidNotificationDetails('jykliDPA9dbXfvX', 'Message Notifier',
-            ongoing: false, // true prevents swipe dismiss in android 13/14
-            enableLights: true,
-            ledOnMs: 2000,
-            ledOffMs: 10000,
-            ledColor: Colors.pink,
-            groupKey: "message", // ( all messages grouped )
-            playSound: false,
-            enableVibration: false,
-            importance: Importance.high,
-            priority: Priority.max,
-            color: Colors.red,
-            actions: [
-          // GOAT showsUserInterface resumes the application to the foreground before sending, to run on the main isolate. To disable this, we have to implement a messaging mechanism to communicate with the main isolate.
-          if (payload != null)
-            AndroidNotificationAction('reply', text.reply,
-                /*cancelNotification: cancelAfterReply, titleColor: Colors.green,*/ contextual: false,
-                showsUserInterface: true /*DO NOT SET FALSE Interprocess communication does not work, even using ReceivePort*/,
-                inputs: [const AndroidNotificationActionInput()]),
-          //    AndroidNotificationAction('dismiss', text.dismiss, cancelNotification: true) // does NOT work
-        ]);
-    fln.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
+  static dynamic showBigTextNotification({var id = 0, required String title, required String body, String? payload, required FlutterLocalNotificationsPlugin flnp}) {
+    if (notificationsInitialized) {
+      AndroidNotificationDetails
+          androidPlatformChannelSpecifics = // GOAT use payload as GroupKey, so that messages are grouped per user (does not work. also changing 'channelId' to payload does not work.)
+          AndroidNotificationDetails('jykliDPA9dbXfvX', 'Message Notifier',
+              ongoing: false, // true prevents swipe dismiss in android 13/14
+              enableLights: true,
+              ledOnMs: 2000,
+              ledOffMs: 10000,
+              ledColor: Colors.pink,
+              groupKey: "message", // ( all messages grouped )
+              playSound: false,
+              enableVibration: false,
+              importance: Importance.high,
+              priority: Priority.max,
+              color: Colors.red,
+              actions: [
+            // GOAT showsUserInterface resumes the application to the foreground before sending, to run on the main isolate. To disable this, we have to implement a messaging mechanism to communicate with the main isolate.
+            if (payload != null)
+              AndroidNotificationAction('reply', text.reply,
+                  /*cancelNotification: cancelAfterReply, titleColor: Colors.green,*/ contextual: false,
+                  showsUserInterface: true /*DO NOT SET FALSE Interprocess communication does not work, even using ReceivePort*/,
+                  inputs: [const AndroidNotificationActionInput()]),
+            //    AndroidNotificationAction('dismiss', text.dismiss, cancelNotification: true) // does NOT work
+          ]);
+      flnp.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
+    } else {
+      printf("Noti not yet initialized. Initializing.1");
+      Noti.initialize(flnp);
+    }
+  }
+
+  static void cancel(int id, FlutterLocalNotificationsPlugin flnp, {String? tag}) {
+    if (notificationsInitialized && tag != null) {
+      flnp.cancel(id, tag: tag);
+    } else if (notificationsInitialized) {
+      flnp.cancel(id);
+    }
+  }
+
+  static void cancelAll(FlutterLocalNotificationsPlugin flnp) {
+    if (notificationsInitialized) flnp.cancelAll();
+  }
+
+  static Future<void> startForegroundService(FlutterLocalNotificationsPlugin flnp) async {
+    if (notificationsInitialized && threadsafe_read_global_Uint8("keyed") > 0) {
+      // Documentation: https://github.com/MaikuB/flutter_local_notifications/blob/5375645b01c845998606b58a3d97b278c5b2cefa/flutter_local_notifications/lib/src/platform_flutter_local_notifications.dart#L208
+      // And: https://github.com/MaikuB/flutter_local_notifications/blob/5375645b01c845998606b58a3d97b278c5b2cefa/flutter_local_notifications/example/android/app/src/main/AndroidManifest.xml
+      // The notification of the foreground service can be updated by method multiple times.
+      const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+        'TorX Foreground Service',
+        'TorX Foreground Service',
+        channelDescription: 'Allows TorX to operate in the background',
+        importance: Importance.none,
+        priority: Priority.min,
+        visibility: NotificationVisibility.secret,
+        ongoing: true,
+        autoCancel: false,
+        onlyAlertOnce: false,
+        showWhen: false,
+        icon: 'ic_notification_foreground',
+        color: Colors.red,
+        colorized: false,
+        enableVibration: false, // NOTE: Cannot be changed without changing channel name
+        playSound: false, // NOTE: Cannot be changed without changing channel name
+        silent: true,
+      );
+      AndroidFlutterLocalNotificationsPlugin? platformSpecific = flnp.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (platformSpecific != null) {
+        await platformSpecific.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
+      }
+    } else {
+      printf("Noti not yet initialized. Initializing.2");
+      Noti.initialize(flnp);
+    }
+  }
+
+  static void stopForegroundService(FlutterLocalNotificationsPlugin flnp) {
+    if (notificationsInitialized) {
+      AndroidFlutterLocalNotificationsPlugin? platformSpecific = flnp.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (platformSpecific != null) {
+        platformSpecific.stopForegroundService();
+      }
+    } else {
+      printf("Noti not yet initialized. Initializing.3");
+      Noti.initialize(flnp);
+    }
   }
 }
 
