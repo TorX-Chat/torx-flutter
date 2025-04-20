@@ -67,6 +67,7 @@ import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'change_notifiers.dart';
+import 'colors.dart';
 import 'language.dart';
 import 'main.dart';
 import 'manual_bindings.dart';
@@ -383,8 +384,10 @@ class Callbacks {
     } else if (plaintext == 1) {
       if (name == "theme") {
         theme = int.parse(setting_value.toDartString());
+        initialize_theme(null);
       } else if (name == "language") {
         language = setting_value.toDartString();
+        initialize_language();
       } else {
         error(0, "Unrecognized unencrypted config setting: $name");
       }

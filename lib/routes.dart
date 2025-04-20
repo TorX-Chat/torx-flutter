@@ -3244,11 +3244,11 @@ class RouteSettings extends StatefulWidget {
 
 class _RouteSettingsState extends State<RouteSettings> {
   // GOAT implement a Focus() on any textfield (see what we did in RouteHome() with datacells, or in chat title?) so that saves occur when focus is lost not just when submit is pressed
-  final List<String> _languages = [
-    "English",
-  ];
-  final List<String> _themes = [text.dark, text.light];
-  final List<String> _idTypes = [text.generate_onionid, text.generate_torxid];
+  final List<String> languages_available_name = ["English", "中文"];
+  final List<String> languages_available_code = ["en_US", "zh_CN"];
+  final List<String> languages_available_code_short = ["en", "zh"];
+  List<String> _themes = []; // do not set here because it can change based on language
+  List<String> _idTypes = []; // do not set here because it can change based on language
 
   final _cpuThreads = List<String>.generate(threadsafe_read_global_Uint32("threads_max"), (int index) => '${index + 1}');
 
@@ -3296,54 +3296,6 @@ class _RouteSettingsState extends State<RouteSettings> {
 
   @override
   Widget build(BuildContext context) {
-    if (language == "en_US") {
-      _selectedLanguage = "English";
-    }
-
-    if (theme == enum_theme.DARK_THEME.index) {
-      _selectedTheme = text.dark;
-    } else if (theme == enum_theme.LIGHT_THEME.index) {
-      _selectedTheme = text.light;
-    }
-
-    if (shorten_torxids == 0) {
-      _selectedIdType = text.generate_onionid;
-    } else if (shorten_torxids == 1) {
-      _selectedIdType = text.generate_torxid;
-    }
-
-    if (global_log_messages == 0) {
-      _selectedGlobalLogging = false;
-    } else if (global_log_messages == 1) {
-      _selectedGlobalLogging = true;
-    } else {
-      error(0, "Unexpected log_messages value: ${global_log_messages.toString()}");
-    }
-
-    if (auto_resume_inbound == 0) {
-      _selectedAutoResumeInbound = false;
-    } else if (auto_resume_inbound == 1) {
-      _selectedAutoResumeInbound = true;
-    }
-
-    if (global_threads <= threads_max) {
-      _selectedCpuThreads = _cpuThreads.elementAt(global_threads - 1);
-    } else {
-      _selectedCpuThreads = _cpuThreads.elementAt(threads_max - 1);
-    }
-
-    if (suffix_length < 10) {
-      _selectedSuffixLength = suffix_length.toString();
-    } else {
-      error(0, "Suffix length invalid: ${torx.suffix_length.value.toString()}");
-    }
-
-    if (auto_accept_mult == 0) {
-      _selectedAutoMult = false;
-    } else if (auto_accept_mult == 1) {
-      _selectedAutoMult = true;
-    }
-
     return PopScope(
         onPopInvoked: (didPop) {},
         child: AnimatedBuilder(
@@ -3412,6 +3364,57 @@ class _RouteSettingsState extends State<RouteSettings> {
                         child: AnimatedBuilder(
                             animation: changeNotifierSettingChange,
                             builder: (BuildContext context, Widget? snapshot) {
+                              _themes = [text.dark, text.light];
+                              _idTypes = [text.generate_onionid, text.generate_torxid];
+                              if (language == languages_available_code_short[0] || language == languages_available_code[0]) {
+                                _selectedLanguage = languages_available_name[0];
+                              } else if (language == languages_available_code_short[1] || language == languages_available_code[1]) {
+                                _selectedLanguage = languages_available_name[1];
+                              }
+
+                              if (theme == enum_theme.DARK_THEME.index) {
+                                _selectedTheme = text.dark;
+                              } else if (theme == enum_theme.LIGHT_THEME.index) {
+                                _selectedTheme = text.light;
+                              }
+
+                              if (shorten_torxids == 0) {
+                                _selectedIdType = text.generate_onionid;
+                              } else if (shorten_torxids == 1) {
+                                _selectedIdType = text.generate_torxid;
+                              }
+
+                              if (global_log_messages == 0) {
+                                _selectedGlobalLogging = false;
+                              } else if (global_log_messages == 1) {
+                                _selectedGlobalLogging = true;
+                              } else {
+                                error(0, "Unexpected log_messages value: ${global_log_messages.toString()}");
+                              }
+
+                              if (auto_resume_inbound == 0) {
+                                _selectedAutoResumeInbound = false;
+                              } else if (auto_resume_inbound == 1) {
+                                _selectedAutoResumeInbound = true;
+                              }
+
+                              if (global_threads <= threads_max) {
+                                _selectedCpuThreads = _cpuThreads.elementAt(global_threads - 1);
+                              } else {
+                                _selectedCpuThreads = _cpuThreads.elementAt(threads_max - 1);
+                              }
+
+                              if (suffix_length < 10) {
+                                _selectedSuffixLength = suffix_length.toString();
+                              } else {
+                                error(0, "Suffix length invalid: ${torx.suffix_length.value.toString()}");
+                              }
+
+                              if (auto_accept_mult == 0) {
+                                _selectedAutoMult = false;
+                              } else if (auto_accept_mult == 1) {
+                                _selectedAutoMult = true;
+                              }
                               return Column(
                                 children: [
                                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -3422,7 +3425,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                                     DropdownButton(
                                         dropdownColor: color.chat_headerbar,
                                         value: _selectedLanguage,
-                                        items: _languages
+                                        items: languages_available_name
                                             .map((e) => DropdownMenuItem(
                                                   value: e,
                                                   child: Container(
@@ -3435,11 +3438,13 @@ class _RouteSettingsState extends State<RouteSettings> {
                                                 ))
                                             .toList(),
                                         onChanged: (value) {
-                                          if (value == "English" && language == "en_US") {
+                                          if (_selectedLanguage == value) {
                                             return; // compensating for flutter triggering when there is no change
                                           }
-                                          if (value == "English") {
-                                            language = "en_US";
+                                          if (value == languages_available_name[0]) {
+                                            language = languages_available_code[0];
+                                          } else if (value == languages_available_name[1]) {
+                                            language = languages_available_code[1];
                                           } else {
                                             error(0, "Invalid language selected: $value");
                                           }
@@ -3832,7 +3837,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                                   Row(
                                     children: [
                                       Text(
-                                        text.set_automatic_mult,
+                                        text.set_auto_mult,
                                         style: TextStyle(color: color.page_subtitle),
                                       )
                                     ],

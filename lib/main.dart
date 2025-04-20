@@ -92,7 +92,7 @@ import 'package:vibration/vibration.dart';
 int current_index = 0;
 int global_n = -1; // for current RouteChat
 final dynamicLibrary = DynamicLibrary.open(getPath());
-String language = "";
+String language = ""; // 2 or 5 characters, ex: en / en_US
 int theme = -1; // DO NOT set a default here. Setting it at 0 allows everything to initialized properly after the system theme is checked.
 int bottom_index = 1; // default is add/generate page
 int notificationCount = 0;
