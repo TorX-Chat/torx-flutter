@@ -1001,6 +1001,7 @@ void call_join(int n, int c) {
     error(0, "Cannot join a call with zero time/nstime. Coding error. Report this.");
     return;
   }
+  call_leave_all_except(n, c);
   t_peer.t_call[n].waiting[c] = false;
   t_peer.t_call[n].joined[c] = true;
   int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
@@ -1058,6 +1059,20 @@ void call_leave(int n, int c) {
   call_update(n, c);
 }
 
+void call_leave_all_except(int except_n, int except_c) {
+  // Leave or reject all active calls, except one (or none if -1). To be called primarily when call_join is called, but may also be called for other purposes.
+  for (int call_n = 0; torx.getter_byte(call_n, INT_MIN, -1, offsetof("peer", "onion")) != 0; call_n++) {
+    int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
+    if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL) {
+      for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
+        if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
+          if (call_n != except_n || c != except_c) call_leave(call_n, c);
+        }
+      }
+    }
+  }
+}
+
 void call_peer_joining(int call_n, int c, int peer_n) {
   for (int iter = 0; iter < t_peer.t_call[call_n].participating[c].length; iter++) {
     if (peer_n == t_peer.t_call[call_n].participating[c][iter]) {
@@ -1065,6 +1080,7 @@ void call_peer_joining(int call_n, int c, int peer_n) {
       return; // Peer is already in the call
     }
   }
+  call_peer_leaving_all_except(peer_n, call_n, c);
   printf("Checkpoint call_peer_joining $call_n $c $peer_n");
   if (t_peer.t_call[call_n].participating[c].isNotEmpty) {
     // send a list of peer onions that are already in the call, excluding this peer, if any
@@ -1100,6 +1116,26 @@ void call_peer_leaving(int n, int c, int peer_n) {
     t_peer.t_call[n].waiting[c] = false;
   }
   call_update(n, c);
+}
+
+void call_peer_leaving_all_except(int n, int except_n, int except_c) {
+  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+  if (owner == ENUM_OWNER_GROUP_PEER) {
+    int g = torx.set_g(n, nullptr);
+    int group_n = torx.getter_group_int(g, offsetof("group", "n"));
+    int call_n = group_n;
+    for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
+      if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
+        if (call_n != except_n || c != except_c) call_peer_leaving(call_n, c, n);
+      }
+    }
+  } // NOT ELSE
+  int call_n = n;
+  for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
+    if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
+      if (call_n != except_n || c != except_c) call_peer_leaving(call_n, c, n);
+    }
+  }
 }
 
 void printf(String str) {
