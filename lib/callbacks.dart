@@ -264,6 +264,29 @@ class Callbacks {
   }
 
   void peer_offline_cb_ui(int n) {
+    int sendfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "sendfd_connected"));
+    int recvfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "recvfd_connected"));
+    int online = recvfd_connected + sendfd_connected;
+    if (online == 0) {
+      // Peer is completely offline
+      int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+      if (owner == ENUM_OWNER_GROUP_PEER) {
+        int g = torx.set_g(n, nullptr);
+        int group_n = torx.getter_group_int(g, offsetof("group", "n"));
+        int call_n = group_n;
+        for (int c = 0; c < t_peer.t_call[n].joined.length; c++) {
+          if (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0) {
+            call_peer_leaving(call_n, c, n);
+          }
+        }
+      } // NOT ELSE
+      int call_n = n;
+      for (int c = 0; c < t_peer.t_call[n].joined.length; c++) {
+        if (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0) {
+          call_peer_leaving(call_n, c, n);
+        }
+      }
+    }
     peer_online_cb_ui(n);
   }
 
