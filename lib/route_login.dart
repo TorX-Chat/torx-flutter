@@ -90,6 +90,7 @@ class _RouteLoginState extends State<RouteLogin> {
       torx.login_start(password);
       calloc.free(password);
       password = nullptr;
+      changeNotifierLogin.callback(integer: 500); // must not be 0 or -1. Just to set the button_text.
     } else {
       return;
     }
@@ -161,41 +162,42 @@ class _RouteLoginState extends State<RouteLogin> {
                       const Padding(padding: EdgeInsets.all(5.0)),
                       Container(
                           decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: color.search_field_background),
-                          child: TextField(
-                            controller: entryLoginController,
-                            obscureText: obscureText,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            enableIMEPersonalizedLearning: false,
-                            scribbleEnabled: false,
-                            spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                            showCursor: true,
-                            autofocus: true,
-                            textAlign: TextAlign.center,
-                            onSubmitted: (String value) {
-                              _submit();
-                              setState(() {});
-                            },
-                            style: TextStyle(color: color.search_field_text),
-                            decoration: InputDecoration(
-                              border: const OutlineInputBorder(),
-                              hintText: enter_password,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  obscureText ? Icons.visibility : Icons.visibility_off,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    obscureText = !obscureText;
-                                  });
-                                },
-                              ),
-                            ),
-                          )),
+                          child: AnimatedBuilder(
+                              animation: changeNotifierObscureText,
+                              builder: (BuildContext context, Widget? snapshot) {
+                                return TextField(
+                                  controller: entryLoginController,
+                                  obscureText: obscureText,
+                                  autocorrect: false,
+                                  enableSuggestions: false,
+                                  enableIMEPersonalizedLearning: false,
+                                  scribbleEnabled: false,
+                                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                                  showCursor: true,
+                                  autofocus: true,
+                                  textAlign: TextAlign.center,
+                                  onSubmitted: (String value) {
+                                    _submit();
+                                  },
+                                  style: TextStyle(color: color.search_field_text),
+                                  decoration: InputDecoration(
+                                    border: const OutlineInputBorder(),
+                                    hintText: enter_password,
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        obscureText ? Icons.visibility : Icons.visibility_off,
+                                      ),
+                                      onPressed: () {
+                                        obscureText = !obscureText;
+                                        changeNotifierObscureText.callback(integer: -1);
+                                      },
+                                    ),
+                                  ),
+                                );
+                              })),
                       MaterialButton(
                         onPressed: () {
                           _submit();
-                          setState(() {});
                         },
                         height: 30,
                         minWidth: 60,
@@ -208,23 +210,27 @@ class _RouteLoginState extends State<RouteLogin> {
                       ),
                       Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                         Text(text.censored_region, style: TextStyle(color: color.page_subtitle)),
-                        Switch(
-                          value: threadsafe_read_global_Uint8("censored_region") == 0 ? false : true,
-                          activeColor: const Color(0xFF6200EE),
-                          onChanged: (value) {
-                            int val;
-                            if (value == false) {
-                              val = 0;
-                            } else /*if (value == true)*/ {
-                              val = 1;
-                            }
-                            torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                            torx.censored_region.value = val;
-                            torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                            set_setting_string(1, -1, "censored_region", val.toString());
-                            setState(() {});
-                          },
-                        ),
+                        AnimatedBuilder(
+                            animation: changeNotifierSettingChange,
+                            builder: (BuildContext context, Widget? snapshot) {
+                              return Switch(
+                                value: threadsafe_read_global_Uint8("censored_region") == 0 ? false : true,
+                                activeColor: const Color(0xFF6200EE),
+                                onChanged: (value) {
+                                  int val;
+                                  if (value == false) {
+                                    val = 0;
+                                  } else /*if (value == true)*/ {
+                                    val = 1;
+                                  }
+                                  torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                  torx.censored_region.value = val;
+                                  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                  set_setting_string(1, -1, "censored_region", val.toString());
+                                  changeNotifierSettingChange.callback(integer: -1);
+                                },
+                              );
+                            }),
                       ]),
                     ]),
                   ),

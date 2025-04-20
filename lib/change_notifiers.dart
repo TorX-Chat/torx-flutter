@@ -119,7 +119,7 @@ class ChangeNotifierMessage extends ChangeNotifier {
 
 // NOTICE: We cannot have individual widgets listening on multiple ChangeNotifier(s). Therefore, we must have a ChangeNotifier per widget, not per callback type.
 // RE: numbers, see enum cb_type
-ChangeNotifierInt changeNotifierTextOrAudio = ChangeNotifierInt();
+ChangeNotifierInt changeNotifierTextOrAudio = ChangeNotifierInt(); // TO OBTAIN VALUE: changeNotifier.section.<value>
 ChangeNotifierInt changeNotifierSendButton = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierActivity = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierStickerReady = ChangeNotifierInt();
@@ -128,19 +128,26 @@ ChangeNotifierInt changeNotifierDataTables = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierChatList = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierPopoverList = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierOnlineOffline = ChangeNotifierInt();
+ChangeNotifierInt changeNotifierCallUpdate = ChangeNotifierInt(); // Don't use directly. call_update() instead.
+ChangeNotifierInt changeNotifierDrag = ChangeNotifierInt(); // Can use for any drag operation
+ChangeNotifierInt changeNotifierSettingChange = ChangeNotifierInt(); // Can use for any setting change?
+ChangeNotifierInt changeNotifierThemeChange = ChangeNotifierInt(); // Can use for any setting change?
+ChangeNotifierInt changeNotifierDebugLevel = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierOnionReady = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierLogin = ChangeNotifierInt();
+ChangeNotifierInt changeNotifierInvalidEntry = ChangeNotifierInt(); // Can use for any invalid entry (turn a text red, or undo, etc)
+ChangeNotifierInt changeNotifierObscureText = ChangeNotifierInt(); // Can use for any obscured text
 ChangeNotifierInt changeNotifierGroupReady = ChangeNotifierInt();
 ChangeNotifierString changeNotifierTorLog = ChangeNotifierString();
 ChangeNotifierString changeNotifierError = ChangeNotifierString();
-ChangeNotifierMessage changeNotifierMessage = ChangeNotifierMessage();
+ChangeNotifierMessage changeNotifierMessage = ChangeNotifierMessage(); // This is quite expensive
 
 // Somewhat unrelated to cb_handling()
 ChangeNotifierInt changeNotifierTotalUnread = ChangeNotifierInt();
 ChangeNotifierInt changeNotifierTotalIncoming = ChangeNotifierInt();
 
 // Theme related
-ChangeNotifierInt changeNotifierTheme = ChangeNotifierInt();
+ChangeNotifierInt changeNotifierBottom = ChangeNotifierInt();
 
 
 // Low Priority, yet to implement:

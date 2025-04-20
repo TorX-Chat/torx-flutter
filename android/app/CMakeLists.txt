@@ -52,7 +52,7 @@ endif()
 
 set(JNILIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI})
 set(REQUIRED_LIBS "libevent_core-2.2.so" "libevent_pthreads-2.2.so" "libsodium.so" "libsqlcipher.so" "libpng16.so" )
-foreach(LIB ${REQUIRED_LIBS})
+foreach(LIB ${REQUIRED_LIBS}) # WARNING: This will NOT be re-evaluated every rebuild. This just allows dropping in of .so into JNILIBS_DIR for faster builds.
 	if(NOT EXISTS "${JNILIBS_DIR}/${LIB}")
 		set(BUILD_TORX_DEPS 1) ### NOTE: For some reason, MUST be ENV here but $ENV elsewhere
 	endif()

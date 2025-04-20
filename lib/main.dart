@@ -73,6 +73,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -154,6 +155,23 @@ class t_message_class {
   int offset = -10; // yes, default is -10. YOU MUST UTILIZE THIS.
 }
 
+class t_call_class {
+  // NOTE: if adding things, be sure to handle them in set_c()
+  // NOTE: This is UI only, so we don't need to create it in blocks of 11
+  List<bool> joined = []; // Whether we accepted/joined it
+  List<bool> waiting = []; // Whether it is awaiting an acceptance/join or has been declined/ignored
+  List<bool> mic_on = [];
+  List<bool> speaker_on = [];
+  List<bool> speaker_phone = [];
+  List<bool> audio_only = [];
+  List<int> start_time = [];
+  List<int> start_nstime = [];
+  List<List<int>> participating = [[]]; // Participating peers' n
+  List<int> last_played_time = [];
+  List<int> last_played_nstime = [];
+  // TODO buffer (unsure how to do... we need to store both raw data and its length(?), time, nstime)
+}
+
 class t_peer {
   // NOTE: if adding things, be sure to handle them in expand_peer_struc_cb() and initialize_n_cb()
   // WARNING: These have to be intialized to the proper value (ie, -1 not 0) because the settings can be re-initialized in flutter by lifecycle changes
@@ -190,6 +208,19 @@ class t_peer {
     t_message_class(),
   ]; // 11
   static List<List<Pointer<Uint8>>> stickers_requested = [[], [], [], [], [], [], [], [], [], [], []]; // 11
+  static List<t_call_class> t_call = [
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+    t_call_class(),
+  ]; // 11
 }
 
 AppLifecycleState globalAppLifecycleState = AppLifecycleState.resumed; // This is the appropriate default Enum values below
@@ -277,6 +308,12 @@ void initialization_functions(BuildContext? context) {
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG, "AAC Audio Message", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, "AAC Audio Message Date Signed", "", 0, 2 * 4, crypto_sign_BYTES, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, "AAC Audio Message Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN, "AAC Audio Stream Join", "", 0, 0, 0, 0, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
+  protocol_registration(
+      ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE, "AAC Audio Stream Join Private", "", 0, 0, 0, 0, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_STREAM_PEERS, "AAC Audio Stream Peers", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, ENUM_STREAM_DISCARDABLE);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE, "AAC Audio Stream Leave", "", 0, 0, 0, 0, 1, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE, "AAC Audio Data Date", "", 0, 1, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, ENUM_STREAM_DISCARDABLE);
 
   int first_run = threadsafe_read_global_Uint8("first_run");
   printf("First run: $first_run");
@@ -307,6 +344,24 @@ Uint8List htobe32(int value) {
 int be32toh(Uint8List bytes) {
   final byteData = ByteData.sublistView(bytes);
   return byteData.getUint32(0, Endian.big);
+}
+
+int set_c(int n, int time, int nstime) {
+  for (int c = 0; c < t_peer.t_call[n].joined.length; c++) {
+    if (t_peer.t_call[n].start_time[c] == time && t_peer.t_call[n].start_nstime[c] == nstime) return c;
+  }
+  t_peer.t_call[n].joined.add(false);
+  t_peer.t_call[n].waiting.add(false);
+  t_peer.t_call[n].mic_on.add(true);
+  t_peer.t_call[n].speaker_on.add(true);
+  t_peer.t_call[n].speaker_phone.add(false);
+  t_peer.t_call[n].audio_only.add(true);
+  t_peer.t_call[n].start_time.add(time);
+  t_peer.t_call[n].start_nstime.add(nstime);
+  t_peer.t_call[n].participating.add([]); // TODO
+  t_peer.t_call[n].last_played_time.add(0);
+  t_peer.t_call[n].last_played_nstime.add(0);
+  return t_peer.t_call[n].joined.length - 1;
 }
 
 class TorX extends StatefulWidget {
@@ -411,8 +466,8 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
 
 void shareQr(String generated) async {
   String path = '$temporaryDir/qr.png';
-  Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-  Pointer<Utf8> generated_p = generated.toNativeUtf8();
+  Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
+  Pointer<Utf8> generated_p = generated.toNativeUtf8(); // free'd by calloc.free
   Pointer<Void> qr_raw = torx.qr_bool(generated_p, 8); // free'd by torx_free
   calloc.free(generated_p);
   generated_p = nullptr;
@@ -423,7 +478,7 @@ void shareQr(String generated) async {
   qr_raw = nullptr;
   torx.torx_free_simple(png);
   png = nullptr;
-  calloc.free(size_p);
+  torx.torx_free_simple(size_p);
   size_p = nullptr;
   calloc.free(destination);
   destination = nullptr;
@@ -439,7 +494,7 @@ void saveQr(String data) async {
     //  printf("Selected dir: $selectedDirectory");
     int datetime = (DateTime.now()).millisecondsSinceEpoch; // seconds since epoch is safe because it has no timezone attached
     Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
-    Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+    Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
     Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
     Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
     String path = "$selectedDirectory/qr$datetime.png";
@@ -452,7 +507,7 @@ void saveQr(String data) async {
     png = nullptr;
     calloc.free(data_p);
     data_p = nullptr;
-    calloc.free(size_p);
+    torx.torx_free_simple(size_p);
     size_p = nullptr;
     calloc.free(destination);
     destination = nullptr;
@@ -461,7 +516,7 @@ void saveQr(String data) async {
 
 Image generate_qr(String data) {
   Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
-  Pointer<Size_t> size_p = malloc(8); // free'd by calloc.free
+  Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free
   Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
   Pointer<Void> png = torx.return_png(size_p, qr_raw);
   Image image = Image.memory(Pointer<Uint8>.fromAddress(png.address).asTypedList(size_p.value));
@@ -470,7 +525,7 @@ Image generate_qr(String data) {
 //  torx.torx_secure_free_simple(png); // GOAT TODO need to free png, but then the image is broke and our application crashes
   calloc.free(data_p);
   data_p = nullptr;
-  calloc.free(size_p);
+  torx.torx_free_simple(size_p);
   size_p = nullptr;
   return image;
 }
@@ -556,6 +611,26 @@ void toggleBlock(int n) {
   changeNotifierChatList.callback(integer: n);
 }
 
+void call_update(int call_n, int call_c) {
+  changeNotifierCallUpdate.callback(integer: call_n);
+}
+
+void call_start(int call_n) {
+  Pointer<Time_t> time = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
+  Pointer<Time_t> nstime = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
+  time.value = 0; // must do this or set_time throws error
+  nstime.value = 0; // must do this or set_time throws error
+  torx.set_time(time, nstime);
+  printf(
+      "Checkpoint time=${time.value} nstime=${nstime.value} ${DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch((time.value) * 1000, isUtc: false))}");
+  int c = set_c(call_n, time.value, nstime.value); // TODO casting here might be bad
+  torx.torx_free_simple(time);
+  time = nullptr;
+  torx.torx_free_simple(nstime);
+  nstime = nullptr;
+  call_join(call_n, c);
+}
+
 List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingController? controllerMessage, int n, int i, int s) {
   int message_owner = -1;
   int stat = -1;
@@ -602,10 +677,10 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
         protocol = protocol_int(p_iter, "protocol");
         file_checksum = protocol_int(p_iter, "file_checksum");
         if (file_checksum > 0) {
-          Pointer<Int> file_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+          Pointer<Int> file_n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
           f = torx.set_f_from_i(file_n_p, n, i);
           file_n = file_n_p.value;
-          calloc.free(file_n_p);
+          torx.torx_free_simple(file_n_p);
           file_n_p = nullptr;
           if (f > -1) file_status = torx.file_status_get(n, f);
         }
@@ -702,6 +777,15 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
     if (message_owner == ENUM_OWNER_GROUP_PEER)
       PopupMenuItem(
           child: ListTile(
+              leading: const Icon(Icons.call),
+              title: Text(text.audio_call),
+              onTap: () {
+                call_start(n);
+                Navigator.pop(context);
+              })),
+    if (message_owner == ENUM_OWNER_GROUP_PEER)
+      PopupMenuItem(
+          child: ListTile(
               leading: const Icon(Icons.message),
               title: Text(text.private_messaging),
               onTap: () {
@@ -773,24 +857,24 @@ void print_message(int n, int i, int scroll) {
     int message_len = torx.getter_uint32(n, i, -1, offsetof("message", "message_len"));
     if (message_len >= CHECKSUM_BIN_LEN &&
         (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
-      Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
+      Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message")); // free'd by torx_free
       int s = ui_sticker_set(message as Pointer<Uint8>);
       if (s < 0) {
         int y = 0;
-        while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y] as Pointer<Void>, message as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
+        while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y], message, CHECKSUM_BIN_LEN) != 0) {
           y++;
         }
         if (y == t_peer.stickers_requested[n].length) {
           t_peer.stickers_requested[n].add(message as Pointer<Uint8>);
-          torx.message_send(n, ENUM_PROTOCOL_STICKER_REQUEST, message as Pointer<Void>, CHECKSUM_BIN_LEN);
+          torx.message_send(n, ENUM_PROTOCOL_STICKER_REQUEST, message, CHECKSUM_BIN_LEN);
         } else {
           // Already requested this sticker
           printf("Requested this sticker already. Not requesting again.");
-          torx.torx_free_simple(message as Pointer<Void>); // We free it here, otherwise it gets freed after we remove it from t_peer.stickers_requested
+          torx.torx_free_simple(message); // We free it here, otherwise it gets freed after we remove it from t_peer.stickers_requested
           message = nullptr;
         }
       } else {
-        torx.torx_free_simple(message as Pointer<Void>);
+        torx.torx_free_simple(message);
         message = nullptr;
       }
     } else if (message_len >= CHECKSUM_BIN_LEN && protocol == ENUM_PROTOCOL_STICKER_REQUEST && send_sticker_data) {
@@ -817,19 +901,19 @@ void print_message(int n, int i, int scroll) {
             }
           } else if (s > -1) {
             // Peer requested a sticker we have
-            Pointer<Uint8> message = torx.torx_secure_malloc(CHECKSUM_BIN_LEN + stickers[s].data_len) as Pointer<Uint8>;
-            torx.memcpy(message as Pointer<Void>, stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN);
-            torx.memcpy((message + CHECKSUM_BIN_LEN) as Pointer<Void>, stickers[s].data as Pointer<Void>, stickers[s].data_len);
-            torx.message_send(n, ENUM_PROTOCOL_STICKER_DATA_GIF, message as Pointer<Void>, CHECKSUM_BIN_LEN + stickers[s].data_len);
-            torx.torx_free_simple(message as Pointer<Void>);
-            message = nullptr;
+            Pointer<Uint8> sticker_checksum_and_data = torx.torx_secure_malloc(CHECKSUM_BIN_LEN + stickers[s].data_len) as Pointer<Uint8>; // free'd by torx_free
+            torx.memcpy(sticker_checksum_and_data, stickers[s].checksum, CHECKSUM_BIN_LEN);
+            torx.memcpy((sticker_checksum_and_data + CHECKSUM_BIN_LEN), stickers[s].data, stickers[s].data_len);
+            torx.message_send(n, ENUM_PROTOCOL_STICKER_DATA_GIF, sticker_checksum_and_data, CHECKSUM_BIN_LEN + stickers[s].data_len);
+            torx.torx_free_simple(sticker_checksum_and_data);
+            sticker_checksum_and_data = nullptr;
           }
           break;
         }
       } else {
         error(0, "Peer requested sticker we do not have. Maybe we deleted it.");
       }
-      torx.torx_free_simple(message as Pointer<Void>);
+      torx.torx_free_simple(message);
       message = nullptr;
     }
 
@@ -912,6 +996,112 @@ void print_message(int n, int i, int scroll) {
   }
 }
 
+void call_join(int n, int c) {
+  if (t_peer.t_call[n].start_time[c] == 0 && t_peer.t_call[n].start_nstime[c] == 0) {
+    error(0, "Cannot join a call with zero time/nstime. Coding error. Report this.");
+    return;
+  }
+  t_peer.t_call[n].waiting[c] = false;
+  t_peer.t_call[n].joined[c] = true;
+  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+  int protocol;
+  if (owner == ENUM_OWNER_GROUP_PEER) {
+    protocol = ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE;
+  } else {
+    protocol = ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN;
+  }
+  int message_len = 8;
+  Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
+  message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_time[c]));
+  (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_nstime[c]));
+  printf("Checkpoint call_join to ${t_peer.t_call[n].participating[c].length} peers ${t_peer.t_call[n].start_time[c]}:${t_peer.t_call[n].start_time[c]}");
+  if (t_peer.t_call[n].participating[c].isNotEmpty) {
+    for (int iter = 0; iter < t_peer.t_call[n].participating[c].length; iter++) {
+      // Join Existing call
+      torx.message_send(t_peer.t_call[n].participating[c][iter], protocol, message, message_len);
+    }
+  } else {
+    // Start new call
+    torx.message_send(n, protocol, message, message_len);
+  }
+  torx.torx_free_simple(message);
+  message = nullptr;
+  call_update(n, c);
+}
+
+void call_leave(int n, int c) {
+  if (!t_peer.t_call[n].joined[c] && !t_peer.t_call[n].waiting[c]) {
+    error(0, "Sanity check failed in call_leave. Coding error. Report this.");
+    return;
+  }
+  int message_len = 8;
+  Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
+  message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_time[c]));
+  (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_nstime[c]));
+  printf("Checkpoint call_leave to ${t_peer.t_call[n].participating[c].length} peers ${t_peer.t_call[n].start_time[c]}:${t_peer.t_call[n].start_nstime[c]}");
+  printf("Checkpoint call_leave ${be32toh(message.asTypedList(4))} ${be32toh(message.asTypedList(8).sublist(4))}");
+  int send_count = 0;
+  if (t_peer.t_call[n].joined[c]) {
+    for (int iter = 0; iter < t_peer.t_call[n].participating[c].length; iter++) {
+      torx.message_send(t_peer.t_call[n].participating[c][iter], ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE, message, message_len);
+      send_count++;
+    }
+  }
+  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+  if (send_count == 0 && (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_PEER)) {
+    torx.message_send(n, ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE, message, message_len);
+  }
+  torx.torx_free_simple(message);
+  message = nullptr;
+  t_peer.t_call[n].waiting[c] = false;
+  t_peer.t_call[n].joined[c] = false;
+  call_update(n, c);
+}
+
+void call_peer_joining(int call_n, int c, int peer_n) {
+  for (int iter = 0; iter < t_peer.t_call[call_n].participating[c].length; iter++) {
+    if (peer_n == t_peer.t_call[call_n].participating[c][iter]) {
+      error(0, "Peer is already part of call. Possible coding error. Report this.");
+      return; // Peer is already in the call
+    }
+  }
+  printf("Checkpoint call_peer_joining $call_n $c $peer_n");
+  if (t_peer.t_call[call_n].participating[c].isNotEmpty) {
+    // send a list of peer onions that are already in the call, excluding this peer, if any
+    int message_len = 8 + 56 * t_peer.t_call[call_n].participating[c].length;
+    Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
+    message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_time[c]));
+    (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_nstime[c]));
+    for (int iter = 0; iter < t_peer.t_call[call_n].participating[c].length; iter++) {
+      String peeronion = getter_string(t_peer.t_call[call_n].participating[c][iter], INT_MIN, -1, offsetof("peer", "peeronion"));
+      Pointer<Utf8> peeronion_p = peeronion.toNativeUtf8(); // free'd by calloc.free
+      torx.memcpy((message + 8 + iter * 56), peeronion_p, 56);
+      calloc.free(peeronion_p);
+    }
+    torx.message_send(peer_n, ENUM_PROTOCOL_AAC_AUDIO_STREAM_PEERS, message, message_len);
+    torx.torx_free_simple(message);
+    message = nullptr;
+  }
+  t_peer.t_call[call_n].participating[c].add(peer_n);
+  call_update(call_n, c);
+}
+
+void call_peer_leaving(int n, int c, int peer_n) {
+  for (int iter = 0; iter < t_peer.t_call[n].participating[c].length; iter++) {
+    if (peer_n == t_peer.t_call[n].participating[c][iter]) {
+      t_peer.t_call[n].participating[c].removeAt(iter);
+      break;
+    }
+  }
+  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+  if ((t_peer.t_call[n].joined[c] || t_peer.t_call[n].waiting[c]) && (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_PEER)) {
+    // Ending the call if it is non-group
+    t_peer.t_call[n].joined[c] = false;
+    t_peer.t_call[n].waiting[c] = false;
+  }
+  call_update(n, c);
+}
+
 void printf(String str) {
   if (kDebugMode) {
     print(str);
@@ -973,11 +1163,11 @@ bool write_test(String path) {
 
 String getter_group_id(int g) {
   Pointer<Uint8> id = torx.getter_group_id(g); // free'd by torx_free
-  Pointer<Utf8> encoded = torx.b64_encode(id as Pointer<Void>, GROUP_ID_SIZE); // free'd by torx_free
-  torx.torx_free_simple(id as Pointer<Void>);
+  Pointer<Utf8> encoded = torx.b64_encode(id, GROUP_ID_SIZE); // free'd by torx_free
+  torx.torx_free_simple(id);
   id = nullptr;
   String encoded_id = encoded.toDartString();
-  torx.torx_free_simple(encoded as Pointer<Void>);
+  torx.torx_free_simple(encoded);
   encoded = nullptr;
   return encoded_id;
 }
@@ -1021,7 +1211,7 @@ int ui_group_join_public(String name, String encoded_id) {
   if (decoded_len == GROUP_ID_SIZE) {
     g = torx.group_join(-1, id, name_p, nullptr, nullptr);
   }
-  torx.torx_free_simple(id as Pointer<Void>);
+  torx.torx_free_simple(id);
   id = nullptr;
   calloc.free(name_p);
   name_p = nullptr;

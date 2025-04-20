@@ -129,6 +129,11 @@ const int ENUM_PROTOCOL_STICKER_DATA_GIF = 46093;
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG = 43474; // uint32_t duration (milliseconds, big endian) + data
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE = 29304; // uint32_t duration (milliseconds, big endian) + data
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED = 47904; // uint32_t duration (milliseconds, big endian) + data
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN = 65303; // Start Time + nstime // This is also offer
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE = 33037; // Start Time + nstime // This is also offer
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_PEERS = 16343; // Start Time + nstime + 56*participating
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE = 23602; // Start Time + nstime
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE = 54254; // Start Time + nstime + data + date
 /*
 const int ENUM_PROTOCOL_AUDIO_WAV = 14433;
   const int ENUM_PROTOCOL_AUDIO_WAV_DATE_SIGNED = 5392;
@@ -371,23 +376,23 @@ typedef FnCstream_setter = Void Function(Pointer<NativeFunction<FnCstream_cb>>);
 typedef FnDARTstream_setter = void Function(Pointer<NativeFunction<FnCstream_cb>>);
 
 /* End of setter block */
-typedef FnCpthread_rwlock_rdlock = Int Function(Pointer<Void>);
-typedef FnDARTpthread_rwlock_rdlock = int Function(Pointer<Void>);
+typedef FnCpthread_rwlock_rdlock = Int Function(Pointer<NativeType>);
+typedef FnDARTpthread_rwlock_rdlock = int Function(Pointer<NativeType>);
 
-typedef FnCpthread_rwlock_wrlock = Int Function(Pointer<Void>);
-typedef FnDARTpthread_rwlock_wrlock = int Function(Pointer<Void>);
+typedef FnCpthread_rwlock_wrlock = Int Function(Pointer<NativeType>);
+typedef FnDARTpthread_rwlock_wrlock = int Function(Pointer<NativeType>);
 
-typedef FnCpthread_rwlock_unlock = Int Function(Pointer<Void>);
-typedef FnDARTpthread_rwlock_unlock = int Function(Pointer<Void>);
+typedef FnCpthread_rwlock_unlock = Int Function(Pointer<NativeType>);
+typedef FnDARTpthread_rwlock_unlock = int Function(Pointer<NativeType>);
 
-typedef FnCmemcpy = Pointer<Void> Function(Pointer<Void>, Pointer<Void>, Size_t);
-typedef FnDARTmemcpy = Pointer<Void> Function(Pointer<Void>, Pointer<Void>, int);
+typedef FnCmemcpy = Pointer<Void> Function(Pointer<NativeType>, Pointer<NativeType>, Size_t);
+typedef FnDARTmemcpy = Pointer<Void> Function(Pointer<NativeType>, Pointer<NativeType>, int);
 
-typedef FnCmemcmp = Int Function(Pointer<Void>, Pointer<Void>, Size_t);
-typedef FnDARTmemcmp = int Function(Pointer<Void>, Pointer<Void>, int);
+typedef FnCmemcmp = Int Function(Pointer<NativeType>, Pointer<NativeType>, Size_t);
+typedef FnDARTmemcmp = int Function(Pointer<NativeType>, Pointer<NativeType>, int);
 
-typedef FnCsodium_memzero = Pointer<Void> Function(Pointer<Void>, Size_t);
-typedef FnDARTsodium_memzero = Pointer<Void> Function(Pointer<Void>, int);
+typedef FnCsodium_memzero = Pointer<Void> Function(Pointer<NativeType>, Size_t);
+typedef FnDARTsodium_memzero = Pointer<Void> Function(Pointer<NativeType>, int);
 
 typedef FnCtorx_fn_read = Void Function(Int);
 typedef FnDARTtorx_fn_read = void Function(int);
@@ -410,11 +415,11 @@ typedef FnDARTgetter_group_id = Pointer<Uint8> Function(int);
 typedef FnCgroup_access = Pointer<Void> Function(Int, Size_t);
 typedef FnDARTgroup_access = Pointer<Void> Function(int, int);
 
-typedef FnCgroup_get_next = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<Void>);
-typedef FnDARTgroup_get_next = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<Void>);
+typedef FnCgroup_get_next = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<NativeType>);
+typedef FnDARTgroup_get_next = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<NativeType>);
 
-typedef FnCgroup_get_prior = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<Void>);
-typedef FnDARTgroup_get_prior = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<Void>);
+typedef FnCgroup_get_prior = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<NativeType>);
+typedef FnDARTgroup_get_prior = Pointer<Void> Function(Pointer<Int>, Pointer<Int>, Pointer<NativeType>);
 
 typedef FnCgroup_get_index = Void Function(Pointer<Int>, Pointer<Int>, Int, Uint32);
 typedef FnDARTgroup_get_index = void Function(Pointer<Int>, Pointer<Int>, int, int);
@@ -428,14 +433,14 @@ typedef FnDARTgetter_offset = int Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef FnCgetter_size = Size_t Function(Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTgetter_size = int Function(Pointer<Utf8>, Pointer<Utf8>);
 
-typedef FnCsetter = Void Function(Int, Int, Int, Size_t, Pointer<Void>, Size_t);
-typedef FnDARTsetter = void Function(int, int, int, int, Pointer<Void>, int);
+typedef FnCsetter = Void Function(Int, Int, Int, Size_t, Pointer<NativeType>, Size_t);
+typedef FnDARTsetter = void Function(int, int, int, int, Pointer<NativeType>, int);
 
 typedef FnCgetter_byte = UnsignedChar Function(Int, Int, Int, Size_t);
 typedef FnDARTgetter_byte = int Function(int, int, int, int);
 
-typedef FnCgetter_array = Void Function(Pointer<Void>, Size_t, Int, Int, Int, Size_t);
-typedef FnDARTgetter_array = void Function(Pointer<Void>, int, int, int, int, int);
+typedef FnCgetter_array = Void Function(Pointer<NativeType>, Size_t, Int, Int, Int, Size_t);
+typedef FnDARTgetter_array = void Function(Pointer<NativeType>, int, int, int, int, int);
 
 typedef FnCgetter_int8 = Int8 Function(Int, Int, Int, Size_t);
 typedef FnDARTgetter_int8 = int Function(int, int, int, int);
@@ -467,8 +472,8 @@ typedef FnDARTgetter_int = int Function(int, int, int, int);
 typedef FnCgetter_time = Time_t Function(Int, Int, Int, Size_t);
 typedef FnDARTgetter_time = int Function(int, int, int, int);
 
-typedef FnCsetter_group = Void Function(Int, Size_t, Pointer<Void>, Size_t);
-typedef FnDARTsetter_group = void Function(int, int, Pointer<Void>, int);
+typedef FnCsetter_group = Void Function(Int, Size_t, Pointer<NativeType>, Size_t);
+typedef FnDARTsetter_group = void Function(int, int, Pointer<NativeType>, int);
 
 typedef FnCgetter_group_int8 = Int8 Function(Int, Size_t);
 typedef FnDARTgetter_group_int8 = int Function(int, int);
@@ -497,32 +502,32 @@ typedef FnDARTgetter_group_uint64 = int Function(int, int);
 typedef FnCgetter_group_int = Int Function(Int, Size_t);
 typedef FnDARTgetter_group_int = int Function(int, int);
 
-typedef FnCthreadsafe_write = Void Function(Pointer<Void>, Pointer<Void>, Pointer<Void>, Size_t);
-typedef FnDARTthreadsafe_write = void Function(Pointer<Void>, Pointer<Void>, Pointer<Void>, int);
+typedef FnCthreadsafe_write = Void Function(Pointer<NativeType>, Pointer<NativeType>, Pointer<NativeType>, Size_t);
+typedef FnDARTthreadsafe_write = void Function(Pointer<NativeType>, Pointer<NativeType>, Pointer<NativeType>, int);
 
-typedef FnCthreadsafe_read_int8 = Int8 Function(Pointer<Void>, Pointer<Int8>);
-typedef FnDARTthreadsafe_read_int8 = int Function(Pointer<Void>, Pointer<Int8>);
+typedef FnCthreadsafe_read_int8 = Int8 Function(Pointer<NativeType>, Pointer<Int8>);
+typedef FnDARTthreadsafe_read_int8 = int Function(Pointer<NativeType>, Pointer<Int8>);
 
-typedef FnCthreadsafe_read_int16 = Int16 Function(Pointer<Void>, Pointer<Int16>);
-typedef FnDARTthreadsafe_read_int16 = int Function(Pointer<Void>, Pointer<Int16>);
+typedef FnCthreadsafe_read_int16 = Int16 Function(Pointer<NativeType>, Pointer<Int16>);
+typedef FnDARTthreadsafe_read_int16 = int Function(Pointer<NativeType>, Pointer<Int16>);
 
-typedef FnCthreadsafe_read_int32 = Int32 Function(Pointer<Void>, Pointer<Int32>);
-typedef FnDARTthreadsafe_read_int32 = int Function(Pointer<Void>, Pointer<Int32>);
+typedef FnCthreadsafe_read_int32 = Int32 Function(Pointer<NativeType>, Pointer<Int32>);
+typedef FnDARTthreadsafe_read_int32 = int Function(Pointer<NativeType>, Pointer<Int32>);
 
-typedef FnCthreadsafe_read_int64 = Int64 Function(Pointer<Void>, Pointer<Int64>);
-typedef FnDARTthreadsafe_read_int64 = int Function(Pointer<Void>, Pointer<Int64>);
+typedef FnCthreadsafe_read_int64 = Int64 Function(Pointer<NativeType>, Pointer<Int64>);
+typedef FnDARTthreadsafe_read_int64 = int Function(Pointer<NativeType>, Pointer<Int64>);
 
-typedef FnCthreadsafe_read_uint8 = Uint8 Function(Pointer<Void>, Pointer<Uint8>);
-typedef FnDARTthreadsafe_read_uint8 = int Function(Pointer<Void>, Pointer<Uint8>);
+typedef FnCthreadsafe_read_uint8 = Uint8 Function(Pointer<NativeType>, Pointer<Uint8>);
+typedef FnDARTthreadsafe_read_uint8 = int Function(Pointer<NativeType>, Pointer<Uint8>);
 
-typedef FnCthreadsafe_read_uint16 = Uint16 Function(Pointer<Void>, Pointer<Uint16>);
-typedef FnDARTthreadsafe_read_uint16 = int Function(Pointer<Void>, Pointer<Uint16>);
+typedef FnCthreadsafe_read_uint16 = Uint16 Function(Pointer<NativeType>, Pointer<Uint16>);
+typedef FnDARTthreadsafe_read_uint16 = int Function(Pointer<NativeType>, Pointer<Uint16>);
 
-typedef FnCthreadsafe_read_uint32 = Uint32 Function(Pointer<Void>, Pointer<Uint32>);
-typedef FnDARTthreadsafe_read_uint32 = int Function(Pointer<Void>, Pointer<Uint32>);
+typedef FnCthreadsafe_read_uint32 = Uint32 Function(Pointer<NativeType>, Pointer<Uint32>);
+typedef FnDARTthreadsafe_read_uint32 = int Function(Pointer<NativeType>, Pointer<Uint32>);
 
-typedef FnCthreadsafe_read_uint64 = Uint64 Function(Pointer<Void>, Pointer<Uint64>);
-typedef FnDARTthreadsafe_read_uint64 = int Function(Pointer<Void>, Pointer<Uint64>);
+typedef FnCthreadsafe_read_uint64 = Uint64 Function(Pointer<NativeType>, Pointer<Uint64>);
+typedef FnDARTthreadsafe_read_uint64 = int Function(Pointer<NativeType>, Pointer<Uint64>);
 
 typedef FnCprotocol_lookup = Int Function(Uint16);
 typedef FnDARTprotocol_lookup = int Function(int);
@@ -533,8 +538,8 @@ typedef FnDARTprotocol_registration = int Function(int, Pointer<Utf8>, Pointer<U
 typedef FnCread_bytes = Pointer<Uint8> Function(Pointer<Size_t>, Pointer<Utf8>);
 typedef FnDARTread_bytes = Pointer<Uint8> Function(Pointer<Size_t>, Pointer<Utf8>);
 
-typedef FnCzero_pthread = Void Function(Pointer<Void>);
-typedef FnDARTzero_pthread = void Function(Pointer<Void>);
+typedef FnCzero_pthread = Void Function(Pointer<NativeType>);
+typedef FnDARTzero_pthread = void Function(Pointer<NativeType>);
 
 typedef FnCsetcanceltype = Void Function(Int, Pointer<Int>);
 typedef FnDARTsetcanceltype = void Function(int, Pointer<Int>);
@@ -542,26 +547,26 @@ typedef FnDARTsetcanceltype = void Function(int, Pointer<Int>);
 typedef FnCtorx_debug_level = Int8 Function(Int8);
 typedef FnDARTtorx_debug_level = int Function(int);
 
-typedef FnCalign_uint16 = Uint16 Function(Pointer<Void>);
-typedef FnDARTalign_uint16 = int Function(Pointer<Void>);
+typedef FnCalign_uint16 = Uint16 Function(Pointer<NativeType>);
+typedef FnDARTalign_uint16 = int Function(Pointer<NativeType>);
 
-typedef FnCalign_uint32 = Uint32 Function(Pointer<Void>);
-typedef FnDARTalign_uint32 = int Function(Pointer<Void>);
+typedef FnCalign_uint32 = Uint32 Function(Pointer<NativeType>);
+typedef FnDARTalign_uint32 = int Function(Pointer<NativeType>);
 
-typedef FnCalign_uint64 = Uint64 Function(Pointer<Void>);
-typedef FnDARTalign_uint64 = int Function(Pointer<Void>);
+typedef FnCalign_uint64 = Uint64 Function(Pointer<NativeType>);
+typedef FnDARTalign_uint64 = int Function(Pointer<NativeType>);
 
-typedef FnCis_null = Int Function(Pointer<Void>, Size_t);
-typedef FnDARTis_null = int Function(Pointer<Void>, int);
+typedef FnCis_null = Int Function(Pointer<NativeType>, Size_t);
+typedef FnDARTis_null = int Function(Pointer<NativeType>, int);
 
 typedef FnCtorx_insecure_malloc = Pointer<Void> Function(Size_t);
 typedef FnDARTtorx_insecure_malloc = Pointer<Void> Function(int);
 
-typedef FnCtorx_free_simple = Void Function(Pointer<Void>);
-typedef FnDARTtorx_free_simple = void Function(Pointer<Void>);
+typedef FnCtorx_free_simple = Void Function(Pointer<NativeType>);
+typedef FnDARTtorx_free_simple = void Function(Pointer<NativeType>);
 
-typedef FnCtorx_free = Void Function(Pointer<Pointer<Void>>);
-typedef FnDARTtorx_free = void Function(Pointer<Pointer<Void>>);
+typedef FnCtorx_free = Void Function(Pointer<Pointer<NativeType>>);
+typedef FnDARTtorx_free = void Function(Pointer<Pointer<NativeType>>);
 
 typedef FnCtorx_secure_malloc = Pointer<Void> Function(Size_t);
 typedef FnDARTtorx_secure_malloc = Pointer<Void> Function(int);
@@ -577,6 +582,9 @@ typedef FnDARTmessage_sort = void Function(int);
 
 typedef FnCmessage_load_more = Int Function(Int);
 typedef FnDARTmessage_load_more = int Function(int);
+
+typedef FnCset_time = Void Function(Pointer<Time_t>, Pointer<Time_t>);
+typedef FnDARTset_time = void Function(Pointer<Time_t>, Pointer<Time_t>);
 
 typedef FnCmessage_time_string = Pointer<Utf8> Function(Int, Int);
 typedef FnDARTmessage_time_string = Pointer<Utf8> Function(int, int);
@@ -596,8 +604,8 @@ typedef FnDARTcalculate_transferred = int Function(int, int);
 typedef FnCcalculate_section_start = Uint64 Function(Pointer<Uint64>, Uint64, Uint8, Int16);
 typedef FnDARTcalculate_section_start = int Function(Pointer<Uint64>, int, int, int);
 
-typedef FnCvptoi = Int Function(Pointer<Void>);
-typedef FnDARTvptoi = int Function(Pointer<Void>);
+typedef FnCvptoi = Int Function(Pointer<NativeType>);
+typedef FnDARTvptoi = int Function(Pointer<NativeType>);
 
 typedef FnCitovp = Pointer<Void> Function(Int);
 typedef FnDARTitovp = Pointer<Void> Function(int);
@@ -605,8 +613,8 @@ typedef FnDARTitovp = Pointer<Void> Function(int);
 typedef FnCset_n = Int Function(Int, Pointer<Utf8>);
 typedef FnDARTset_n = int Function(int, Pointer<Utf8>);
 
-typedef FnCset_g = Int Function(Int, Pointer<Void>);
-typedef FnDARTset_g = int Function(int, Pointer<Void>);
+typedef FnCset_g = Int Function(Int, Pointer<NativeType>);
+typedef FnDARTset_g = int Function(int, Pointer<NativeType>);
 
 typedef FnCset_f = Int Function(Int, Pointer<Utf8>, Size_t);
 typedef FnDARTset_f = int Function(int, Pointer<Utf8>, int);
@@ -641,8 +649,8 @@ typedef FnDARTtorrc_save = void Function(Pointer<Utf8>);
 typedef FnCwhich = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnDARTwhich = Pointer<Utf8> Function(Pointer<Utf8>);
 
-typedef FnCtorx_realloc = Pointer<Void> Function(Pointer<Void>, Size_t);
-typedef FnDARTtorx_realloc = Pointer<Void> Function(Pointer<Void>, int);
+typedef FnCtorx_realloc = Pointer<Void> Function(Pointer<NativeType>, Size_t);
+typedef FnDARTtorx_realloc = Pointer<Void> Function(Pointer<NativeType>, int);
 
 typedef FnCzero_n = Void Function(Int);
 typedef FnDARTzero_n = void Function(int);
@@ -674,8 +682,8 @@ typedef FnDARTb64_decoded_size = int Function(Pointer<Utf8>);
 typedef FnCb64_decode = Size_t Function(Pointer<Uint8>, Size_t, Pointer<Utf8>); // caller must allocate space
 typedef FnDARTb64_decode = int Function(Pointer<Uint8>, int, Pointer<Utf8>);
 
-typedef FnCb64_encode = Pointer<Utf8> Function(Pointer<Void>, Size_t); // torx_free required
-typedef FnDARTb64_encode = Pointer<Utf8> Function(Pointer<Void>, int);
+typedef FnCb64_encode = Pointer<Utf8> Function(Pointer<NativeType>, Size_t); // torx_free required
+typedef FnDARTb64_encode = Pointer<Utf8> Function(Pointer<NativeType>, int);
 
 typedef FnCinitial_keyed = Void Function();
 typedef FnDARTinitial_keyed = void Function();
@@ -734,8 +742,8 @@ typedef FnDARTxstrlwr = void Function(Pointer<Utf8>);
 typedef FnCload_onion_events = Void Function(Int);
 typedef FnDARTload_onion_events = void Function(int);
 
-typedef FnCtor_call = Int Function(Pointer<Void>, Int, Pointer<Utf8>);
-typedef FnDARTtor_call = int Function(Pointer<Void>, int, Pointer<Utf8>);
+typedef FnCtor_call = Int Function(Pointer<NativeType>, Int, Pointer<Utf8>);
+typedef FnDARTtor_call = int Function(Pointer<NativeType>, int, Pointer<Utf8>);
 
 typedef FnConion_from_privkey = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnDARTonion_from_privkey = Pointer<Utf8> Function(Pointer<Utf8>);
@@ -758,8 +766,8 @@ typedef FnDARTdelete_log = void Function(int);
 typedef FnCmessage_edit = Int Function(Int, Int, Pointer<Utf8>);
 typedef FnDARTmessage_edit = int Function(int, int, Pointer<Utf8>);
 
-typedef FnCsql_exec = Int Function(Pointer<Pointer<Void>>, Pointer<Utf8>, Pointer<Utf8>, Size_t);
-typedef FnDARTsql_exec = int Function(Pointer<Pointer<Void>>, Pointer<Utf8>, Pointer<Utf8>, int);
+typedef FnCsql_exec = Int Function(Pointer<Pointer<NativeType>>, Pointer<Utf8>, Pointer<Utf8>, Size_t);
+typedef FnDARTsql_exec = int Function(Pointer<Pointer<NativeType>>, Pointer<Utf8>, Pointer<Utf8>, int);
 
 typedef FnCsql_setting = Int Function(Int, Int, Pointer<Utf8>, Pointer<Utf8>, Size_t);
 typedef FnDARTsql_setting = int Function(int, int, Pointer<Utf8>, Pointer<Utf8>, int);
@@ -851,11 +859,11 @@ typedef FnDARTsection_unclaim = int Function(int, int, int, int);
 typedef FnCmessage_resend = Int Function(Int, Int);
 typedef FnDARTmessage_resend = int Function(int, int);
 
-typedef FnCmessage_send = Int Function(Int, Uint16, Pointer<Void>, Uint32);
-typedef FnDARTmessage_send = int Function(int, int, Pointer<Void>, int);
+typedef FnCmessage_send = Int Function(Int, Uint16, Pointer<NativeType>, Uint32);
+typedef FnDARTmessage_send = int Function(int, int, Pointer<NativeType>, int);
 
-typedef FnCmessage_extra = Void Function(Int, Int, Pointer<Void>, Uint32);
-typedef FnDARTmessage_extra = void Function(int, int, Pointer<Void>, int);
+typedef FnCmessage_extra = Void Function(Int, Int, Pointer<NativeType>, Uint32);
+typedef FnDARTmessage_extra = void Function(int, int, Pointer<NativeType>, int);
 
 typedef FnCkill_code = Void Function(Int, Pointer<Utf8>);
 typedef FnDARTkill_code = void Function(int, Pointer<Utf8>);
@@ -878,8 +886,8 @@ typedef FnDARTfile_send = int Function(int, Pointer<Utf8>);
 typedef FnCsend_prep = Int Function(Int, Int, Int, Int, Int8);
 typedef FnDARTsend_prep = int Function(int, int, int, int, int);
 
-typedef FnCtorx_events = Pointer<Void> Function(Pointer<Void>);
-typedef FnDARTtorx_events = Pointer<Void> Function(Pointer<Void>);
+typedef FnCtorx_events = Pointer<Void> Function(Pointer<NativeType>);
+typedef FnDARTtorx_events = Pointer<Void> Function(Pointer<NativeType>);
 
 typedef FnCgenerate_onion = Int Function(Uint8, Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTgenerate_onion = int Function(int, Pointer<Utf8>, Pointer<Utf8>);
@@ -890,26 +898,26 @@ typedef FnDARTcpucount = int Function();
 typedef FnCsha3_hash = Void Function(Pointer<Uint8>, Uint64, Pointer<Uint8>);
 typedef FnDARTsha3_hash = void Function(Pointer<Uint8>, int, Pointer<Uint8>);
 
-typedef FnCutf8_valid = Uint8 Function(Pointer<Void>, Size_t);
-typedef FnDARTutf8_valid = int Function(Pointer<Void>, int);
+typedef FnCutf8_valid = Uint8 Function(Pointer<NativeType>, Size_t);
+typedef FnDARTutf8_valid = int Function(Pointer<NativeType>, int);
 
 typedef FnCbase32_encode = Size_t Function(Pointer<Uint8>, Pointer<Uint8>, Size_t);
 typedef FnDARTbase32_encode = int Function(Pointer<Uint8>, Pointer<Uint8>, int);
 
-typedef FnCbase32_decode = Pointer<Uint8> Function(Pointer<Utf8>, Size_t, Pointer<Void>);
-typedef FnDARTbase32_decode = Pointer<Uint8> Function(Pointer<Utf8>, int, Pointer<Void>);
+typedef FnCbase32_decode = Pointer<Uint8> Function(Pointer<Utf8>, Size_t, Pointer<NativeType>);
+typedef FnDARTbase32_decode = Pointer<Uint8> Function(Pointer<Utf8>, int, Pointer<NativeType>);
 
 typedef FnCqr_bool = Pointer<Void> Function(Pointer<Utf8>, Size_t); // returns struct qr_data *
 typedef FnDARTqr_bool = Pointer<Void> Function(Pointer<Utf8>, int); // returns struct qr_data *
 
-typedef FnCqr_utf8 = Pointer<Utf8> Function(Pointer<Void>);
-typedef FnDARTqr_utf8 = Pointer<Utf8> Function(Pointer<Void>);
+typedef FnCqr_utf8 = Pointer<Utf8> Function(Pointer<NativeType>);
+typedef FnDARTqr_utf8 = Pointer<Utf8> Function(Pointer<NativeType>);
 
-typedef FnCreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<Void>);
-typedef FnDARTreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<Void>);
+typedef FnCreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<NativeType>);
+typedef FnDARTreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<NativeType>);
 
-typedef FnCwrite_bytes = Size_t Function(Pointer<Utf8>, Pointer<Void>, Size_t);
-typedef FnDARTwrite_bytes = int Function(Pointer<Utf8>, Pointer<Void>, int);
+typedef FnCwrite_bytes = Size_t Function(Pointer<Utf8>, Pointer<NativeType>, Size_t);
+typedef FnDARTwrite_bytes = int Function(Pointer<Utf8>, Pointer<NativeType>, int);
 
 void register_callbacks() {
   // WARNING: DO NOT USE ERROR MESSAGES HERE. Only print/printf.
@@ -973,7 +981,7 @@ void set_setting_string(int force_cleartext, int peer_index, String name, String
 }
 
 void set_torrc(String contents) {
-  Pointer<Utf8> contents_p = contents.toNativeUtf8(); // 10.0.2.2 is alias for emulator's host OS 127.0.0.1
+  Pointer<Utf8> contents_p = contents.toNativeUtf8(); // free'd by calloc.free // 10.0.2.2 is alias for emulator's host OS 127.0.0.1
   torx.torrc_save(contents_p);
   calloc.free(contents_p);
   contents_p = nullptr;
@@ -993,42 +1001,63 @@ int offsetof(String list, String member) {
 
 Uint8List getter_array(int size, int n, int i, int f, int offset) {
   // WARNING: This function lacks safety checks
-  Pointer<Uint8> array = calloc.allocate(size);
-  torx.getter_array(array as Pointer<Void>, size, n, i, f, offset);
+  Pointer<Uint8> array = torx.torx_secure_malloc(size) as Pointer<Uint8>; // free'd by torx_free
+  torx.getter_array(array, size, n, i, f, offset);
   Uint8List list = Uint8List(size);
   list.setAll(0, array.asTypedList(size));
-  calloc.free(array);
+  torx.torx_free_simple(array);
   array = nullptr;
   return list;
 }
 
 Uint8List getter_bytes(int n, int i, int f, int offset) {
-  Pointer<Uint32> len = malloc(4); // free'd by calloc.free
-  Pointer<Uint8> pointer = torx.getter_string(len, n, i, f, offset) as Pointer<Uint8>; // free'd by torx_free
-  Uint8List list = Uint8List(len.value);
+  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
+  Pointer<Uint8> pointer = torx.getter_string(len_p, n, i, f, offset) as Pointer<Uint8>; // free'd by torx_free
+  Uint8List list = Uint8List(len_p.value);
   if (pointer != nullptr) {
-    list.setAll(0, pointer.asTypedList(len.value));
-    torx.torx_free_simple(pointer as Pointer<Void>);
+    list.setAll(0, pointer.asTypedList(len_p.value));
+    torx.torx_free_simple(pointer);
     pointer = nullptr;
   }
-  calloc.free(len);
-  len = nullptr;
+  torx.torx_free_simple(len_p);
+  len_p = nullptr;
   return list;
 }
 
 String getter_string(int n, int i, int f, int offset) {
   String ret = "";
-  Pointer<Uint32> len = malloc(4); // free'd by calloc.free
+  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
 //  printf("Getter_string: $n $i $f $offset");
-  Pointer<Utf8> pointer = torx.getter_string(len, n, i, f, offset); // free'd by torx_free
+  Pointer<Utf8> pointer = torx.getter_string(len_p, n, i, f, offset); // free'd by torx_free
   if (pointer != nullptr) {
     ret = pointer.toDartString();
-    torx.torx_free_simple(pointer as Pointer<Void>);
+    torx.torx_free_simple(pointer);
     pointer = nullptr;
   }
-  calloc.free(len);
-  len = nullptr;
+  torx.torx_free_simple(len_p);
+  len_p = nullptr;
   return ret;
+}
+
+List<int> refined_list(int owner, int peer_status, String search) {
+  Pointer<Int> len_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
+  Pointer<Utf8> search_p = nullptr;
+  if (search.isNotEmpty) search_p = search.toNativeUtf8(); // free'd by calloc.free
+  Pointer<Int> arrayN = torx.refined_list(len_p, owner, peer_status, search_p); // free'd by torx_free
+  if (search_p != nullptr) {
+    calloc.free(search_p);
+    search_p = nullptr;
+  }
+  int len = len_p.value;
+  torx.torx_free_simple(len_p);
+  len_p = nullptr;
+  List<int> list = [];
+  for (int iter = 0; iter < len; iter++) {
+    list.add(arrayN[iter]);
+  }
+  torx.torx_free_simple(arrayN);
+  arrayN = nullptr;
+  return list;
 }
 
 int get_file_size(String file_path) {
@@ -1310,6 +1339,8 @@ class torx {
   static final message_sort = dynamicLibrary.lookupFunction<FnCmessage_sort, FnDARTmessage_sort>('message_sort');
 
   static final message_load_more = dynamicLibrary.lookupFunction<FnCmessage_load_more, FnDARTmessage_load_more>('message_load_more');
+
+  static final set_time = dynamicLibrary.lookupFunction<FnCset_time, FnDARTset_time>('set_time');
 
   static final message_time_string = dynamicLibrary.lookupFunction<FnCmessage_time_string, FnDARTmessage_time_string>('message_time_string');
 

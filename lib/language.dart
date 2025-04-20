@@ -129,6 +129,7 @@ class text {
   static String group = "";
   static String group_offer = "";
   static String audio_message = "";
+  static String audio_call = "";
   static String sticker = "";
   static String current_members = "";
   static String group_public = "";
@@ -318,6 +319,7 @@ void initialize_language() {
     text.group = "Group";
     text.group_offer = "Group Offer";
     text.audio_message = "Audio Message";
+    text.audio_call = "Audio Call";
     text.sticker = "Sticker";
     text.current_members = "Current Members";
     text.group_private = "Private Group";

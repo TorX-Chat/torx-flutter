@@ -238,6 +238,7 @@ class _RouteStickersState extends State<RouteStickers> {
                                   if (result != null) {
                                     List<File> files = result.paths.map((path) => File(path!)).toList();
                                     int file_iter = 0;
+                                    int s = -1;
                                     while (file_iter < files.length) {
                                       if (files[file_iter].path.endsWith(".gif")) {
                                         error(0,
@@ -245,7 +246,7 @@ class _RouteStickersState extends State<RouteStickers> {
                                         Pointer<Utf8> path_p = files[file_iter].path.toNativeUtf8(); // free'd by calloc.free
                                         Pointer<Size_t> len_p = malloc(8); // free'd by calloc.free
                                         Pointer<Uint8> bytes = torx.read_bytes(len_p, path_p); // free'd by torx_free
-                                        int s = ui_sticker_register(bytes, len_p.value);
+                                        s = ui_sticker_register(bytes, len_p.value);
                                         torx.torx_free_simple(bytes as Pointer<Void>);
                                         bytes = nullptr;
                                         calloc.free(path_p);
@@ -258,7 +259,7 @@ class _RouteStickersState extends State<RouteStickers> {
                                       }
                                       file_iter++;
                                     }
-                                    setState(() {});
+                                    if (s > -1) changeNotifierStickerReady.callback(integer: s);
                                   }
                                 },
                                 child: Icon(Icons.add, color: color.torch_off, size: sticker_size)));

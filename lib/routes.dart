@@ -103,19 +103,19 @@ void response(NotificationResponse notificationResponse) {
   Pointer<Utf8> message = input.toNativeUtf8(); // free'd by calloc.free
   int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
   if (group_pm != 0) {
-    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
+    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message, message.length);
   } else if (owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
     int g = torx.set_g(n, nullptr);
     int g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
     int group_n = torx.getter_group_int(g, offsetof("group", "n"));
     if (g_invite_required != 0) {
       // date && sign private group messages
-      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message as Pointer<Void>, message.length);
+      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message, message.length);
     } else {
-      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
+      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
     }
   } else {
-    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
+    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
   }
   if (message != nullptr) {
     calloc.free(message);
@@ -297,40 +297,6 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
 
   @override
   Widget build(BuildContext context) {
-    Pointer<Int> len_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-    Pointer<Utf8> search_p = searchText.toNativeUtf8(); // free'd by calloc.free
-    Pointer<Int> arrayFriends;
-    if (widget.type == ENUM_OWNER_GROUP_PEER && widget.g > -1) {
-      arrayFriends = torx.refined_list(len_p, widget.type, widget.g, search_p);
-    } else if (widget.type == ENUM_OWNER_CTRL) {
-      arrayFriends = torx.refined_list(len_p, widget.type, ENUM_STATUS_FRIEND, search_p);
-    } else {
-      error(-1, "Critical coding error in _RoutePopoverListState");
-      arrayFriends = nullptr;
-    }
-    int len = len_p.value;
-    calloc.free(search_p);
-    search_p = nullptr;
-    calloc.free(len_p);
-    len_p = nullptr;
-    if (searchOpen == true) {
-      searchColor = color.search_field_background;
-      searchWidth = 180;
-      suffixIcon = IconButton(
-        icon: Icon(Icons.clear, color: color.search_field_text),
-        onPressed: () {
-          setState(() {
-            searchOpen = false;
-          });
-        },
-      );
-    } else {
-      controllerSearch.clear();
-      searchText = "";
-      searchColor = Colors.transparent;
-      searchWidth = 40;
-      suffixIcon = null;
-    }
     return Scaffold(
         backgroundColor: color.right_panel_background,
         appBar: AppBar(
@@ -340,57 +306,85 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
             style: TextStyle(color: color.page_title),
           ),
           actions: [
-            Container(
-              width: searchWidth,
-              height: 30,
-              decoration: BoxDecoration(color: searchColor, borderRadius: BorderRadius.circular(5)),
-              child: Center(
-                child: TextField(
-                  controller: controllerSearch,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  enableIMEPersonalizedLearning: false,
-                  scribbleEnabled: false,
-                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                  showCursor: true,
-                  onChanged: (content) {
-                    setState(() {
-                      searchText = content;
-                    });
-                  },
-                  style: TextStyle(color: color.search_field_text),
-                  decoration: InputDecoration(
-                      suffixIcon: suffixIcon,
-                      prefixIcon: IconButton(
-                        icon: Icon(Icons.search, color: searchOpen == false ? color.torch_off : color.torch_on),
-                        onPressed: () {
-                          setState(() {
-                            if (searchOpen == true) {
-                              searchOpen = false;
-                            } else {
-                              searchOpen = true;
-                            }
-                          });
+            AnimatedBuilder(
+                animation: changeNotifierPopoverList,
+                builder: (BuildContext context, Widget? snapshot) {
+                  if (searchOpen == true) {
+                    searchColor = color.search_field_background;
+                    searchWidth = 180;
+                    suffixIcon = IconButton(
+                      icon: Icon(Icons.clear, color: color.search_field_text),
+                      onPressed: () {
+                        searchOpen = false;
+                        changeNotifierPopoverList.callback(integer: -1);
+                      },
+                    );
+                  } else {
+                    controllerSearch.clear();
+                    searchText = "";
+                    searchColor = Colors.transparent;
+                    searchWidth = 40;
+                    suffixIcon = null;
+                  }
+                  return Container(
+                    width: searchWidth,
+                    height: 30,
+                    decoration: BoxDecoration(color: searchColor, borderRadius: BorderRadius.circular(5)),
+                    child: Center(
+                      child: TextField(
+                        controller: controllerSearch,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        enableIMEPersonalizedLearning: false,
+                        scribbleEnabled: false,
+                        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                        showCursor: true,
+                        onChanged: (content) {
+                          searchText = content;
+                          changeNotifierPopoverList.callback(integer: -1);
                         },
+                        style: TextStyle(color: color.search_field_text),
+                        decoration: InputDecoration(
+                            suffixIcon: suffixIcon,
+                            prefixIcon: IconButton(
+                              icon: Icon(Icons.search, color: searchOpen == false ? color.torch_off : color.torch_on),
+                              onPressed: () {
+                                if (searchOpen == true) {
+                                  searchOpen = false;
+                                } else {
+                                  searchOpen = true;
+                                }
+                                changeNotifierPopoverList.callback(integer: -1);
+                              },
+                            ),
+                            hintText: text.placeholder_search,
+                            hintStyle: TextStyle(color: color.torch_on),
+                            border: InputBorder.none),
                       ),
-                      hintText: text.placeholder_search,
-                      hintStyle: TextStyle(color: color.torch_on),
-                      border: InputBorder.none),
-                ),
-              ),
-            )
+                    ),
+                  );
+                })
           ],
         ),
         body: AnimatedBuilder(
             animation: changeNotifierPopoverList,
             builder: (BuildContext context, Widget? snapshot) {
+              List<int> list;
+              if (widget.type == ENUM_OWNER_GROUP_PEER && widget.g > -1) {
+                list = refined_list(widget.type, widget.g, searchText);
+              } else if (widget.type == ENUM_OWNER_CTRL) {
+                list = refined_list(widget.type, ENUM_STATUS_FRIEND, searchText);
+              } else {
+                error(-1, "Critical coding error in _RoutePopoverListState");
+                list = [];
+              }
               return ListView.builder(
-                itemCount: len,
+                itemCount: list.length,
                 prototypeItem: const ListTile(
                   title: Text("This is dummy text used to set height. Can be dropped."),
                 ),
                 itemBuilder: (context, index) {
-                  Color dotColor = ui_statusColor(arrayFriends[index]);
+                  Color dotColor = ui_statusColor(list[index]);
                   Icon dot = Icon(Icons.circle, color: dotColor, size: 20);
                   return GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -402,29 +396,29 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
                         if (widget.type == ENUM_OWNER_GROUP_PEER) {
                           t_peer.edit_n[global_n] = -1;
                           t_peer.edit_i[global_n] = INT_MIN;
-                          t_peer.pm_n[global_n] = arrayFriends[index];
+                          t_peer.pm_n[global_n] = list[index];
                           Navigator.pop(context);
                         } else {
                           int g_invite_required = torx.getter_group_uint8(widget.g, offsetof("group", "invite_required"));
                           int g_peercount = torx.getter_group_uint32(widget.g, offsetof("group", "peercount"));
                           if (g_invite_required == 1 && g_peercount == 0) {
-                            torx.message_send(arrayFriends[index], ENUM_PROTOCOL_GROUP_OFFER_FIRST, torx.itovp(widget.g), GROUP_OFFER_FIRST_LEN);
+                            torx.message_send(list[index], ENUM_PROTOCOL_GROUP_OFFER_FIRST, torx.itovp(widget.g), GROUP_OFFER_FIRST_LEN);
                           } else {
-                            torx.message_send(arrayFriends[index], ENUM_PROTOCOL_GROUP_OFFER, torx.itovp(widget.g), GROUP_OFFER_LEN);
+                            torx.message_send(list[index], ENUM_PROTOCOL_GROUP_OFFER, torx.itovp(widget.g), GROUP_OFFER_LEN);
                           }
                         }
                       },
                       onLongPress: () {
-                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, arrayFriends[index], INT_MIN, -1));
+                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, list[index], INT_MIN, -1));
                       },
                       child: ListTile(
                           leading: Badge(
-                            isLabelVisible: t_peer.unread[arrayFriends[index]] > 0,
-                            label: Text(t_peer.unread[arrayFriends[index]].toString()),
+                            isLabelVisible: t_peer.unread[list[index]] > 0,
+                            label: Text(t_peer.unread[list[index]].toString()),
                             child: dot,
                           ),
                           title: Text(
-                            getter_string(arrayFriends[index], INT_MIN, -1, offsetof("peer", "peernick")),
+                            getter_string(list[index], INT_MIN, -1, offsetof("peer", "peernick")),
                             style: TextStyle(color: color.group_or_user_name, fontWeight: FontWeight.bold),
                           )));
                 },
@@ -435,11 +429,15 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
 
 // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
-class RouteImage extends StatelessWidget {
+class RouteImage extends StatefulWidget {
   final String file_path;
+  const RouteImage(this.file_path, {super.key});
 
-  const RouteImage({super.key, required this.file_path});
+  @override
+  State<RouteImage> createState() => _RouteImageState();
+}
 
+class _RouteImageState extends State<RouteImage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -451,7 +449,7 @@ class RouteImage extends StatelessWidget {
         child: Center(
           child: PhotoView(
             // DO NOT WRAP IN A HERO, hero is bunk and can be a disaster if image is corrupt
-            imageProvider: FileImage(File(file_path)),
+            imageProvider: FileImage(File(widget.file_path)),
             backgroundDecoration: const BoxDecoration(color: Colors.black),
           ),
         ),
@@ -545,10 +543,10 @@ class _RouteChatState extends State<RouteChat> {
     } else {
       return;
     }
-    Pointer<Int8> setting = malloc(1); // free'd by calloc.free
+    Pointer<Int8> setting = torx.torx_insecure_malloc(1) as Pointer<Int8>; // free'd by torx_free
     setting.value = log_messages;
-    torx.setter(n, INT_MIN, -1, offsetof("peer", "log_messages"), setting as Pointer<Void>, 1);
-    calloc.free(setting);
+    torx.setter(n, INT_MIN, -1, offsetof("peer", "log_messages"), setting, 1);
+    torx.torx_free_simple(setting);
     setting = nullptr;
     int peer_index = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "peer_index"));
     set_setting_string(0, peer_index, "logging", log_messages.toString());
@@ -597,9 +595,9 @@ class _RouteChatState extends State<RouteChat> {
       child = Icon(Icons.cancel, color: color.auth_error, size: 18);
     } else {
       String prefix = "";
-      Pointer<Utf8> p = torx.message_time_string(n, index);
+      Pointer<Utf8> p = torx.message_time_string(n, index); // free'd by torx_free
       String time_string = p.toDartString();
-      torx.torx_free_simple(p as Pointer<Void>);
+      torx.torx_free_simple(p);
       p = nullptr;
       if (owner == ENUM_OWNER_GROUP_PEER) {
         prefix = "${getter_string(n, INT_MIN, -1, offsetof("peer", "peernick"))} ";
@@ -711,10 +709,10 @@ class _RouteChatState extends State<RouteChat> {
                 ],
               )));
     } else if (file_offer > 0) {
-      Pointer<Int> file_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+      Pointer<Int> file_n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
       int f = torx.set_f_from_i(file_n_p, n, i);
       int file_n = file_n_p.value;
-      calloc.free(file_n_p);
+      torx.torx_free_simple(file_n_p);
       file_n_p = nullptr;
       if (f < 0) {
         return const Text("Negative f from set_f_from_i. Coding error. Report this to UI Devs.");
@@ -730,9 +728,10 @@ class _RouteChatState extends State<RouteChat> {
                 String file_path = getter_string(file_n, INT_MIN, f, offsetof("file", "file_path"));
                 int size = torx.getter_uint64(file_n, INT_MIN, f, offsetof("file", "size"));
                 int transferred = torx.calculate_transferred(file_n, f);
-                Pointer<Utf8> file_size_text_p = torx.file_progress_string(file_n, f);
+                Pointer<Utf8> file_size_text_p = torx.file_progress_string(file_n, f); // free'd by torx_free
                 String file_size_text = file_size_text_p.toDartString();
-                torx.torx_free_simple(file_size_text_p as Pointer<Void>);
+                torx.torx_free_simple(file_size_text_p);
+                file_size_text_p = nullptr;
                 bool finished_image = false;
                 if (t_peer.t_file[file_n].previously_completed[f] == 1 || torx.file_is_complete(file_n, f) == 1) {
                   t_peer.t_file[file_n].previously_completed[f] = 1;
@@ -763,9 +762,10 @@ class _RouteChatState extends State<RouteChat> {
                           //    printf("Checkpoint have accepted file");
                         }
                       } else if (finished_image) {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) {
-                          return RouteImage(file_path: file_path);
-                        }));
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => RouteImage(file_path)),
+                        );
                       } else if (t_peer.t_file[file_n].previously_completed[f] == 1) {
                         //      printf("Checkpoint OpenFile $file_path");
                         OpenFilex.open(file_path);
@@ -821,10 +821,10 @@ class _RouteChatState extends State<RouteChat> {
                     ));
               }));
     } else if (protocol == ENUM_PROTOCOL_GROUP_OFFER || protocol == ENUM_PROTOCOL_GROUP_OFFER_FIRST) {
-      Pointer<Uint32> untrusted_peercount_p = malloc(4); // free'd by calloc.free
+      Pointer<Uint32> untrusted_peercount_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
       int local_g = torx.set_g_from_i(untrusted_peercount_p, n, i);
       int untrusted_peercount = untrusted_peercount_p.value;
-      calloc.free(untrusted_peercount_p);
+      torx.torx_free_simple(untrusted_peercount_p);
       untrusted_peercount_p = nullptr;
       int local_g_invite_required = torx.getter_group_uint8(local_g, offsetof("group", "invite_required"));
       //    printf("Checkpoint group==$local_g $local_g_invite_required");
@@ -873,9 +873,9 @@ class _RouteChatState extends State<RouteChat> {
           animation: changeNotifierStickerReady,
           builder: (BuildContext context, Widget? snapshot) {
             if (s < 0) {
-              Pointer<Utf8> message_local = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
+              Pointer<Utf8> message_local = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message")); // free'd by torx_free
               s = ui_sticker_set(message_local as Pointer<Uint8>);
-              torx.torx_free_simple(message_local as Pointer<Void>);
+              torx.torx_free_simple(message_local);
               message_local = nullptr;
             }
             return message_bubble(
@@ -923,11 +923,11 @@ class _RouteChatState extends State<RouteChat> {
                 await player.play(BytesSource(bytes.sublist(4) /*, mimeType: "audio/L16"*/));
                 if (t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1 && torx.getter_uint8(n, i, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
                   t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 0;
-                  Pointer<Uint8> val = malloc(1);
+                  Pointer<Uint8> val = torx.torx_insecure_malloc(1) as Pointer<Uint8>; // free'd by torx_free
                   val.value = 0;
-                  torx.message_extra(n, i, val as Pointer<Void>, 1);
+                  torx.message_extra(n, i, val, 1);
                   print_message(n, i, 2);
-                  calloc.free(val);
+                  torx.torx_free_simple(val);
                   val = nullptr;
                 }
               },
@@ -978,6 +978,138 @@ class _RouteChatState extends State<RouteChat> {
             const Padding(padding: EdgeInsets.only(right: 0.0)),
           ]));
     }
+  }
+
+//  int call_n = -1; // should be List<int> because there could be multiple concurrent calls/offers in a group chat TODO
+//  int call_c = -1; // should be List<int> because there could be multiple concurrent calls/offers in a group chat TODO
+
+  Widget CallWaiting(int call_n, int call_c) {
+    Color dragColor = Colors.grey;
+    double dragPosition = -1; // Will be set. Must initialize < 0.
+    double dragWidth = size_large_icon * 1.4;
+    double dragThresholdAccept = 0; // WILL BE SET by CallWaiting
+    double dragThresholdDecline = 0; // WILL BE SET by CallWaiting
+    double dragCenter = 0; // WILL BE SET by CallWaiting
+    void onDragUpdate(details) {
+      double maxWidth = MediaQuery.of(context).size.width - dragWidth / 2;
+      if (details.globalPosition.dx > maxWidth) {
+        dragPosition = MediaQuery.of(context).size.width - dragWidth;
+      } else if (details.globalPosition.dx < dragWidth / 2) {
+        dragPosition = 0;
+      } else {
+        dragPosition = details.globalPosition.dx - dragWidth / 2;
+      }
+      if (dragPosition >= dragThresholdAccept) {
+        dragColor = Colors.green;
+      } else if (dragPosition <= dragThresholdDecline) {
+        dragColor = Colors.red;
+      } else {
+        dragColor = Colors.grey;
+      }
+      changeNotifierDrag.callback(integer: -1);
+    }
+
+    void onDragEnd(int call_n, int call_c) {
+      if (dragPosition >= dragThresholdAccept) {
+        call_join(call_n, call_c);
+      } else if (dragPosition <= dragThresholdDecline) {
+        call_leave(call_n, call_c);
+      }
+      dragPosition = dragCenter;
+      changeNotifierDrag.callback(integer: -1);
+    }
+
+    dragCenter = (MediaQuery.of(context).size.width - dragWidth) / 2;
+    dragThresholdAccept = dragCenter + dragCenter * 0.8;
+    dragThresholdDecline = dragCenter - dragCenter * 0.8;
+    if (dragPosition == -1) dragPosition = dragCenter;
+    dragColor = Colors.grey;
+    return AnimatedBuilder(
+        animation: changeNotifierDrag,
+        builder: (BuildContext context, Widget? snapshot) {
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: MediaQuery.of(context).size.width,
+                height: size_large_icon,
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade200,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              // This is the draggable button/slider
+              Positioned(
+                left: dragPosition,
+                child: GestureDetector(
+                  onHorizontalDragUpdate: onDragUpdate,
+                  onHorizontalDragEnd: (details) => onDragEnd(call_n, call_c),
+                  child: Container(
+                    width: dragWidth,
+                    height: size_large_icon,
+                    decoration: BoxDecoration(
+                      color: dragColor,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Center(
+                      child: Icon(Icons.phone_callback, color: color.torch_off),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        });
+  }
+
+  Widget CallAccepted(int call_n, int call_c) {
+    return Row(
+      spacing: size_medium_icon,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty)
+          IconButton(
+            icon: t_peer.t_call[call_n].mic_on[call_c] ? Icon(Icons.mic_off, color: color.torch_off) : Icon(Icons.mic, color: color.torch_off),
+            iconSize: size_medium_icon,
+            onPressed: () {
+              if (t_peer.t_call[call_n].mic_on[call_c]) {
+                t_peer.t_call[call_n].mic_on[call_c] = false;
+              } else {
+                t_peer.t_call[call_n].mic_on[call_c] = true;
+              }
+              call_update(call_n, call_c);
+            },
+          ),
+        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty)
+          IconButton(
+            icon: t_peer.t_call[call_n].speaker_on[call_c] ? Icon(Icons.volume_off, color: color.torch_off) : Icon(Icons.volume_up, color: color.torch_off),
+            iconSize: size_medium_icon,
+            onPressed: () {
+              if (t_peer.t_call[call_n].speaker_on[call_c]) {
+                t_peer.t_call[call_n].speaker_on[call_c] = false;
+              } else {
+                t_peer.t_call[call_n].speaker_on[call_c] = true;
+              }
+              call_update(call_n, call_c);
+            },
+          ),
+        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty && g > -1)
+          IconButton(
+            icon: Icon(Icons.group, color: color.torch_off),
+            iconSize: size_large_icon,
+            onPressed: () {
+              printf("TODO: Show a list of participating peers");
+            },
+          ),
+        IconButton(
+          icon: Icon(Icons.call_end, color: color.torch_off),
+          iconSize: size_medium_icon,
+          onPressed: () {
+            call_leave(call_n, call_c);
+          },
+        ),
+      ],
+    );
   }
 
   late Uint8List bytes;
@@ -1100,7 +1232,7 @@ class _RouteChatState extends State<RouteChat> {
                       iconColor: loggingColor,
                       onTap: () {
                         toggleLogging(widget.n);
-                        Navigator.pop(context); // pop the menu because set State doesn't update it (we tried)
+                        Navigator.pop(context); // Alternative: utilize changeNotifierSettingChange
                       },
                     ),
                   ),
@@ -1114,7 +1246,28 @@ class _RouteChatState extends State<RouteChat> {
                       ),
                       onTap: () {
                         toggleMute(widget.n);
-                        Navigator.pop(context); // pop the menu because set State doesn't update it (we tried)
+                        Navigator.pop(context); // Alternative: utilize changeNotifierSettingChange
+                      },
+                    ),
+                  ),
+                  CustomPopupMenuItem(
+                    color: color.chat_headerbar,
+                    child: ListTile(
+                      leading: const Icon(Icons.call),
+                      title: Text(
+                        text.audio_call,
+                        style: TextStyle(color: color.page_title),
+                      ),
+                      iconColor: color.torch_off,
+                      onTap: () {
+                        int call_n;
+                        if (t_peer.pm_n[global_n] > -1) {
+                          call_n = t_peer.pm_n[global_n];
+                        } else {
+                          call_n = global_n;
+                        }
+                        call_start(call_n);
+                        Navigator.pop(context); // Alternative: utilize changeNotifierSettingChange
                       },
                     ),
                   ),
@@ -1130,7 +1283,7 @@ class _RouteChatState extends State<RouteChat> {
                         iconColor: blockColor,
                         onTap: () {
                           toggleBlock(widget.n);
-                          Navigator.pop(context); // pop the menu because set State doesn't update it (we tried)
+                          Navigator.pop(context); // Alternative: utilize changeNotifierSettingChange
                         },
                       ),
                     ),
@@ -1231,6 +1384,8 @@ class _RouteChatState extends State<RouteChat> {
                           // if determined to still be too expensive, add to it dynamically https://googleflutter.com/flutter-add-item-to-listview-dynamically/
                           animation: changeNotifierMessage,
                           builder: (BuildContext context, Widget? snapshot) {
+                            printf(
+                                "Checkpoint expensive changeNotifierMessage n=${changeNotifierMessage.section.n} i=${changeNotifierMessage.section.i} scroll=${changeNotifierMessage.section.scroll}");
                             int starting_msg_count;
                             if (g > -1) {
                               starting_msg_count = torx.getter_group_uint32(g, offsetof("group", "msg_count"));
@@ -1250,14 +1405,14 @@ class _RouteChatState extends State<RouteChat> {
                                       } else if (index > current_msg_count - 1) {
                                         return null;
                                       }
-                                      Pointer<Int> n_p = malloc(8); // free'd by calloc.free
-                                      Pointer<Int> i_p = malloc(8); // free'd by calloc.free
+                                      Pointer<Int> n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free
+                                      Pointer<Int> i_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free
                                       torx.group_get_index(n_p, i_p, g, current_msg_count - 1 - index);
                                       int n = n_p.value;
                                       int i = i_p.value;
-                                      calloc.free(n_p);
+                                      torx.torx_free_simple(n_p);
                                       n_p = nullptr;
-                                      calloc.free(i_p);
+                                      torx.torx_free_simple(i_p);
                                       i_p = nullptr;
                                       return message_builder(n, i);
                                     },
@@ -1279,6 +1434,36 @@ class _RouteChatState extends State<RouteChat> {
                                     },
                                   );
                           })),
+              AnimatedBuilder(
+                  animation: changeNotifierCallUpdate,
+                  builder: (BuildContext context, Widget? snapshot) {
+                    List<Widget> call_rows = [];
+                    for (int c = 0; c < t_peer.t_call[widget.n].joined.length; c++) {
+                      if (t_peer.t_call[widget.n].waiting[c]) {
+                        call_rows.add(CallWaiting(widget.n, c));
+                      } else if (t_peer.t_call[widget.n].joined[c]) {
+                        call_rows.add(CallAccepted(widget.n, c));
+                      }
+                    }
+                    if (owner == ENUM_OWNER_GROUP_CTRL) {
+                      // Iterate through all group peers and add their rows too
+                      g = torx.set_g(widget.n, nullptr);
+                      List<int> list = refined_list(ENUM_OWNER_GROUP_PEER, g, "");
+                      for (int nn = 0; nn < list.length; nn++) {
+                        int peer_n = list[nn];
+                        for (int c = 0; c < t_peer.t_call[peer_n].joined.length; c++) {
+                          if (t_peer.t_call[peer_n].waiting[c]) {
+                            call_rows.add(CallWaiting(peer_n, c));
+                          } else if (t_peer.t_call[peer_n].joined[c]) {
+                            call_rows.add(CallAccepted(peer_n, c));
+                          }
+                        }
+                      }
+                    }
+                    return Column(
+                      children: call_rows,
+                    );
+                  }),
               AnimatedBuilder(
                   animation: changeNotifierActivity,
                   builder: (BuildContext context, Widget? snapshot) {
@@ -1412,18 +1597,18 @@ class _RouteChatState extends State<RouteChat> {
                                                     } else if (t_peer.edit_n[widget.n] > -1) {
                                                       error(0, "Cannot modify peernick to an audio message.");
                                                     } else if (t_peer.pm_n[widget.n] > -1) {
-                                                      torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, ptr as Pointer<Void>, 4 + bytes.length);
+                                                      torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, ptr, 4 + bytes.length);
                                                     } else if (owner == ENUM_OWNER_GROUP_CTRL) {
                                                       g = torx.set_g(widget.n, nullptr);
                                                       g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
                                                       if (owner == ENUM_OWNER_GROUP_CTRL && g_invite_required != 0) {
                                                         // date && sign private group messages
-                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, ptr as Pointer<Void>, 4 + bytes.length);
+                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, ptr, 4 + bytes.length);
                                                       } else {
-                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, 4 + bytes.length);
+                                                        torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr, 4 + bytes.length);
                                                       }
                                                     } else {
-                                                      torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr as Pointer<Void>, 4 + bytes.length);
+                                                      torx.message_send(widget.n, ENUM_PROTOCOL_AAC_AUDIO_MSG, ptr, 4 + bytes.length);
                                                     }
                                                     malloc.free(ptr);
                                                   } else {
@@ -1497,22 +1682,23 @@ class _RouteChatState extends State<RouteChat> {
                                   changeNotifierActivity.callback(integer: 1); // value is arbitrary
                                 } else if (t_peer.edit_n[widget.n] > -1) {
                                   torx.change_nick(t_peer.edit_n[widget.n], message);
-                                  setState(() {
-                                    t_peer.edit_n[widget.n] = -1;
-                                  }); // SLOW-ROUTE need to rebuild NICKNAME (maybe on all messages, if group, so this might be ok)
+                                  t_peer.edit_n[widget.n] = -1;
+                                  changeNotifierActivity.callback(integer: 1); // value is arbitrary
+                                  changeNotifierMessage.callback(
+                                      n: -1, i: -1, scroll: -1); // SLOW-ROUTE need to rebuild NICKNAME (maybe on all messages, if group, so this might be ok)
                                 } else if (t_peer.pm_n[widget.n] > -1) {
-                                  torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message as Pointer<Void>, message.length);
+                                  torx.message_send(t_peer.pm_n[widget.n], ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message, message.length);
                                 } else if (owner == ENUM_OWNER_GROUP_CTRL) {
                                   g = torx.set_g(widget.n, nullptr);
                                   g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
                                   if (owner == ENUM_OWNER_GROUP_CTRL && g_invite_required != 0) {
                                     // date && sign private group messages
-                                    torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message as Pointer<Void>, message.length);
+                                    torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message, message.length);
                                   } else {
-                                    torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
+                                    torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
                                   }
                                 } else {
-                                  torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message as Pointer<Void>, message.length);
+                                  torx.message_send(widget.n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
                                 }
                                 calloc.free(message);
                                 message = nullptr;
@@ -1560,32 +1746,25 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
   TextEditingController controllerSearch = TextEditingController();
   String searchText = "";
   ListView populatePeerList(int type, String search) {
-    Pointer<Int> len_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
-    Pointer<Utf8> search_p = search.toNativeUtf8(); // free'd by calloc.free
-    Pointer<Int> arrayFriends;
+    List<int> list;
     int owner;
     if (type == ENUM_STATUS_GROUP_CTRL) {
       owner = ENUM_OWNER_GROUP_CTRL;
-      arrayFriends = torx.refined_list(len_p, ENUM_OWNER_GROUP_CTRL, ENUM_STATUS_FRIEND, search_p);
+      list = refined_list(ENUM_OWNER_GROUP_CTRL, ENUM_STATUS_FRIEND, search);
     } else {
       owner = ENUM_OWNER_CTRL;
-      arrayFriends = torx.refined_list(len_p, ENUM_OWNER_CTRL, type, search_p);
+      list = refined_list(ENUM_OWNER_CTRL, type, search);
     }
-    int len = len_p.value;
-    calloc.free(len_p);
-    len_p = nullptr;
-    calloc.free(search_p);
-    search_p = nullptr;
     return ListView.builder(
-      itemCount: len,
+      itemCount: list.length,
       prototypeItem: const ListTile(
         title: Text("This is dummy text used to set height. Can be dropped."),
       ),
       itemBuilder: (context, index) {
-        Color dotColor = ui_statusColor(arrayFriends[index]);
-        Pointer<Int> last_message_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+        Color dotColor = ui_statusColor(list[index]);
+        Pointer<Int> last_message_n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
         int i = INT_MIN;
-        for (int count_back = 0; (i = torx.set_last_message(last_message_n_p, arrayFriends[index], count_back)) > INT_MIN; count_back++) {
+        for (int count_back = 0; (i = torx.set_last_message(last_message_n_p, list[index], count_back)) > INT_MIN; count_back++) {
           if (t_peer.mute[last_message_n_p.value] == 1 && torx.getter_uint8(last_message_n_p.value, INT_MIN, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER) {
             continue; // do not print, these are hidden messages from ignored users
           } else {
@@ -1593,7 +1772,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
           }
         }
         int last_message_n = last_message_n_p.value;
-        calloc.free(last_message_n_p);
+        torx.torx_free_simple(last_message_n_p);
         last_message_n_p = nullptr;
         String prefix = "";
         String lastMessage = "";
@@ -1605,22 +1784,22 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
             int file_offer = protocol_int(p_iter, "file_offer");
             int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
             int stat = torx.getter_uint8(last_message_n, i, -1, offsetof("message", "stat"));
-            if (t_peer.unsent[arrayFriends[index]].isNotEmpty) {
+            if (t_peer.unsent[list[index]].isNotEmpty) {
               prefix = "${text.draft}: ";
-            } else if (stat == ENUM_MESSAGE_RECV && t_peer.unread[arrayFriends[index]] > 0) {
+            } else if (stat == ENUM_MESSAGE_RECV && t_peer.unread[list[index]] > 0) {
               /* no prefix on recv */
             } else if (stat == ENUM_MESSAGE_FAIL && owner != ENUM_OWNER_GROUP_CTRL) {
               prefix = "${text.queued}: ";
             } else if (stat != ENUM_MESSAGE_RECV) {
               prefix = "${text.you}: ";
             }
-            if (t_peer.unsent[arrayFriends[index]].isNotEmpty) {
-              lastMessage = t_peer.unsent[arrayFriends[index]];
+            if (t_peer.unsent[list[index]].isNotEmpty) {
+              lastMessage = t_peer.unsent[list[index]];
             } else if (file_offer > 0) {
-              Pointer<Int> file_n_p = malloc(8); // free'd by calloc.free // 4 is wide enough, could be 8, should be sizeof, meh.
+              Pointer<Int> file_n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
               int f = torx.set_f_from_i(file_n_p, last_message_n, i);
               int file_n = file_n_p.value;
-              calloc.free(file_n_p);
+              torx.torx_free_simple(file_n_p);
               file_n_p = nullptr;
               f > -1 ? lastMessage = getter_string(file_n, INT_MIN, f, offsetof("file", "filename")) : lastMessage = "Invalid file offer";
             } else if (null_terminated_len > 0) {
@@ -1639,12 +1818,12 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
         Widget dot = type == ENUM_STATUS_GROUP_CTRL ? SvgPicture.asset(path_logo, color: color.logo, width: 20, height: 20) : Icon(Icons.circle, color: dotColor, size: 20);
         return ListTile(
           leading: Badge(
-            isLabelVisible: t_peer.unread[arrayFriends[index]] > 0,
-            label: Text(t_peer.unread[arrayFriends[index]].toString()),
+            isLabelVisible: t_peer.unread[list[index]] > 0,
+            label: Text(t_peer.unread[list[index]].toString()),
             child: dot,
           ),
           title: Text(
-            getter_string(arrayFriends[index], INT_MIN, -1, offsetof("peer", "peernick")),
+            getter_string(list[index], INT_MIN, -1, offsetof("peer", "peernick")),
             style: TextStyle(color: color.group_or_user_name, fontWeight: FontWeight.bold),
           ),
           subtitle: Text(
@@ -1655,24 +1834,24 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
             style: TextStyle(color: color.last_message, fontSize: 12),
           ),
           onTap: () {
-            global_n = arrayFriends[index];
-            if (t_peer.unread[arrayFriends[index]] > 0) {
+            global_n = list[index];
+            if (t_peer.unread[list[index]] > 0) {
               //    printf("Checkpoint unreads to wipe");
-              int owner = torx.getter_uint8(arrayFriends[index], INT_MIN, -1, offsetof("peer", "owner"));
+              int owner = torx.getter_uint8(list[index], INT_MIN, -1, offsetof("peer", "owner"));
               if (owner == ENUM_OWNER_GROUP_CTRL) {
-                totalUnreadGroup -= t_peer.unread[arrayFriends[index]];
+                totalUnreadGroup -= t_peer.unread[list[index]];
               } else {
-                totalUnreadPeer -= t_peer.unread[arrayFriends[index]];
+                totalUnreadPeer -= t_peer.unread[list[index]];
               }
-              t_peer.unread[arrayFriends[index]] = 0;
+              t_peer.unread[list[index]] = 0;
               changeNotifierTotalUnread.callback(integer: -4);
-              changeNotifierChatList.callback(integer: t_peer.unread[arrayFriends[index]]);
+              changeNotifierChatList.callback(integer: t_peer.unread[list[index]]);
               if (launcherBadges) {
                 AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
               }
             }
             //    printf("Checkpoint RouteChat n=${arrayFriends[index]}");
-            Navigator.push(context, MaterialPageRoute(builder: (context) => RouteChat(arrayFriends[index])));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => RouteChat(list[index])));
           },
         );
       },
@@ -1686,25 +1865,6 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    if (searchOpen == true) {
-      searchColor = color.search_field_background;
-      searchWidth = 180;
-      suffixIcon = IconButton(
-        icon: Icon(Icons.clear, color: color.search_field_text),
-        onPressed: () {
-          setState(() {
-            searchOpen = false;
-          });
-        },
-      );
-    } else {
-      controllerSearch.clear();
-      searchText = "";
-      searchColor = Colors.transparent;
-      searchWidth = 40;
-      suffixIcon = null;
-    }
-
     return PopScope(
         onPopInvoked: (didPop) {},
         child: Scaffold(
@@ -1737,45 +1897,64 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
               ],
             ),
             actions: [
-              Container(
-                width: searchWidth,
-                height: 30,
-                decoration: BoxDecoration(color: searchColor, borderRadius: BorderRadius.circular(5)),
-                child: Center(
-                  child: TextField(
-                    controller: controllerSearch,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    enableIMEPersonalizedLearning: false,
-                    scribbleEnabled: false,
-                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                    showCursor: true,
-                    onChanged: (content) {
-                      setState(() {
-                        searchText = content;
-                      });
-                    },
-                    style: TextStyle(color: color.search_field_text),
-                    decoration: InputDecoration(
-                        suffixIcon: suffixIcon,
-                        prefixIcon: IconButton(
-                          icon: Icon(Icons.search, color: searchOpen == false ? color.torch_off : color.torch_on),
-                          onPressed: () {
-                            setState(() {
-                              if (searchOpen == true) {
-                                searchOpen = false;
-                              } else {
-                                searchOpen = true;
-                              }
-                            });
+              AnimatedBuilder(
+                  animation: changeNotifierChatList,
+                  builder: (BuildContext context, Widget? snapshot) {
+                    if (searchOpen == true) {
+                      searchColor = color.search_field_background;
+                      searchWidth = 180;
+                      suffixIcon = IconButton(
+                        icon: Icon(Icons.clear, color: color.search_field_text),
+                        onPressed: () {
+                          searchOpen = false;
+                          changeNotifierChatList.callback(integer: -1);
+                        },
+                      );
+                    } else {
+                      controllerSearch.clear();
+                      searchText = "";
+                      searchColor = Colors.transparent;
+                      searchWidth = 40;
+                      suffixIcon = null;
+                    }
+                    return Container(
+                      width: searchWidth,
+                      height: 30,
+                      decoration: BoxDecoration(color: searchColor, borderRadius: BorderRadius.circular(5)),
+                      child: Center(
+                        child: TextField(
+                          controller: controllerSearch,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          enableIMEPersonalizedLearning: false,
+                          scribbleEnabled: false,
+                          spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                          showCursor: true,
+                          onChanged: (content) {
+                            searchText = content;
+                            changeNotifierChatList.callback(integer: -1);
                           },
+                          style: TextStyle(color: color.search_field_text),
+                          decoration: InputDecoration(
+                              suffixIcon: suffixIcon,
+                              prefixIcon: IconButton(
+                                icon: Icon(Icons.search, color: searchOpen == false ? color.torch_off : color.torch_on),
+                                onPressed: () {
+                                  if (searchOpen == true) {
+                                    searchOpen = false;
+                                  } else {
+                                    searchOpen = true;
+                                  }
+                                  changeNotifierChatList.callback(integer: -1);
+                                },
+                              ),
+                              hintText: text.placeholder_search,
+                              hintStyle: TextStyle(color: color.torch_on),
+                              border: InputBorder.none),
                         ),
-                        hintText: text.placeholder_search,
-                        hintStyle: TextStyle(color: color.torch_on),
-                        border: InputBorder.none),
-                  ),
-                ),
-              )
+                      ),
+                    );
+                  })
             ],
           ),
           body: TabBarView(
@@ -1887,19 +2066,21 @@ class _RouteLogTorXState extends State<RouteLogTorX> {
           ),
           actions: [
             Align(
-              alignment: Alignment.center,
-              child: Text(
-                "${text.debug_level} ${torx.torx_debug_level(-1).toString()}",
-                style: TextStyle(color: color.page_title),
-              ),
-            ),
+                alignment: Alignment.center,
+                child: AnimatedBuilder(
+                    animation: changeNotifierDebugLevel,
+                    builder: (BuildContext context, Widget? snapshot) {
+                      return Text(
+                        "${text.debug_level} ${torx.torx_debug_level(-1).toString()}",
+                        style: TextStyle(color: color.page_title),
+                      );
+                    })),
             IconButton(
                 onPressed: () {
                   int level = torx.torx_debug_level(-1);
                   if (level < 5) {
-                    setState(() {
-                      torx.torx_debug_level(++level);
-                    });
+                    torx.torx_debug_level(++level);
+                    changeNotifierDebugLevel.callback(integer: level);
                   }
                 },
                 icon: Icon(Icons.add, color: color.torch_off)),
@@ -1907,9 +2088,8 @@ class _RouteLogTorXState extends State<RouteLogTorX> {
                 onPressed: () {
                   int level = torx.torx_debug_level(-1);
                   if (level > 0) {
-                    setState(() {
-                      torx.torx_debug_level(--level);
-                    });
+                    torx.torx_debug_level(--level);
+                    changeNotifierDebugLevel.callback(integer: level);
                   }
                 },
                 icon: Icon(Icons.remove, color: color.torch_off)),
@@ -2107,30 +2287,27 @@ class _RouteHomeState extends State<RouteHome> {
       idName = text.onionid;
       lookup = "onion";
     }
-    Pointer<Int> len_p = malloc(8); // 4 is wide enough, could be 8, should be sizeof, meh.
-    Pointer<Int> arrayN = torx.refined_list(len_p, owner, ENUM_STATUS_PENDING, nullptr);
-    int len = len_p.value;
-    calloc.free(len_p);
+    List<int> list = refined_list(owner, ENUM_STATUS_PENDING, "");
     List<TextEditingController> controller = [];
-    for (int i = 0; i < len; i++) {
+    for (int nn = 0; nn < list.length; nn++) {
       controller.add(TextEditingController());
-      controller[i].text = getter_string(arrayN[i], INT_MIN, -1, offsetof("peer", "peernick")); // 8
+      controller[nn].text = getter_string(list[nn], INT_MIN, -1, offsetof("peer", "peernick")); // 8
     }
 
-    List<DataCell> currentCells(int i) {
+    List<DataCell> currentCells(int nn) {
       List<DataCell> currentCells;
       bool enabled = false; // only relevant to Sing and Mult
-      if (torx.getter_uint8(arrayN[i], INT_MIN, -1, offsetof("peer", "status")) == ENUM_STATUS_FRIEND) {
+      if (torx.getter_uint8(list[nn], INT_MIN, -1, offsetof("peer", "status")) == ENUM_STATUS_FRIEND) {
         enabled = true;
       }
       if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_PEER) {
         currentCells = [
           DataCell(Focus(
             onFocusChange: (hasFocus) {
-              hasFocus ? null : changeNick(arrayN[i], controller[i]);
+              hasFocus ? null : changeNick(list[nn], controller[nn]);
             },
             child: TextField(
-              controller: controller[i],
+              controller: controller[nn],
               autocorrect: false,
               enableSuggestions: false,
               enableIMEPersonalizedLearning: false,
@@ -2138,13 +2315,13 @@ class _RouteHomeState extends State<RouteHome> {
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
               showCursor: true,
               onEditingComplete: () {
-                changeNick(arrayN[i], controller[i]);
+                changeNick(list[nn], controller[nn]);
               },
               style: TextStyle(color: color.page_subtitle),
             ),
           )),
           DataCell(Text(
-            getter_string(arrayN[i], INT_MIN, -1, offsetof("peer", lookup)),
+            getter_string(list[nn], INT_MIN, -1, offsetof("peer", lookup)),
             style: TextStyle(color: color.page_subtitle),
           )),
         ];
@@ -2154,17 +2331,16 @@ class _RouteHomeState extends State<RouteHome> {
               value: enabled,
               activeColor: const Color(0xFF6200EE),
               onChanged: (value) {
-                torx.block_peer(arrayN[i]);
-                setState(() {
-                  enabled = value; // really we should not assume this but check the struct. thats more lines though.
-                });
+                torx.block_peer(list[nn]);
+                enabled = value; // really we should not assume this but check the struct. thats more lines though.
+                changeNotifierDataTables.callback(integer: currentRowN);
               })),
           DataCell(Focus(
             onFocusChange: (hasFocus) {
-              hasFocus ? null : changeNick(arrayN[i], controller[i]);
+              hasFocus ? null : changeNick(list[nn], controller[nn]);
             },
             child: TextField(
-              controller: controller[i],
+              controller: controller[nn],
               autocorrect: false,
               enableSuggestions: false,
               enableIMEPersonalizedLearning: false,
@@ -2172,13 +2348,13 @@ class _RouteHomeState extends State<RouteHome> {
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
               showCursor: true,
               onEditingComplete: () {
-                changeNick(arrayN[i], controller[i]);
+                changeNick(list[nn], controller[nn]);
               },
               style: TextStyle(color: color.page_subtitle),
             ),
           )),
           DataCell(Text(
-            getter_string(arrayN[i], INT_MIN, -1, offsetof("peer", lookup)),
+            getter_string(list[nn], INT_MIN, -1, offsetof("peer", lookup)),
             style: TextStyle(color: color.page_subtitle),
           )),
         ];
@@ -2187,9 +2363,9 @@ class _RouteHomeState extends State<RouteHome> {
     }
 
     List<DataRow> rows = [];
-    for (int i = 0; i < len; i++) {
+    for (int nn = 0; nn < list.length; nn++) {
       rows.add(DataRow(
-        selected: currentRowN == arrayN[i] ? true : false,
+        selected: currentRowN == list[nn] ? true : false,
         color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
           if (states.contains(WidgetState.selected)) {
             return color.selected_row; //
@@ -2199,18 +2375,14 @@ class _RouteHomeState extends State<RouteHome> {
         }),
         onSelectChanged: (value) {
           if (value == true) {
-            setState(() {
-              currentRowN = arrayN[i];
-            });
-            //    printf("selected $currentRowN");
+            currentRowN = list[nn];
+            changeNotifierDataTables.callback(integer: currentRowN);
           } else {
-            setState(() {
-              currentRowN = -1;
-            });
-            //    printf("unselected $currentRowN");
+            currentRowN = -1;
+            changeNotifierDataTables.callback(integer: currentRowN);
           }
         },
-        cells: currentCells(i),
+        cells: currentCells(nn),
       ));
     }
 
@@ -2269,239 +2441,231 @@ class _RouteHomeState extends State<RouteHome> {
     }
     return PopScope(
         onPopInvoked: (didPop) {},
-        child: Scaffold(
-          backgroundColor: color.right_panel_background,
-          appBar: AppBar(
-            backgroundColor: color.chat_headerbar,
-            title: Text(
-              text.home,
-              style: TextStyle(color: color.page_title),
-            ),
-            automaticallyImplyLeading: false,
-            actions: [
-              MaterialButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RouteLogTor()),
-                  );
-                },
-                height: 20,
-                minWidth: 20,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.tor_log,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-              MaterialButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RouteLogTorX()),
-                  );
-                },
-                height: 20,
-                minWidth: 20,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.torx_log,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-              MaterialButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RouteGlobalKill()),
-                  );
-                },
-                height: 20,
-                minWidth: 20,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.vertical_emit_global_kill,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-            ],
-          ),
-          body:
-              // GOAT Incredibly low priority: this route doesn't use a S.C.S.V and therefore is unusable in horizontal mode. To remedy, it needs to be redesigned like RouteChat.
-              SingleChildScrollView(
-                  child: SizedBox(
-            width: MediaQuery.of(context).size.width,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                MaterialButton(
-                  onPressed: () {
-                    setState(() {
-                      currentRowN = -1;
-                      dtCurrentType = ENUM_OWNER_CTRL;
-                    });
-                  },
-                  height: 40,
-                  minWidth: 300,
-                  elevation: 5,
-                  color: dtCurrentType == ENUM_OWNER_CTRL ? color.selected_row : color.button_background,
-                  child: Text(
-                    text.incoming,
-                    style: TextStyle(color: color.button_text),
+        child: AnimatedBuilder(
+            animation: changeNotifierDataTables,
+            builder: (BuildContext context, Widget? snapshot) {
+              return Scaffold(
+                backgroundColor: color.right_panel_background,
+                appBar: AppBar(
+                  backgroundColor: color.chat_headerbar,
+                  title: Text(
+                    text.home,
+                    style: TextStyle(color: color.page_title),
                   ),
+                  automaticallyImplyLeading: false,
+                  actions: [
+                    MaterialButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RouteLogTor()),
+                        );
+                      },
+                      height: 20,
+                      minWidth: 20,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.tor_log,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
+                    MaterialButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RouteLogTorX()),
+                        );
+                      },
+                      height: 20,
+                      minWidth: 20,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.torx_log,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
+                    MaterialButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RouteGlobalKill()),
+                        );
+                      },
+                      height: 20,
+                      minWidth: 20,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.vertical_emit_global_kill,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
+                  ],
                 ),
-                MaterialButton(
-                  onPressed: () {
-                    setState(() {
-                      currentRowN = -1;
-                      dtCurrentType = ENUM_OWNER_PEER;
-                    });
-                  },
-                  height: 40,
-                  minWidth: 300,
-                  elevation: 5,
-                  color: dtCurrentType == ENUM_OWNER_PEER ? color.selected_row : color.button_background,
-                  child: Text(
-                    text.outgoing,
-                    style: TextStyle(color: color.button_text),
-                  ),
-                ),
-                MaterialButton(
-                  onPressed: () {
-                    setState(() {
-                      currentRowN = -1;
-                      dtCurrentType = ENUM_OWNER_MULT;
-                    });
-                  },
-                  height: 40,
-                  minWidth: 300,
-                  elevation: 5,
-                  color: dtCurrentType == ENUM_OWNER_MULT ? color.selected_row : color.button_background,
-                  child: Text(
-                    text.active_mult,
-                    style: TextStyle(color: color.button_text),
-                  ),
-                ),
-                MaterialButton(
-                  onPressed: () {
-                    setState(() {
-                      currentRowN = -1;
-                      dtCurrentType = ENUM_OWNER_SING;
-                    });
-                  },
-                  height: 40,
-                  minWidth: 300,
-                  elevation: 5,
-                  color: dtCurrentType == ENUM_OWNER_SING ? color.selected_row : color.button_background,
-                  child: Text(
-                    text.active_sing,
-                    style: TextStyle(color: color.button_text),
-                  ),
-                ),
-                /*  Expanded(
+                body:
+                    // GOAT Incredibly low priority: this route doesn't use a S.C.S.V and therefore is unusable in horizontal mode. To remedy, it needs to be redesigned like RouteChat.
+                    SingleChildScrollView(
+                        child: SizedBox(
+                  width: MediaQuery.of(context).size.width,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      MaterialButton(
+                        onPressed: () {
+                          currentRowN = -1;
+                          dtCurrentType = ENUM_OWNER_CTRL;
+                          changeNotifierDataTables.callback(integer: currentRowN);
+                        },
+                        height: 40,
+                        minWidth: 300,
+                        elevation: 5,
+                        color: dtCurrentType == ENUM_OWNER_CTRL ? color.selected_row : color.button_background,
+                        child: Text(
+                          text.incoming,
+                          style: TextStyle(color: color.button_text),
+                        ),
+                      ),
+                      MaterialButton(
+                        onPressed: () {
+                          currentRowN = -1;
+                          dtCurrentType = ENUM_OWNER_PEER;
+                          changeNotifierDataTables.callback(integer: currentRowN);
+                        },
+                        height: 40,
+                        minWidth: 300,
+                        elevation: 5,
+                        color: dtCurrentType == ENUM_OWNER_PEER ? color.selected_row : color.button_background,
+                        child: Text(
+                          text.outgoing,
+                          style: TextStyle(color: color.button_text),
+                        ),
+                      ),
+                      MaterialButton(
+                        onPressed: () {
+                          currentRowN = -1;
+                          dtCurrentType = ENUM_OWNER_MULT;
+                          changeNotifierDataTables.callback(integer: currentRowN);
+                        },
+                        height: 40,
+                        minWidth: 300,
+                        elevation: 5,
+                        color: dtCurrentType == ENUM_OWNER_MULT ? color.selected_row : color.button_background,
+                        child: Text(
+                          text.active_mult,
+                          style: TextStyle(color: color.button_text),
+                        ),
+                      ),
+                      MaterialButton(
+                        onPressed: () {
+                          currentRowN = -1;
+                          dtCurrentType = ENUM_OWNER_SING;
+                          changeNotifierDataTables.callback(integer: currentRowN);
+                        },
+                        height: 40,
+                        minWidth: 300,
+                        elevation: 5,
+                        color: dtCurrentType == ENUM_OWNER_SING ? color.selected_row : color.button_background,
+                        child: Text(
+                          text.active_sing,
+                          style: TextStyle(color: color.button_text),
+                        ),
+                      ),
+                      /*  Expanded(
                   child:*/
-                SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: AnimatedBuilder(
-                          animation: changeNotifierDataTables,
-                          builder: (BuildContext context, Widget? snapshot) {
-                            return currentDataTable(dtCurrentType);
-                          }),
-                    )),
-                //    )
-              ],
-            ),
-          )),
-          persistentFooterButtons: [
-            if (currentRowN > -1 && dtCurrentType == ENUM_OWNER_CTRL)
-              MaterialButton(
-                onPressed: () {
-                  torx.peer_accept(currentRowN);
-                  changeNotifierDataTables.callback(integer: currentRowN);
-                  totalIncoming--;
-                  changeNotifierTotalIncoming.callback(integer: totalIncoming);
-                  if (launcherBadges) {
-                    AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
-                  }
-                },
-                height: 20,
-                minWidth: 60,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.accept,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-            if (currentRowN > -1)
-              MaterialButton(
-                onPressed: () {
-                  int former_owner = torx.getter_uint8(currentRowN, INT_MIN, -1, offsetof("peer", "owner"));
-                  int peer_index = torx.getter_int(currentRowN, INT_MIN, -1, offsetof("peer", "peer_index"));
-                  torx.takedown_onion(peer_index, 1); // currentRowN
-                  if (dtCurrentType == ENUM_OWNER_CTRL) {
-                    totalIncoming--;
-                    changeNotifierTotalIncoming.callback(integer: totalIncoming);
-                    if (launcherBadges) {
-                      AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
-                    }
-                  }
-                  setState(() {
-                    currentRowN = -1;
-                    currentDataTable(former_owner); // could also use dtCurrentType
-                  });
-                },
-                height: 20,
-                minWidth: 60,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  buttonTextDelete,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-            if (currentRowN > -1 && dtCurrentType != ENUM_OWNER_CTRL)
-              MaterialButton(
-                onPressed: () {
-                  if (shorten_torxids == 1) {
-                    Clipboard.setData(ClipboardData(text: getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "torxid"))));
-                  } else {
-                    Clipboard.setData(ClipboardData(text: getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "onion"))));
-                  }
-                },
-                height: 20,
-                minWidth: 60,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.copy,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-            if (currentRowN > -1 && (dtCurrentType == ENUM_OWNER_SING || dtCurrentType == ENUM_OWNER_MULT))
-              MaterialButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => RouteShowQr(getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "torxid")))),
-                  );
-                },
-                height: 20,
-                minWidth: 60,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.show_qr,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-          ],
-        ));
+                      SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: currentDataTable(dtCurrentType),
+                          )),
+                      //    )
+                    ],
+                  ),
+                )),
+                persistentFooterButtons: [
+                  if (currentRowN > -1 && dtCurrentType == ENUM_OWNER_CTRL)
+                    MaterialButton(
+                      onPressed: () {
+                        torx.peer_accept(currentRowN);
+                        changeNotifierDataTables.callback(integer: currentRowN);
+                        totalIncoming--;
+                        changeNotifierTotalIncoming.callback(integer: totalIncoming);
+                        if (launcherBadges) {
+                          AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+                        }
+                      },
+                      height: 20,
+                      minWidth: 60,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.accept,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
+                  if (currentRowN > -1)
+                    MaterialButton(
+                      onPressed: () {
+                        int peer_index = torx.getter_int(currentRowN, INT_MIN, -1, offsetof("peer", "peer_index"));
+                        torx.takedown_onion(peer_index, 1); // currentRowN
+                        currentRowN = -1;
+                        if (dtCurrentType == ENUM_OWNER_CTRL) {
+                          totalIncoming--;
+                          changeNotifierTotalIncoming.callback(integer: totalIncoming);
+                          if (launcherBadges) {
+                            AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+                          }
+                        }
+                      },
+                      height: 20,
+                      minWidth: 60,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        buttonTextDelete,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
+                  if (currentRowN > -1 && dtCurrentType != ENUM_OWNER_CTRL)
+                    MaterialButton(
+                      onPressed: () {
+                        if (shorten_torxids == 1) {
+                          Clipboard.setData(ClipboardData(text: getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "torxid"))));
+                        } else {
+                          Clipboard.setData(ClipboardData(text: getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "onion"))));
+                        }
+                      },
+                      height: 20,
+                      minWidth: 60,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.copy,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
+                  if (currentRowN > -1 && (dtCurrentType == ENUM_OWNER_SING || dtCurrentType == ENUM_OWNER_MULT))
+                    MaterialButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => RouteShowQr(getter_string(currentRowN, INT_MIN, -1, offsetof("peer", "torxid")))),
+                        );
+                      },
+                      height: 20,
+                      minWidth: 60,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.show_qr,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
+                ],
+              );
+            }));
   }
 }
 
@@ -2556,24 +2720,28 @@ class _widget_route_generateState extends State<widget_route_generate> {
                 hintStyle: TextStyle(color: color.right_panel_text),
               ),
             ),
-            TextField(
-              controller: entryAddPeeronionController,
-              autocorrect: false,
-              enableSuggestions: false,
-              enableIMEPersonalizedLearning: false,
-              scribbleEnabled: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              showCursor: true,
-              textAlign: TextAlign.left,
-              style: TextStyle(color: color.write_message_text),
-              decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  hintText: group ? text.placeholder_add_group_id : text.placeholder_add_onion,
-                  hintStyle: TextStyle(color: color.right_panel_text),
-                  filled: bool_fill_peeronion,
-                  fillColor: color.auth_error // for errors
-                  ),
-            ),
+            AnimatedBuilder(
+                animation: changeNotifierInvalidEntry,
+                builder: (BuildContext context, Widget? snapshot) {
+                  return TextField(
+                    controller: entryAddPeeronionController,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    scribbleEnabled: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                    showCursor: true,
+                    textAlign: TextAlign.left,
+                    style: TextStyle(color: color.write_message_text),
+                    decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        hintText: group ? text.placeholder_add_group_id : text.placeholder_add_onion,
+                        hintStyle: TextStyle(color: color.right_panel_text),
+                        filled: bool_fill_peeronion,
+                        fillColor: color.auth_error // for errors
+                        ),
+                  );
+                }),
             MaterialButton(
               onPressed: () {
                 int ret = 0;
@@ -2581,9 +2749,8 @@ class _widget_route_generateState extends State<widget_route_generate> {
                     ? g = ui_group_join_public(entryAddPeernickController.text, entryAddPeeronionController.text)
                     : ret = ui_add_peer(entryAddPeernickController.text, entryAddPeeronionController.text);
                 if ((group && g < 0) || (!group && ret != 0)) {
-                  setState(() {
-                    bool_fill_peeronion = true; // indicates error / required field not filled
-                  });
+                  bool_fill_peeronion = true; // indicates error / required field not filled
+                  changeNotifierInvalidEntry.callback(integer: -1);
                 } else {
                   entryAddPeeronionController.clear();
                   entryAddPeernickController.clear();
@@ -2842,7 +3009,7 @@ class _RouteEditTorrcState extends State<RouteEditTorrc> {
           ),
         ),
       );
-      torx.torx_free_simple(torrc_errors as Pointer<Void>);
+      torx.torx_free_simple(torrc_errors);
       torrc_errors = nullptr;
       return -1;
     }
@@ -2911,9 +3078,9 @@ TextEditingController controllerPassVerify = TextEditingController();
 
 class _RouteChangePasswordState extends State<RouteChangePassword> {
   void _submitChangePassword() {
-    setState(() {
-      buttonChangePasswordText = text.wait;
-    });
+    buttonChangePasswordText = text.wait;
+    changeNotifierChangePassword.callback(integer: 500); // value is arbitrary
+
     Pointer<Utf8> password_old = controllerPassOld.text.toNativeUtf8(); // free'd by calloc.free
     Pointer<Utf8> password_new = controllerPassNew.text.toNativeUtf8(); // free'd by calloc.free
     Pointer<Utf8> password_verify = controllerPassVerify.text.toNativeUtf8(); // free'd by calloc.free
@@ -2948,90 +3115,99 @@ class _RouteChangePasswordState extends State<RouteChangePassword> {
               text.old_password,
               style: TextStyle(color: color.page_subtitle),
             ),
-            TextField(
-              controller: controllerPassOld,
-              obscureText: obscureText1,
-              autocorrect: false,
-              enableSuggestions: false,
-              enableIMEPersonalizedLearning: false,
-              scribbleEnabled: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              showCursor: true,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: color.write_message_text),
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscureText1 ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      obscureText1 = !obscureText1;
-                    });
-                  },
-                ),
-              ),
-            ),
+            AnimatedBuilder(
+                animation: changeNotifierObscureText,
+                builder: (BuildContext context, Widget? snapshot) {
+                  return TextField(
+                    controller: controllerPassOld,
+                    obscureText: obscureText1,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    scribbleEnabled: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                    showCursor: true,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: color.write_message_text),
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureText1 ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          obscureText1 = !obscureText1;
+                          changeNotifierObscureText.callback(integer: -1);
+                        },
+                      ),
+                    ),
+                  );
+                }),
             const SizedBox(height: 5),
             Text(
               text.new_password,
               style: TextStyle(color: color.page_subtitle),
             ),
-            TextField(
-              controller: controllerPassNew,
-              obscureText: obscureText2,
-              autocorrect: false,
-              enableSuggestions: false,
-              enableIMEPersonalizedLearning: false,
-              scribbleEnabled: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: color.write_message_text),
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscureText2 ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      obscureText2 = !obscureText2;
-                    });
-                  },
-                ),
-              ),
-            ),
+            AnimatedBuilder(
+                animation: changeNotifierObscureText,
+                builder: (BuildContext context, Widget? snapshot) {
+                  return TextField(
+                    controller: controllerPassNew,
+                    obscureText: obscureText2,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    scribbleEnabled: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: color.write_message_text),
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureText2 ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          obscureText2 = !obscureText2;
+                          changeNotifierObscureText.callback(integer: -1);
+                        },
+                      ),
+                    ),
+                  );
+                }),
             const SizedBox(height: 5),
             Text(
               text.new_password_again,
               style: TextStyle(color: color.page_subtitle),
             ),
-            TextField(
-              controller: controllerPassVerify,
-              obscureText: obscureText3,
-              autocorrect: false,
-              enableSuggestions: false,
-              enableIMEPersonalizedLearning: false,
-              scribbleEnabled: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              showCursor: true,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: color.write_message_text),
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscureText3 ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      obscureText3 = !obscureText3;
-                    });
-                  },
-                ),
-              ),
-            ),
+            AnimatedBuilder(
+                animation: changeNotifierObscureText,
+                builder: (BuildContext context, Widget? snapshot) {
+                  return TextField(
+                    controller: controllerPassVerify,
+                    obscureText: obscureText3,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    scribbleEnabled: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                    showCursor: true,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: color.write_message_text),
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureText3 ? Icons.visibility : Icons.visibility_off,
+                        ),
+                        onPressed: () {
+                          obscureText3 = !obscureText3;
+                          changeNotifierObscureText.callback(integer: -1);
+                        },
+                      ),
+                    ),
+                  );
+                }),
             const SizedBox(height: 5),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -3170,644 +3346,642 @@ class _RouteSettingsState extends State<RouteSettings> {
 
     return PopScope(
         onPopInvoked: (didPop) {},
-        child: Scaffold(
-          backgroundColor: color.right_panel_background,
-          appBar: AppBar(
-            backgroundColor: color.chat_headerbar,
-            title: Text(
-              text.settings,
-              style: TextStyle(color: color.page_title),
-            ),
-            automaticallyImplyLeading: false,
-            actions: [
-              MaterialButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RouteEditTorrc()),
-                  );
-                },
-                height: 20,
-                minWidth: 20,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.edit_torrc,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-              MaterialButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RouteChangePassword()),
-                  );
-                },
-                height: 20,
-                minWidth: 20,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.vertical_change_password,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-              MaterialButton(
-                onPressed: () {
-                  cleanup_idle(0);
-                },
-                height: 20,
-                minWidth: 20,
-                elevation: 5,
-                color: color.button_background,
-                child: Text(
-                  text.quit,
-                  style: TextStyle(color: color.button_text),
-                ),
-              ),
-            ],
-          ),
-          body: SingleChildScrollView(
-              child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(
-                    text.set_select_language,
-                    style: TextStyle(color: color.page_subtitle),
+        child: AnimatedBuilder(
+            animation: changeNotifierThemeChange,
+            builder: (BuildContext context, Widget? snapshot) {
+              return Scaffold(
+                backgroundColor: color.right_panel_background,
+                appBar: AppBar(
+                  backgroundColor: color.chat_headerbar,
+                  title: Text(
+                    text.settings,
+                    style: TextStyle(color: color.page_title),
                   ),
-                  DropdownButton(
-                      dropdownColor: color.chat_headerbar,
-                      value: _selectedLanguage,
-                      items: _languages
-                          .map((e) => DropdownMenuItem(
-                                value: e,
-                                child: Container(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    e,
-                                    style: TextStyle(fontSize: 18, color: color.page_title),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == "English" && language == "en_US") {
-                          return; // compensating for flutter triggering when there is no change
-                        }
-                        if (value == "English") {
-                          language = "en_US";
-                        } else {
-                          error(0, "Invalid language selected: $value");
-                        }
-                        set_setting_string(1, -1, "language", language);
-                        setState(() {
-                          _selectedLanguage = value;
-                        });
-                      }),
-                ]),
-                const SizedBox(height: 5),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text(
-                    text.set_select_theme,
-                    style: TextStyle(color: color.page_subtitle),
-                  ),
-                  DropdownButton(
-                      dropdownColor: color.chat_headerbar,
-                      value: _selectedTheme,
-                      items: _themes
-                          .map((e) => DropdownMenuItem(
-                                value: e,
-                                child: Container(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    e,
-                                    style: TextStyle(fontSize: 18, color: color.page_title),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == text.dark && theme == enum_theme.DARK_THEME.index) {
-                          return; // compensating for flutter triggering when there is no change
-                        } else if (value == text.light && theme == enum_theme.LIGHT_THEME.index) {
-                          return; // compensating for flutter triggering when there is no change
-                        }
-                        if (value == text.dark) {
-                          theme = enum_theme.DARK_THEME.index;
-                        } else if (value == text.light) {
-                          theme = enum_theme.LIGHT_THEME.index;
-                        }
-                        set_setting_string(1, -1, "theme", theme.toString());
-                        setState(() {
-                          _selectedTheme = value;
-                          initialize_theme(context);
-                        });
-                        changeNotifierTheme.callback(integer: 0); // to force rebuild of RouteBottom
-                      }),
-                ]),
-                const SizedBox(height: 5),
-                Row(children: [
-                  Text(
-                    text.set_onionid_or_torxid,
-                    style: TextStyle(color: color.page_subtitle),
-                  ),
-                ]),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  DropdownButton(
-                      dropdownColor: color.chat_headerbar,
-                      value: _selectedIdType,
-                      items: _idTypes
-                          .map((e) => DropdownMenuItem(
-                                value: e,
-                                child: Container(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    e,
-                                    style: TextStyle(fontSize: 18, color: color.page_title),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == text.generate_onionid && shorten_torxids == 0) {
-                          return; // compensating for flutter triggering when there is no change
-                        } else if (value == text.generate_torxid && shorten_torxids == 1) {
-                          return; // compensating for flutter triggering when there is no change
-                        }
-                        if (value == text.generate_onionid) {
-                          shorten_torxids = 0;
-                        } else if (value == text.generate_torxid) {
-                          shorten_torxids = 1;
-                        }
-                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                        torx.shorten_torxids.value = shorten_torxids;
-                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                        set_setting_string(0, -1, "shorten_torxids", shorten_torxids.toString());
-                        setState(() {
-                          _selectedIdType = value;
-                        });
-                      }),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_global_log,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Switch(
-                    value: _selectedGlobalLogging,
-                    activeColor: const Color(0xFF6200EE),
-                    onChanged: (value) {
-                      if (value == false) {
-                        global_log_messages = 0;
-                      } else if (value == true) {
-                        global_log_messages = 1;
-                      }
-                      torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                      torx.global_log_messages.value = global_log_messages;
-                      torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                      set_setting_string(0, -1, "global_log_messages", global_log_messages.toString());
-                      setState(() {
-                        _selectedGlobalLogging = value;
-                      });
-                    },
-                  ),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_auto_resume_inbound,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Switch(
-                    value: _selectedAutoResumeInbound,
-                    activeColor: const Color(0xFF6200EE),
-                    onChanged: (value) {
-                      if (value == false) {
-                        auto_resume_inbound = 0;
-                      } else if (value == true) {
-                        auto_resume_inbound = 1;
-                      }
-                      torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                      torx.auto_resume_inbound.value = auto_resume_inbound;
-                      torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                      set_setting_string(0, -1, "auto_resume_inbound", auto_resume_inbound.toString());
-                      setState(() {
-                        _selectedAutoResumeInbound = value;
-                      });
-                    },
-                  ),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_save_all_stickers,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Switch(
-                    value: save_all_stickers,
-                    activeColor: const Color(0xFF6200EE),
-                    onChanged: (value) {
-                      if (value == false) {
-                        set_setting_string(0, -1, "save_all_stickers", "0");
-                      } else if (value == true) {
-                        set_setting_string(0, -1, "save_all_stickers", "1");
-                      }
-                      setState(() {
-                        save_all_stickers = value;
-                      });
-                    },
-                  ),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.keyboard_privacy,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Switch(
-                    value: keyboard_privacy,
-                    activeColor: const Color(0xFF6200EE),
-                    onChanged: (value) {
-                      if (value == false) {
-                        set_setting_string(0, -1, "keyboard_privacy", "0");
-                      } else if (value == true) {
-                        set_setting_string(0, -1, "keyboard_privacy", "1");
-                      }
-                      setState(() {
-                        keyboard_privacy = value;
-                      });
-                    },
-                  ),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_download_directory,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  MaterialButton(
-                    onPressed: () async {
-                      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
-                      Pointer<Utf8> name = "download_dir".toNativeUtf8();
-                      if (selectedDirectory != null) {
-                        if (write_test(selectedDirectory) == false) {
-                          calloc.free(name);
-                          name = nullptr;
-                          return; // not writable
-                        }
-                        Pointer<Utf8> directory = selectedDirectory.toNativeUtf8();
-                        Pointer<Void> allocation = torx.torx_secure_malloc(selectedDirectory.length + 1);
-                        torx.memcpy(allocation, directory as Pointer<Void>, selectedDirectory.length + 1);
-                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                        torx.torx_free_simple(torx.download_dir[0] as Pointer<Void>);
-                        torx.download_dir[0] = allocation as Pointer<Utf8>;
-                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                        set_setting_string(0, -1, "download_dir", selectedDirectory);
-                        calloc.free(directory);
-                        directory = nullptr;
-                      } else {
-                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                        if (torx.download_dir[0] != nullptr) {
-                          torx.torx_free_simple(torx.download_dir[0] as Pointer<Void>);
-                          torx.download_dir[0] = nullptr;
-                        }
-                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                        torx.sql_delete_setting(0, -1, name);
-                      }
-                      calloc.free(name);
-                      name = nullptr;
-                      setState(() {}); // torx.download_dir[0] changed
-                    },
-                    height: 20,
-                    minWidth: 20,
-                    elevation: 5,
-                    color: color.button_background,
-                    child: Text(
-                      threadsafe_read_global_string("download_dir"),
-                      style: TextStyle(color: color.button_text),
-                    ),
-                  ),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_cpu,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  DropdownButton(
-                      dropdownColor: color.chat_headerbar,
-                      value: _selectedCpuThreads,
-                      items: _cpuThreads
-                          .map((e) => DropdownMenuItem(
-                                value: e,
-                                child: Container(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    e,
-                                    style: TextStyle(fontSize: 18, color: color.page_title),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (global_threads == int.parse(value!)) {
-                          return; // compensating for flutter triggering when there is no change
-                        }
-                        global_threads = int.parse(value);
-                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                        torx.global_threads.value = global_threads;
-                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                        set_setting_string(0, -1, "global_threads", global_threads.toString());
-                        setState(() {
-                          _selectedCpuThreads = value;
-                        });
-                      }),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_suffix,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  DropdownButton(
-                      dropdownColor: color.chat_headerbar,
-                      value: _selectedSuffixLength,
-                      items: _suffixLength
-                          .map((e) => DropdownMenuItem(
-                                value: e,
-                                child: Container(
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    e,
-                                    style: TextStyle(fontSize: 18, color: color.page_title),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (suffix_length == int.parse(value!)) {
-                          return; // compensating for flutter triggering when there is no change
-                        }
-                        suffix_length = int.parse(value);
-                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                        torx.suffix_length.value = suffix_length;
-                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                        set_setting_string(0, -1, "suffix_length", suffix_length.toString());
-                        setState(() {
-                          _selectedSuffixLength = value;
-                        });
-                      }),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_validity_sing,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Focus(
-                    onFocusChange: (hasFocus) {
-                      hasFocus ? null : _saveIntSetting(torx.sing_expiration_days as Pointer<Int>, "sing_expiration_days", controllerSingDays);
-                    },
-                    child: TextField(
-                      controller: controllerSingDays,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      enableIMEPersonalizedLearning: false,
-                      scribbleEnabled: false,
-                      spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                      showCursor: true,
-                      keyboardType: TextInputType.number,
-                      onEditingComplete: () {
-                        _saveIntSetting(torx.sing_expiration_days as Pointer<Int>, "sing_expiration_days", controllerSingDays);
+                  automaticallyImplyLeading: false,
+                  actions: [
+                    MaterialButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RouteEditTorrc()),
+                        );
                       },
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: color.write_message_text),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
+                      height: 20,
+                      minWidth: 20,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.edit_torrc,
+                        style: TextStyle(color: color.button_text),
                       ),
-                    )),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_validity_mult,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ],
-                ),
-                Focus(
-                    onFocusChange: (hasFocus) {
-                      hasFocus ? null : _saveIntSetting(torx.mult_expiration_days as Pointer<Int>, "mult_expiration_days", controllerMultDays);
-                    },
-                    child: TextField(
-                      controller: controllerMultDays,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      enableIMEPersonalizedLearning: false,
-                      scribbleEnabled: false,
-                      spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                      showCursor: true,
-                      keyboardType: TextInputType.number,
-                      onEditingComplete: () {
-                        _saveIntSetting(torx.mult_expiration_days as Pointer<Int>, "mult_expiration_days", controllerMultDays);
+                    ),
+                    MaterialButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const RouteChangePassword()),
+                        );
                       },
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: color.write_message_text),
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
+                      height: 20,
+                      minWidth: 20,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.vertical_change_password,
+                        style: TextStyle(color: color.button_text),
                       ),
-                    )),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_automatic_mult,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
+                    ),
+                    MaterialButton(
+                      onPressed: () {
+                        cleanup_idle(0);
+                      },
+                      height: 20,
+                      minWidth: 20,
+                      elevation: 5,
+                      color: color.button_background,
+                      child: Text(
+                        text.quit,
+                        style: TextStyle(color: color.button_text),
+                      ),
+                    ),
                   ],
                 ),
-                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Switch(
-                    value: _selectedAutoMult,
-                    activeColor: const Color(0xFF6200EE),
-                    onChanged: (value) {
-                      if (value == false) {
-                        auto_accept_mult = 0;
-                      } else if (value == true) {
-                        auto_accept_mult = 1;
-                      }
-                      torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
-                      torx.auto_accept_mult.value = auto_accept_mult;
-                      torx.pthread_rwlock_unlock(torx.mutex_global_variable);
-                      set_setting_string(0, -1, "auto_accept_mult", auto_accept_mult.toString());
-                      setState(() {
-                        _selectedAutoMult = value;
-                      });
-                    },
-                  ),
-                ]),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    Text(
-                      text.set_externally_generated,
-                      style: TextStyle(color: color.page_subtitle),
-                    )
-                  ], // GOAT put placeholder text saying base64 priv key, and put a filepicker
-                ),
-                TextField(
-                  onChanged: (value) {
-                    setState(() {
-                      if (value.length == 88) {
-                        wrongLength = false;
-                        Pointer<Utf8> p = value.toNativeUtf8(); // free'd by calloc.free
-                        if (torx.b64_decoded_size(p) == 64) {
-                          inputColor = Colors.green;
-                          validExternal = true;
-                        } else {
-                          inputColor = color.auth_error;
-                          validExternal = false;
-                        }
-                        calloc.free(p);
-                        p = nullptr;
-                      } else {
-                        wrongLength = true;
-                        if (value.isEmpty) {
-                          inputColor = Colors.transparent;
-                        } else {
-                          inputColor = Colors.orange;
-                        }
-                        validExternal = false;
-                      }
-                    });
-                  },
-                  controller: controllerCustomInputPrivkey,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  enableIMEPersonalizedLearning: false,
-                  scribbleEnabled: false,
-                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                  showCursor: true,
-                  textAlign: TextAlign.start,
-                  style: TextStyle(color: color.write_message_text),
-                  decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      hintText: text.placeholder_privkey_flutter,
-                      hintStyle: TextStyle(color: color.right_panel_text),
-                      filled: wrongLength,
-                      fillColor: inputColor),
-                ),
-                Visibility(
-                  visible: validExternal,
-                  child: TextField(
-                    controller: controllerCustomInputIdentifier,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    enableIMEPersonalizedLearning: false,
-                    scribbleEnabled: false,
-                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                    showCursor: true,
-                    textAlign: TextAlign.start,
-                    style: TextStyle(color: color.write_message_text),
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      hintText: text.placeholder_identifier,
-                      hintStyle: TextStyle(color: color.right_panel_text),
-                    ),
-                  ),
-                ),
-                Visibility(
-                  visible: validExternal,
-                  child: MaterialButton(
-                    onPressed: () {
-                      Pointer<Utf8> identifier = controllerCustomInputIdentifier.text.toNativeUtf8(); // free'd by calloc.free
-                      Pointer<Utf8> privkey = controllerCustomInputPrivkey.text.toNativeUtf8(); // free'd by calloc.free
-                      torx.custom_input(ENUM_OWNER_SING, identifier, privkey);
-                      calloc.free(identifier);
-                      identifier = nullptr;
-                      calloc.free(privkey);
-                      privkey = nullptr;
-                      controllerCustomInputPrivkey.clear();
-                      controllerCustomInputIdentifier.clear();
-                      setState(() {
-                        validExternal = false;
-                      });
-                    },
-                    height: 20,
-                    minWidth: 60,
-                    elevation: 5,
-                    color: color.button_background,
-                    child: Text(
-                      text.save_sing,
-                      style: TextStyle(color: color.button_text),
-                    ),
-                  ),
-                ),
-                Visibility(
-                  visible: validExternal,
-                  child: MaterialButton(
-                    onPressed: () {
-                      Pointer<Utf8> identifier = controllerCustomInputIdentifier.text.toNativeUtf8();
-                      Pointer<Utf8> privkey = controllerCustomInputPrivkey.text.toNativeUtf8();
-                      torx.custom_input(ENUM_OWNER_MULT, identifier, privkey);
-                      calloc.free(identifier);
-                      identifier = nullptr;
-                      calloc.free(privkey);
-                      privkey = nullptr;
-                      controllerCustomInputPrivkey.clear();
-                      controllerCustomInputIdentifier.clear();
-                      setState(() {
-                        validExternal = false;
-                      });
-                    },
-                    height: 20,
-                    minWidth: 60,
-                    elevation: 5,
-                    color: color.button_background,
-                    child: Text(
-                      text.save_mult,
-                      style: TextStyle(color: color.button_text),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )),
-        ));
+                body: SingleChildScrollView(
+                    child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: AnimatedBuilder(
+                            animation: changeNotifierSettingChange,
+                            builder: (BuildContext context, Widget? snapshot) {
+                              return Column(
+                                children: [
+                                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                                    Text(
+                                      text.set_select_language,
+                                      style: TextStyle(color: color.page_subtitle),
+                                    ),
+                                    DropdownButton(
+                                        dropdownColor: color.chat_headerbar,
+                                        value: _selectedLanguage,
+                                        items: _languages
+                                            .map((e) => DropdownMenuItem(
+                                                  value: e,
+                                                  child: Container(
+                                                    alignment: Alignment.centerLeft,
+                                                    child: Text(
+                                                      e,
+                                                      style: TextStyle(fontSize: 18, color: color.page_title),
+                                                    ),
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value == "English" && language == "en_US") {
+                                            return; // compensating for flutter triggering when there is no change
+                                          }
+                                          if (value == "English") {
+                                            language = "en_US";
+                                          } else {
+                                            error(0, "Invalid language selected: $value");
+                                          }
+                                          set_setting_string(1, -1, "language", language);
+                                          _selectedLanguage = value;
+                                          initialize_language();
+                                          //  changeNotifierSettingChange.callback(integer: -1);
+                                          changeNotifierThemeChange.callback(integer: -1);
+                                          changeNotifierBottom.callback(integer: -1);
+                                        }),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                                    Text(
+                                      text.set_select_theme,
+                                      style: TextStyle(color: color.page_subtitle),
+                                    ),
+                                    DropdownButton(
+                                        dropdownColor: color.chat_headerbar,
+                                        value: _selectedTheme,
+                                        items: _themes
+                                            .map((e) => DropdownMenuItem(
+                                                  value: e,
+                                                  child: Container(
+                                                    alignment: Alignment.centerLeft,
+                                                    child: Text(
+                                                      e,
+                                                      style: TextStyle(fontSize: 18, color: color.page_title),
+                                                    ),
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value == text.dark && theme == enum_theme.DARK_THEME.index) {
+                                            return; // compensating for flutter triggering when there is no change
+                                          } else if (value == text.light && theme == enum_theme.LIGHT_THEME.index) {
+                                            return; // compensating for flutter triggering when there is no change
+                                          }
+                                          if (value == text.dark) {
+                                            theme = enum_theme.DARK_THEME.index;
+                                          } else if (value == text.light) {
+                                            theme = enum_theme.LIGHT_THEME.index;
+                                          }
+                                          set_setting_string(1, -1, "theme", theme.toString());
+                                          _selectedTheme = value;
+                                          initialize_theme(context);
+                                          //  changeNotifierSettingChange.callback(integer: -1);
+                                          changeNotifierThemeChange.callback(integer: -1);
+                                          changeNotifierBottom.callback(integer: -1);
+                                        }),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(children: [
+                                    Text(
+                                      text.set_onionid_or_torxid,
+                                      style: TextStyle(color: color.page_subtitle),
+                                    ),
+                                  ]),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    DropdownButton(
+                                        dropdownColor: color.chat_headerbar,
+                                        value: _selectedIdType,
+                                        items: _idTypes
+                                            .map((e) => DropdownMenuItem(
+                                                  value: e,
+                                                  child: Container(
+                                                    alignment: Alignment.centerLeft,
+                                                    child: Text(
+                                                      e,
+                                                      style: TextStyle(fontSize: 18, color: color.page_title),
+                                                    ),
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (value == text.generate_onionid && shorten_torxids == 0) {
+                                            return; // compensating for flutter triggering when there is no change
+                                          } else if (value == text.generate_torxid && shorten_torxids == 1) {
+                                            return; // compensating for flutter triggering when there is no change
+                                          }
+                                          if (value == text.generate_onionid) {
+                                            shorten_torxids = 0;
+                                          } else if (value == text.generate_torxid) {
+                                            shorten_torxids = 1;
+                                          }
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.shorten_torxids.value = shorten_torxids;
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          set_setting_string(0, -1, "shorten_torxids", shorten_torxids.toString());
+                                          _selectedIdType = value;
+                                          changeNotifierSettingChange.callback(integer: -1);
+                                        }),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_global_log,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    Switch(
+                                      value: _selectedGlobalLogging,
+                                      activeColor: const Color(0xFF6200EE),
+                                      onChanged: (value) {
+                                        if (value == false) {
+                                          global_log_messages = 0;
+                                        } else if (value == true) {
+                                          global_log_messages = 1;
+                                        }
+                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                        torx.global_log_messages.value = global_log_messages;
+                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                        set_setting_string(0, -1, "global_log_messages", global_log_messages.toString());
+                                        _selectedGlobalLogging = value;
+                                        changeNotifierSettingChange.callback(integer: -1);
+                                      },
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_auto_resume_inbound,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    Switch(
+                                      value: _selectedAutoResumeInbound,
+                                      activeColor: const Color(0xFF6200EE),
+                                      onChanged: (value) {
+                                        if (value == false) {
+                                          auto_resume_inbound = 0;
+                                        } else if (value == true) {
+                                          auto_resume_inbound = 1;
+                                        }
+                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                        torx.auto_resume_inbound.value = auto_resume_inbound;
+                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                        set_setting_string(0, -1, "auto_resume_inbound", auto_resume_inbound.toString());
+                                        _selectedAutoResumeInbound = value;
+                                        changeNotifierSettingChange.callback(integer: -1);
+                                      },
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_save_all_stickers,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    Switch(
+                                      value: save_all_stickers,
+                                      activeColor: const Color(0xFF6200EE),
+                                      onChanged: (value) {
+                                        if (value == false) {
+                                          set_setting_string(0, -1, "save_all_stickers", "0");
+                                        } else if (value == true) {
+                                          set_setting_string(0, -1, "save_all_stickers", "1");
+                                        }
+                                        save_all_stickers = value;
+                                        changeNotifierSettingChange.callback(integer: -1);
+                                      },
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.keyboard_privacy,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    Switch(
+                                      value: keyboard_privacy,
+                                      activeColor: const Color(0xFF6200EE),
+                                      onChanged: (value) {
+                                        if (value == false) {
+                                          set_setting_string(0, -1, "keyboard_privacy", "0");
+                                        } else if (value == true) {
+                                          set_setting_string(0, -1, "keyboard_privacy", "1");
+                                        }
+                                        keyboard_privacy = value;
+                                        changeNotifierSettingChange.callback(integer: -1);
+                                      },
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_download_directory,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    MaterialButton(
+                                      onPressed: () async {
+                                        String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
+                                        Pointer<Utf8> name = "download_dir".toNativeUtf8(); // free'd by calloc.free
+                                        if (selectedDirectory != null) {
+                                          if (write_test(selectedDirectory) == false) {
+                                            calloc.free(name);
+                                            name = nullptr;
+                                            return; // not writable
+                                          }
+                                          Pointer<Utf8> directory = selectedDirectory.toNativeUtf8(); // free'd by calloc.free
+                                          Pointer<Void> allocation = torx.torx_secure_malloc(selectedDirectory.length + 1);
+                                          torx.memcpy(allocation, directory, selectedDirectory.length + 1);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.torx_free_simple(torx.download_dir[0]);
+                                          torx.download_dir[0] = allocation as Pointer<Utf8>;
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          set_setting_string(0, -1, "download_dir", selectedDirectory);
+                                          calloc.free(directory);
+                                          directory = nullptr;
+                                        } else {
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          if (torx.download_dir[0] != nullptr) {
+                                            torx.torx_free_simple(torx.download_dir[0]);
+                                            torx.download_dir[0] = nullptr;
+                                          }
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          torx.sql_delete_setting(0, -1, name);
+                                        }
+                                        calloc.free(name);
+                                        name = nullptr;
+                                        changeNotifierSettingChange.callback(integer: -1); // torx.download_dir[0] changed
+                                      },
+                                      height: 20,
+                                      minWidth: 20,
+                                      elevation: 5,
+                                      color: color.button_background,
+                                      child: Text(
+                                        threadsafe_read_global_string("download_dir"),
+                                        style: TextStyle(color: color.button_text),
+                                      ),
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_cpu,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    DropdownButton(
+                                        dropdownColor: color.chat_headerbar,
+                                        value: _selectedCpuThreads,
+                                        items: _cpuThreads
+                                            .map((e) => DropdownMenuItem(
+                                                  value: e,
+                                                  child: Container(
+                                                    alignment: Alignment.centerLeft,
+                                                    child: Text(
+                                                      e,
+                                                      style: TextStyle(fontSize: 18, color: color.page_title),
+                                                    ),
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (global_threads == int.parse(value!)) {
+                                            return; // compensating for flutter triggering when there is no change
+                                          }
+                                          global_threads = int.parse(value);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.global_threads.value = global_threads;
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          set_setting_string(0, -1, "global_threads", global_threads.toString());
+                                          _selectedCpuThreads = value;
+                                          changeNotifierSettingChange.callback(integer: -1);
+                                        }),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_suffix,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    DropdownButton(
+                                        dropdownColor: color.chat_headerbar,
+                                        value: _selectedSuffixLength,
+                                        items: _suffixLength
+                                            .map((e) => DropdownMenuItem(
+                                                  value: e,
+                                                  child: Container(
+                                                    alignment: Alignment.centerLeft,
+                                                    child: Text(
+                                                      e,
+                                                      style: TextStyle(fontSize: 18, color: color.page_title),
+                                                    ),
+                                                  ),
+                                                ))
+                                            .toList(),
+                                        onChanged: (value) {
+                                          if (suffix_length == int.parse(value!)) {
+                                            return; // compensating for flutter triggering when there is no change
+                                          }
+                                          suffix_length = int.parse(value);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.suffix_length.value = suffix_length;
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          set_setting_string(0, -1, "suffix_length", suffix_length.toString());
+                                          _selectedSuffixLength = value;
+                                          changeNotifierSettingChange.callback(integer: -1);
+                                        }),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_validity_sing,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Focus(
+                                      onFocusChange: (hasFocus) {
+                                        hasFocus ? null : _saveIntSetting(torx.sing_expiration_days as Pointer<Int>, "sing_expiration_days", controllerSingDays);
+                                      },
+                                      child: TextField(
+                                        controller: controllerSingDays,
+                                        autocorrect: false,
+                                        enableSuggestions: false,
+                                        enableIMEPersonalizedLearning: false,
+                                        scribbleEnabled: false,
+                                        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                                        showCursor: true,
+                                        keyboardType: TextInputType.number,
+                                        onEditingComplete: () {
+                                          _saveIntSetting(torx.sing_expiration_days as Pointer<Int>, "sing_expiration_days", controllerSingDays);
+                                        },
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: color.write_message_text),
+                                        decoration: const InputDecoration(
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      )),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_validity_mult,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Focus(
+                                      onFocusChange: (hasFocus) {
+                                        hasFocus ? null : _saveIntSetting(torx.mult_expiration_days as Pointer<Int>, "mult_expiration_days", controllerMultDays);
+                                      },
+                                      child: TextField(
+                                        controller: controllerMultDays,
+                                        autocorrect: false,
+                                        enableSuggestions: false,
+                                        enableIMEPersonalizedLearning: false,
+                                        scribbleEnabled: false,
+                                        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                                        showCursor: true,
+                                        keyboardType: TextInputType.number,
+                                        onEditingComplete: () {
+                                          _saveIntSetting(torx.mult_expiration_days as Pointer<Int>, "mult_expiration_days", controllerMultDays);
+                                        },
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: color.write_message_text),
+                                        decoration: const InputDecoration(
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      )),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_automatic_mult,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ],
+                                  ),
+                                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                    Switch(
+                                      value: _selectedAutoMult,
+                                      activeColor: const Color(0xFF6200EE),
+                                      onChanged: (value) {
+                                        if (value == false) {
+                                          auto_accept_mult = 0;
+                                        } else if (value == true) {
+                                          auto_accept_mult = 1;
+                                        }
+                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                        torx.auto_accept_mult.value = auto_accept_mult;
+                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                        set_setting_string(0, -1, "auto_accept_mult", auto_accept_mult.toString());
+                                        _selectedAutoMult = value;
+                                        changeNotifierSettingChange.callback(integer: -1);
+                                      },
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        text.set_externally_generated,
+                                        style: TextStyle(color: color.page_subtitle),
+                                      )
+                                    ], // GOAT put placeholder text saying base64 priv key, and put a filepicker
+                                  ),
+                                  TextField(
+                                    onChanged: (value) {
+                                      if (value.length == 88) {
+                                        wrongLength = false;
+                                        Pointer<Utf8> p = value.toNativeUtf8(); // free'd by calloc.free
+                                        if (torx.b64_decoded_size(p) == 64) {
+                                          inputColor = Colors.green;
+                                          validExternal = true;
+                                        } else {
+                                          inputColor = color.auth_error;
+                                          validExternal = false;
+                                        }
+                                        calloc.free(p);
+                                        p = nullptr;
+                                      } else {
+                                        wrongLength = true;
+                                        if (value.isEmpty) {
+                                          inputColor = Colors.transparent;
+                                        } else {
+                                          inputColor = Colors.orange;
+                                        }
+                                        validExternal = false;
+                                      }
+                                      changeNotifierSettingChange.callback(integer: -1);
+                                    },
+                                    controller: controllerCustomInputPrivkey,
+                                    autocorrect: false,
+                                    enableSuggestions: false,
+                                    enableIMEPersonalizedLearning: false,
+                                    scribbleEnabled: false,
+                                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                                    showCursor: true,
+                                    textAlign: TextAlign.start,
+                                    style: TextStyle(color: color.write_message_text),
+                                    decoration: InputDecoration(
+                                        border: const OutlineInputBorder(),
+                                        hintText: text.placeholder_privkey_flutter,
+                                        hintStyle: TextStyle(color: color.right_panel_text),
+                                        filled: wrongLength,
+                                        fillColor: inputColor),
+                                  ),
+                                  Visibility(
+                                    visible: validExternal,
+                                    child: TextField(
+                                      controller: controllerCustomInputIdentifier,
+                                      autocorrect: false,
+                                      enableSuggestions: false,
+                                      enableIMEPersonalizedLearning: false,
+                                      scribbleEnabled: false,
+                                      spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                                      showCursor: true,
+                                      textAlign: TextAlign.start,
+                                      style: TextStyle(color: color.write_message_text),
+                                      decoration: InputDecoration(
+                                        border: const OutlineInputBorder(),
+                                        hintText: text.placeholder_identifier,
+                                        hintStyle: TextStyle(color: color.right_panel_text),
+                                      ),
+                                    ),
+                                  ),
+                                  Visibility(
+                                    visible: validExternal,
+                                    child: MaterialButton(
+                                      onPressed: () {
+                                        Pointer<Utf8> identifier = controllerCustomInputIdentifier.text.toNativeUtf8(); // free'd by calloc.free
+                                        Pointer<Utf8> privkey = controllerCustomInputPrivkey.text.toNativeUtf8(); // free'd by calloc.free
+                                        torx.custom_input(ENUM_OWNER_SING, identifier, privkey);
+                                        calloc.free(identifier);
+                                        identifier = nullptr;
+                                        calloc.free(privkey);
+                                        privkey = nullptr;
+                                        controllerCustomInputPrivkey.clear();
+                                        controllerCustomInputIdentifier.clear();
+                                        validExternal = false;
+                                        changeNotifierSettingChange.callback(integer: -1);
+                                      },
+                                      height: 20,
+                                      minWidth: 60,
+                                      elevation: 5,
+                                      color: color.button_background,
+                                      child: Text(
+                                        text.save_sing,
+                                        style: TextStyle(color: color.button_text),
+                                      ),
+                                    ),
+                                  ),
+                                  Visibility(
+                                    visible: validExternal,
+                                    child: MaterialButton(
+                                      onPressed: () {
+                                        Pointer<Utf8> identifier = controllerCustomInputIdentifier.text.toNativeUtf8(); // free'd by calloc.free
+                                        Pointer<Utf8> privkey = controllerCustomInputPrivkey.text.toNativeUtf8(); // free'd by calloc.free
+                                        torx.custom_input(ENUM_OWNER_MULT, identifier, privkey);
+                                        calloc.free(identifier);
+                                        identifier = nullptr;
+                                        calloc.free(privkey);
+                                        privkey = nullptr;
+                                        controllerCustomInputPrivkey.clear();
+                                        controllerCustomInputIdentifier.clear();
+                                        validExternal = false;
+                                        changeNotifierSettingChange.callback(integer: -1);
+                                      },
+                                      height: 20,
+                                      minWidth: 60,
+                                      elevation: 5,
+                                      color: color.button_background,
+                                      child: Text(
+                                        text.save_mult,
+                                        style: TextStyle(color: color.button_text),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }))),
+              );
+            }));
   }
 }
 
@@ -3825,9 +3999,8 @@ class _RouteBottomState extends State<RouteBottom> {
 
   void _onItemTapped(int index) {
     current_index = 0;
-    setState(() {
-      _selectedIndex = index;
-    });
+    _selectedIndex = index;
+    changeNotifierBottom.callback(integer: _selectedIndex);
   }
 
   static final List<Widget> _widgetOptions = <Widget>[
@@ -3865,7 +4038,7 @@ class _RouteBottomState extends State<RouteBottom> {
     }
 //    globalCurrentRouteChatN = -1; // BAD BAD DO NOT PUT HERE
     return AnimatedBuilder(
-        animation: changeNotifierTheme,
+        animation: changeNotifierBottom,
         builder: (BuildContext context, Widget? snapshot) {
           return Scaffold(
             body: _widgetOptions[_selectedIndex],

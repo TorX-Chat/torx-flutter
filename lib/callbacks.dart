@@ -62,6 +62,7 @@ severable if found in contradiction with the License or applicable law.
 // ignore_for_file: non_constant_identifier_names, camel_case_types
 
 import 'dart:ffi';
+import 'dart:typed_data';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
@@ -82,6 +83,7 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
   // UI code here
 });
 */
+
 class Callbacks {
   // Singleton instance
   Callbacks._privateConstructor();
@@ -104,6 +106,7 @@ class Callbacks {
     t_peer.t_message[n] = t_message_class();
     t_peer.t_file[n] = t_file_class();
     t_peer.stickers_requested[n] = [];
+    t_peer.t_call[n] = t_call_class();
   }
 
   void initialize_i_cb_ui(int n, int i) {
@@ -168,6 +171,7 @@ class Callbacks {
       t_peer.t_message.add(t_message_class());
       t_peer.t_file.add(t_file_class());
       t_peer.stickers_requested.add([]);
+      t_peer.t_call.add(t_call_class());
     }
   }
 
@@ -304,7 +308,7 @@ class Callbacks {
         scrollcontroller_log_tor.position.pixels == scrollcontroller_log_tor.position.maxScrollExtent) {
       scrollIfBottom(scrollcontroller_log_tor);
     }
-    torx.torx_free_simple(message as Pointer<Void>);
+    torx.torx_free_simple(message);
     message = nullptr;
   }
 
@@ -321,7 +325,7 @@ class Callbacks {
         scrollcontroller_log_torx.position.pixels == scrollcontroller_log_torx.position.maxScrollExtent) {
       scrollIfBottom(scrollcontroller_log_torx);
     }
-    torx.torx_free_simple(error_message as Pointer<Void>);
+    torx.torx_free_simple(error_message);
     error_message = nullptr;
   }
 
@@ -385,9 +389,9 @@ class Callbacks {
         error(0, "Unrecognized unencrypted config setting: $name");
       }
     }
-    torx.torx_free_simple(setting_name as Pointer<Void>);
+    torx.torx_free_simple(setting_name);
     setting_name = nullptr;
-    torx.torx_free_simple(setting_value as Pointer<Void>);
+    torx.torx_free_simple(setting_value);
     setting_value = nullptr;
   }
 
@@ -410,7 +414,7 @@ class Callbacks {
 
   void stream_cb_ui(int n, int p_iter, Pointer<Utf8> data, int data_len) {
     if (data == nullptr || data_len == 0 || n < 0 || p_iter < 0) {
-      torx.torx_free_simple(data as Pointer<Void>);
+      torx.torx_free_simple(data);
       data = nullptr;
       error(0, "Sanity check fail in stream_cb_ui. Possibly due to recursion? $n $p_iter $data_len ${data == nullptr ? "is null" : "is not null"}");
       return;
@@ -419,7 +423,7 @@ class Callbacks {
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     int status = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status"));
     if ((owner == ENUM_OWNER_GROUP_PEER && t_peer.mute[n] != 0) || status == ENUM_STATUS_BLOCKED) {
-      torx.torx_free_simple(data as Pointer<Void>);
+      torx.torx_free_simple(data);
       data = nullptr;
       error(0, "Error 2 in stream_cb_ui");
       return;
@@ -431,9 +435,9 @@ class Callbacks {
         // Old sticker data, do not print or register (such as re-opening peer route)
         error(0, "We already have this sticker data, do not register or print again.");
       } else {
-        Pointer<Uint8> checksum = torx.torx_secure_malloc(CHECKSUM_BIN_LEN) as Pointer<Uint8>;
+        Pointer<Uint8> checksum = torx.torx_secure_malloc(CHECKSUM_BIN_LEN) as Pointer<Uint8>; // free'd by torx_free
         if (torx.b3sum_bin(checksum, nullptr, data as Pointer<Uint8>, CHECKSUM_BIN_LEN, data_len - CHECKSUM_BIN_LEN) != data_len - CHECKSUM_BIN_LEN ||
-            torx.memcmp(checksum as Pointer<Void>, data as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
+            torx.memcmp(checksum, data, CHECKSUM_BIN_LEN) != 0) {
           error(0, "Received bunk sticker data from peer. Checksum failed. Disgarding sticker.");
         } else {
           // Fresh sticker data. Save it and print it
@@ -445,22 +449,64 @@ class Callbacks {
           changeNotifierStickerReady.callback(integer: s);
         }
         int y = 0;
-        while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y] as Pointer<Void>, checksum as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
+        while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y], checksum, CHECKSUM_BIN_LEN) != 0) {
           y++;
         }
         if (y < t_peer.stickers_requested[n].length) {
           // Remove the sticker request
-          torx.torx_free_simple(t_peer.stickers_requested[n][y] as Pointer<Void>);
+          torx.torx_free_simple(t_peer.stickers_requested[n][y]);
           t_peer.stickers_requested[n][y] = nullptr;
           t_peer.stickers_requested[n].removeAt(y);
         }
-        torx.torx_free_simple(checksum as Pointer<Void>);
+        torx.torx_free_simple(checksum);
         checksum = nullptr;
+      }
+    } else if (data_len >= 8 &&
+        (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE ||
+            protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN ||
+            protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE ||
+            protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE)) {
+      Uint8List typecast = (data as Pointer<Uint8>).asTypedList(8);
+      int time = be32toh(typecast);
+      int nstime = be32toh(typecast.sublist(4));
+      printf("Checkpoint received host: $time $nstime");
+      int call_n = n;
+      int call_c = -1;
+      for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
+        if (t_peer.t_call[call_n].start_time[c] == time && t_peer.t_call[call_n].start_nstime[c] == nstime) call_c = c;
+      }
+      if (call_c == -1 && owner == ENUM_OWNER_GROUP_PEER) {
+        // Try group_n instead
+        int g = torx.set_g(n, nullptr);
+        int group_n = torx.getter_group_int(g, offsetof("group", "n"));
+        call_n = group_n;
+        for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
+          if (t_peer.t_call[call_n].start_time[c] == time && t_peer.t_call[call_n].start_nstime[c] == nstime) call_c = c;
+        }
+      }
+      if (call_c == -1 && (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN || protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE)) {
+        // Received offer to join a new call
+        printf("Checkpoint receiving offer to join a new call\n");
+        if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE) call_n = n;
+        call_c = set_c(call_n, time, nstime); // reserve
+        t_peer.t_call[call_n].waiting[call_c] = true;
+        call_peer_joining(call_n, call_c, n);
+      } else if (call_c > -1) {
+        if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE) {
+          printf("Checkpoint stream_cb_ui AAC_AUDIO_STREAM_DATA_DATE time=$time:$nstime data_len=$data_len"); // TODO PLAY IT
+        } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE) {
+          call_peer_leaving(call_n, call_c, n);
+        } else // if(protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN || protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE)
+        {
+          call_peer_joining(call_n, call_c, n);
+        }
+      } else {
+        error(0, "Received a audio stream related message for an unknown call: $time $nstime"); // If DATA, consider sending _LEAVE once. Otherwise it is _LEAVE, so ignore.
       }
     } else {
       error(0, "Unknown stream data received: protocol=$protocol data_len=$data_len");
     }
-    torx.torx_free_simple(data as Pointer<Void>);
+    torx.torx_free_simple(data);
     data = nullptr;
   }
 
@@ -476,7 +522,7 @@ class Callbacks {
     } else {
       error(0, "message_extra_cb received $data_len unknown bytes on protocol $protocol");
     }
-    torx.torx_free_simple(data as Pointer<Void>);
+    torx.torx_free_simple(data);
     data = nullptr;
   }
 

@@ -45,7 +45,7 @@ dependencies:
   intl: ^0.19.0
   flutter_ringtone_player: ^4.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications or audioplayers
   vibration: ^2.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications
-  flutter_local_notifications: ^17.1.2
+  flutter_local_notifications: ^17.1.2 # TODO Crashes due to unmerged https://github.com/MaikuB/flutter_local_notifications/issues/2479 https://github.com/MaikuB/flutter_local_notifications/pull/2481
   permission_handler: ^11.3.1
   percent_indicator: ^4.2.2
   screen_protector: ^1.1.5
