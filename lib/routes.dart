@@ -1063,6 +1063,7 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   Widget CallAccepted(int call_n, int call_c) {
+    int call_n_owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
     return Row(
       spacing: size_medium_icon,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -1093,7 +1094,7 @@ class _RouteChatState extends State<RouteChat> {
               call_update(call_n, call_c);
             },
           ),
-        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty && g > -1)
+        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty && call_n_owner == ENUM_OWNER_GROUP_CTRL) // must be call_n_owner
           IconButton(
             icon: Icon(Icons.group, color: color.torch_off),
             iconSize: size_large_icon,
@@ -1110,6 +1111,30 @@ class _RouteChatState extends State<RouteChat> {
         ),
       ],
     );
+  }
+
+  Widget? CallColumn(int call_n, int call_c) {
+    Widget? row;
+    if (t_peer.t_call[call_n].waiting[call_c]) {
+      row = CallWaiting(call_n, call_c);
+    } else if (t_peer.t_call[call_n].joined[call_c]) {
+      row = CallAccepted(call_n, call_c);
+    }
+    if (row != null) {
+      int call_n_owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
+      if (call_n_owner == ENUM_OWNER_GROUP_PEER) {
+        String peernick = getter_string(call_n, INT_MIN, -1, offsetof("peer", "peernick"));
+        return Column(
+          children: [Text(style: TextStyle(color: color.page_title), peernick), row],
+        );
+      } else {
+        return Column(
+          children: [row],
+        );
+      }
+    } else {
+      return null;
+    }
   }
 
   late Uint8List bytes;
@@ -1439,11 +1464,8 @@ class _RouteChatState extends State<RouteChat> {
                   builder: (BuildContext context, Widget? snapshot) {
                     List<Widget> call_rows = [];
                     for (int c = 0; c < t_peer.t_call[widget.n].joined.length; c++) {
-                      if (t_peer.t_call[widget.n].waiting[c]) {
-                        call_rows.add(CallWaiting(widget.n, c));
-                      } else if (t_peer.t_call[widget.n].joined[c]) {
-                        call_rows.add(CallAccepted(widget.n, c));
-                      }
+                      Widget? column = CallColumn(widget.n, c);
+                      if (column != null) call_rows.add(column);
                     }
                     if (owner == ENUM_OWNER_GROUP_CTRL) {
                       // Iterate through all group peers and add their rows too
@@ -1452,11 +1474,8 @@ class _RouteChatState extends State<RouteChat> {
                       for (int nn = 0; nn < list.length; nn++) {
                         int peer_n = list[nn];
                         for (int c = 0; c < t_peer.t_call[peer_n].joined.length; c++) {
-                          if (t_peer.t_call[peer_n].waiting[c]) {
-                            call_rows.add(CallWaiting(peer_n, c));
-                          } else if (t_peer.t_call[peer_n].joined[c]) {
-                            call_rows.add(CallAccepted(peer_n, c));
-                          }
+                          Widget? column = CallColumn(peer_n, c);
+                          if (column != null) call_rows.add(column);
                         }
                       }
                     }

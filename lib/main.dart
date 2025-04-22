@@ -616,19 +616,26 @@ void call_update(int call_n, int call_c) {
 }
 
 void call_start(int call_n) {
-  Pointer<Time_t> time = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
-  Pointer<Time_t> nstime = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
-  time.value = 0; // must do this or set_time throws error
-  nstime.value = 0; // must do this or set_time throws error
-  torx.set_time(time, nstime);
-  printf(
-      "Checkpoint time=${time.value} nstime=${nstime.value} ${DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch((time.value) * 1000, isUtc: false))}");
-  int c = set_c(call_n, time.value, nstime.value); // TODO casting here might be bad
-  torx.torx_free_simple(time);
-  time = nullptr;
-  torx.torx_free_simple(nstime);
-  nstime = nullptr;
-  call_join(call_n, c);
+  int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
+  int sendfd_connected = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "sendfd_connected"));
+  int recvfd_connected = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "recvfd_connected"));
+  int online = recvfd_connected + sendfd_connected;
+
+  if (owner == ENUM_OWNER_GROUP_CTRL || online > 0) {
+    Pointer<Time_t> time = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
+    Pointer<Time_t> nstime = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
+    time.value = 0; // must do this or set_time throws error
+    nstime.value = 0; // must do this or set_time throws error
+    torx.set_time(time, nstime);
+    printf(
+        "Checkpoint time=${time.value} nstime=${nstime.value} ${DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch((time.value) * 1000, isUtc: false))}");
+    int c = set_c(call_n, time.value, nstime.value); // TODO casting here might be bad
+    torx.torx_free_simple(time);
+    time = nullptr;
+    torx.torx_free_simple(nstime);
+    nstime = nullptr;
+    call_join(call_n, c);
+  }
 }
 
 List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingController? controllerMessage, int n, int i, int s) {
@@ -1063,7 +1070,7 @@ void call_leave_all_except(int except_n, int except_c) {
   // Leave or reject all active calls, except one (or none if -1). To be called primarily when call_join is called, but may also be called for other purposes.
   for (int call_n = 0; torx.getter_byte(call_n, INT_MIN, -1, offsetof("peer", "onion")) != 0; call_n++) {
     int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
-    if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL) {
+    if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
       for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
         if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
           if (call_n != except_n || c != except_c) call_leave(call_n, c);
