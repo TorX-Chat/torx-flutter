@@ -89,8 +89,12 @@ flutter:
 #    - lib/other/tor.x86
 #    - lib/other/tor.armeabi-v7a
 #    - lib/other/tor.arm64-v8a
-    - lib/other/
-    - lib/other/svg/
+#    - lib/other/
+#    - lib/other/svg/
+     - assets/svg/
+     - assets/beep.wav
+
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

@@ -277,16 +277,16 @@ class _CustomPopupMenuItemState<T> extends PopupMenuItemState<T, CustomPopupMenu
 
 // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
-class RoutePopoverList extends StatefulWidget {
+class RoutePopoverGroupList extends StatefulWidget {
   final int type;
   final int g;
-  const RoutePopoverList(this.type, this.g, {super.key});
+  const RoutePopoverGroupList(this.type, this.g, {super.key});
 
   @override
-  State<RoutePopoverList> createState() => _RoutePopoverListState();
+  State<RoutePopoverGroupList> createState() => _RoutePopoverGroupListState();
 }
 
-class _RoutePopoverListState extends State<RoutePopoverList> {
+class _RoutePopoverGroupListState extends State<RoutePopoverGroupList> {
   TextEditingController controllerSearch = TextEditingController();
   String searchText = "";
 
@@ -429,6 +429,110 @@ class _RoutePopoverListState extends State<RoutePopoverList> {
 
 // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
 
+class RoutePopoverParticipantList extends StatefulWidget {
+  final int call_n;
+  final int call_c;
+  const RoutePopoverParticipantList(this.call_n, this.call_c, {super.key});
+
+  @override
+  State<RoutePopoverParticipantList> createState() => _RoutePopoverParticipantListState();
+}
+
+class _RoutePopoverParticipantListState extends State<RoutePopoverParticipantList> {
+  TextEditingController controllerSearch = TextEditingController();
+  String searchText = "";
+
+  double searchWidth = 40;
+  Color searchColor = Colors.transparent;
+  bool searchOpen = false;
+  Widget? suffixIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        backgroundColor: color.right_panel_background,
+        appBar: AppBar(
+          backgroundColor: color.chat_headerbar,
+          title: Text(
+            text.participants,
+            style: TextStyle(color: color.page_title),
+          ),
+        ),
+        body: AnimatedBuilder(
+            animation: changeNotifierPopoverList,
+            builder: (BuildContext context, Widget? snapshot) {
+              return ListView.builder(
+                itemCount: t_peer.t_call[widget.call_n].participating[widget.call_c].length,
+                prototypeItem: const ListTile(
+                  title: Text("This is dummy text used to set height. Can be dropped."),
+                ),
+                itemBuilder: (context, index) {
+                  Color dotColor = ui_statusColor(t_peer.t_call[widget.call_n].participating[widget.call_c][index]);
+                  Icon dot = Icon(Icons.circle, color: dotColor, size: 20);
+                  return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onLongPressStart: (touchDetail) {
+                        //    offs = touchDetail.globalPosition; // does not work, throws error jfwoqiefhwoif
+                        offs = const Offset(0, 0);
+                      },
+                      onTap: () {
+                        printf("Not doing anything here.");
+                      },
+                      onLongPress: () {
+                        showMenu(
+                            context: context,
+                            position: getPosition(context),
+                            items: generate_message_menu(context, controllerMessage, t_peer.t_call[widget.call_n].participating[widget.call_c][index], INT_MIN, -1));
+                      },
+                      child: ListTile(
+                        leading: Badge(
+                          isLabelVisible: true, // TODO have this determined by whether they are currently speaking
+                          child: dot,
+                        ),
+                        title: Text(
+                          getter_string(t_peer.t_call[widget.call_n].participating[widget.call_c][index], INT_MIN, -1, offsetof("peer", "peernick")),
+                          style: TextStyle(color: color.group_or_user_name, fontWeight: FontWeight.bold),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min, // Makes the row wrap tightly around the children
+                          children: [
+                            IconButton(
+                              icon: t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index]
+                                  ? Icon(Icons.mic_off, color: color.torch_off)
+                                  : Icon(Icons.mic, color: color.torch_off),
+                              onPressed: () {
+                                if (t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index]) {
+                                  t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index] = false;
+                                } else {
+                                  t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index] = true;
+                                }
+                                changeNotifierPopoverList.callback(integer: -1);
+                              },
+                            ),
+                            IconButton(
+                              icon: t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index]
+                                  ? Icon(Icons.volume_off, color: color.torch_off)
+                                  : Icon(Icons.volume_up, color: color.torch_off),
+                              onPressed: () {
+                                if (t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index]) {
+                                  t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index] = false;
+                                } else {
+                                  t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index] = true;
+                                }
+                                changeNotifierPopoverList.callback(integer: -1);
+                              },
+                            ),
+                          ],
+                        ),
+                      ));
+                },
+              );
+            }));
+  }
+}
+
+// // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // // //
+
 class RouteImage extends StatefulWidget {
   final String file_path;
   const RouteImage(this.file_path, {super.key});
@@ -451,6 +555,7 @@ class _RouteImageState extends State<RouteImage> {
             // DO NOT WRAP IN A HERO, hero is bunk and can be a disaster if image is corrupt
             imageProvider: FileImage(File(widget.file_path)),
             backgroundDecoration: const BoxDecoration(color: Colors.black),
+            minScale: PhotoViewComputedScale.contained,
           ),
         ),
       ),
@@ -1099,7 +1204,10 @@ class _RouteChatState extends State<RouteChat> {
             icon: Icon(Icons.group, color: color.torch_off),
             iconSize: size_large_icon,
             onPressed: () {
-              printf("TODO: Show a list of participating peers");
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => RoutePopoverParticipantList(call_n, call_c)),
+              );
             },
           ),
         IconButton(
@@ -1229,7 +1337,7 @@ class _RouteChatState extends State<RouteChat> {
                           if (g > -1) {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => RoutePopoverList(ENUM_OWNER_GROUP_PEER, g)),
+                              MaterialPageRoute(builder: (context) => RoutePopoverGroupList(ENUM_OWNER_GROUP_PEER, g)),
                             );
                           }
                         },
@@ -1327,7 +1435,7 @@ class _RouteChatState extends State<RouteChat> {
                           torx.getter_group_uint8(g, offsetof("group", "invite_required")) != 0
                               ? Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => RoutePopoverList(ENUM_OWNER_CTRL, g)),
+                                  MaterialPageRoute(builder: (context) => RoutePopoverGroupList(ENUM_OWNER_CTRL, g)),
                                 )
                               : Navigator.push(
                                   context,

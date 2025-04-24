@@ -101,7 +101,7 @@ bool log_unread = true;
 bool autoFocusKeyboard = true; // GOAT If there are segfaults on pop, this being TRUE is probably why. Other chats we tested don't use it anyway (but it would be nice)
 bool preventScreenshots = true;
 bool autoRunOnBoot = false; // GOAT whether or not to start foreground service on boot (currently useless because our application doesn't start with it) TODO
-const String path_logo = 'lib/other/svg/logo_torx.svg';
+const String path_logo = 'assets/svg/logo_torx.svg';
 // bool cancelAfterReply = true; // cancel notifications after replying (DOES NOT WORK, not important)
 
 int generated_n = -1;
@@ -167,6 +167,8 @@ class t_call_class {
   List<int> start_time = [];
   List<int> start_nstime = [];
   List<List<int>> participating = [[]]; // Participating peers' n
+  List<List<bool>> participant_mic = [[]];
+  List<List<bool>> participant_speaker = [[]];
   List<int> last_played_time = [];
   List<int> last_played_nstime = [];
   // TODO buffer (unsure how to do... we need to store both raw data and its length(?), time, nstime)
@@ -358,7 +360,9 @@ int set_c(int n, int time, int nstime) {
   t_peer.t_call[n].audio_only.add(true);
   t_peer.t_call[n].start_time.add(time);
   t_peer.t_call[n].start_nstime.add(nstime);
-  t_peer.t_call[n].participating.add([]); // TODO
+  t_peer.t_call[n].participating.add([]);
+  t_peer.t_call[n].participant_mic.add([]);
+  t_peer.t_call[n].participant_speaker.add([]);
   t_peer.t_call[n].last_played_time.add(0);
   t_peer.t_call[n].last_played_nstime.add(0);
   return t_peer.t_call[n].joined.length - 1;
@@ -592,6 +596,33 @@ RelativeRect getPosition(context) {
     },
   );
 }*/
+
+//AudioPlayer? ring_pipeline;
+
+void ring_start() {
+  printf("Checkpoint Ring start");
+  Vibration.vibrate(repeat: 1, duration: 30000); // TODO repeat doesn't work so we just set it to vibrate for 30 seconds. phones will be on the floor.
+  FlutterRingtonePlayer().playRingtone(
+    looping: true,
+  ); // TODO just play a loop of beep.wav for now
+  /*
+  if (ring_pipeline != null) return; // already ringing
+  printf("Ring start 2");
+
+  ring_pipeline = AudioPlayer();
+  ring_pipeline?.setReleaseMode(ReleaseMode.loop); // Loop the audio
+  ring_pipeline?.play(AssetSource('beep.wav')); // Must be within assets folder. Alt: DeviceFileSource */
+}
+
+void ring_stop() {
+  printf("Checkpoint Ring stop");
+  Vibration.cancel();
+  FlutterRingtonePlayer().stop();
+/*
+  ring_pipeline?.stop();
+  ring_pipeline?.dispose();
+  ring_pipeline = null;*/
+}
 
 void toggleMute(int n) {
   if (t_peer.mute[n] == 0) {
@@ -952,7 +983,7 @@ void print_message(int n, int i, int scroll) {
             payload: "$n $group_pm",
             flnp: flutterLocalNotificationsPlugin);
         Vibration.vibrate(); // Vibrate regardless of mute setting, if current chat not open or application is not in the foreground
-        FlutterRingtonePlayer().play(looping: false, fromAsset: "lib/other/beep.wav"); // Make sound if not muted
+        FlutterRingtonePlayer().play(looping: false, fromAsset: "assets/beep.wav"); // Make sound if not muted
       }
       t_peer.unread[nn]++;
       if (owner == ENUM_OWNER_GROUP_CTRL) {
@@ -1009,6 +1040,7 @@ void call_join(int n, int c) {
     return;
   }
   call_leave_all_except(n, c);
+  if (t_peer.t_call[n].waiting[c]) ring_stop();
   t_peer.t_call[n].waiting[c] = false;
   t_peer.t_call[n].joined[c] = true;
   int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
@@ -1061,6 +1093,7 @@ void call_leave(int n, int c) {
   }
   torx.torx_free_simple(message);
   message = nullptr;
+  if (t_peer.t_call[n].waiting[c]) ring_stop();
   t_peer.t_call[n].waiting[c] = false;
   t_peer.t_call[n].joined[c] = false;
   call_update(n, c);
@@ -1106,6 +1139,8 @@ void call_peer_joining(int call_n, int c, int peer_n) {
     message = nullptr;
   }
   t_peer.t_call[call_n].participating[c].add(peer_n);
+  t_peer.t_call[call_n].participant_mic[c].add(true); // default, enabled
+  t_peer.t_call[call_n].participant_speaker[c].add(true); // default, enabled
   call_update(call_n, c);
 }
 
@@ -1113,12 +1148,15 @@ void call_peer_leaving(int n, int c, int peer_n) {
   for (int iter = 0; iter < t_peer.t_call[n].participating[c].length; iter++) {
     if (peer_n == t_peer.t_call[n].participating[c][iter]) {
       t_peer.t_call[n].participating[c].removeAt(iter);
+      t_peer.t_call[n].participant_mic[c].removeAt(iter);
+      t_peer.t_call[n].participant_speaker[c].removeAt(iter);
       break;
     }
   }
   int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
   if ((t_peer.t_call[n].joined[c] || t_peer.t_call[n].waiting[c]) && (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_PEER)) {
     // Ending the call if it is non-group
+    if (t_peer.t_call[n].waiting[c]) ring_stop();
     t_peer.t_call[n].joined[c] = false;
     t_peer.t_call[n].waiting[c] = false;
   }

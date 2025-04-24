@@ -246,6 +246,7 @@ class text {
   static String censored_region = "";
   static String invite_friend = "";
   static String group_peers = "";
+  static String participants = "";
   static String save = "";
   static String override = "";
 }
@@ -437,6 +438,7 @@ void initialize_language() {
     text.censored_region = "Censored Region";
     text.invite_friend = "Invite Friend";
     text.group_peers = "Group Peers";
+    text.participants = "Participants";
     text.save = "Save";
     text.override = "Override / Ignore Error";
   } else if (language == "zh" || language == "zh_CN") {
@@ -616,6 +618,7 @@ void initialize_language() {
     text.censored_region = "审查区域";
     text.invite_friend = "邀请好友";
     text.group_peers = "群组成员";
+    text.participants = "参与者";
     text.save = "保存";
     text.override = "覆盖 / 忽略错误";
   } else {

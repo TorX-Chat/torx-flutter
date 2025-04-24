@@ -482,13 +482,14 @@ class Callbacks {
       printf("Checkpoint received host: $time $nstime");
       int call_n = n;
       int call_c = -1;
+      int group_n = -1; // WARNING: ensure initialization
       for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
         if (t_peer.t_call[call_n].start_time[c] == time && t_peer.t_call[call_n].start_nstime[c] == nstime) call_c = c;
       }
       if (call_c == -1 && owner == ENUM_OWNER_GROUP_PEER) {
         // Try group_n instead
         int g = torx.set_g(n, nullptr);
-        int group_n = torx.getter_group_int(g, offsetof("group", "n"));
+        group_n = torx.getter_group_int(g, offsetof("group", "n"));
         call_n = group_n;
         for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
           if (t_peer.t_call[call_n].start_time[c] == time && t_peer.t_call[call_n].start_nstime[c] == nstime) call_c = c;
@@ -501,6 +502,7 @@ class Callbacks {
         call_c = set_c(call_n, time, nstime); // reserve
         t_peer.t_call[call_n].waiting[call_c] = true;
         call_peer_joining(call_n, call_c, n);
+        if ((owner != ENUM_OWNER_GROUP_PEER || t_peer.mute[group_n] == 0) && t_peer.mute[n] == 0) ring_start();
       } else if (call_c > -1) {
         if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE) {
           printf("Checkpoint stream_cb_ui AAC_AUDIO_STREAM_DATA_DATE time=$time:$nstime data_len=$data_len"); // TODO PLAY IT
