@@ -162,15 +162,16 @@ class t_call_class {
   List<bool> waiting = []; // Whether it is awaiting an acceptance/join or has been declined/ignored
   List<bool> mic_on = [];
   List<bool> speaker_on = [];
-  List<bool> speaker_phone = [];
+  List<bool> speaker_phone = []; // TODO utilize
   List<bool> audio_only = [];
   List<int> start_time = [];
   List<int> start_nstime = [];
   List<List<int>> participating = [[]]; // Participating peers' n
   List<List<bool>> participant_mic = [[]];
   List<List<bool>> participant_speaker = [[]];
-  List<int> last_played_time = [];
-  List<int> last_played_nstime = [];
+  List<int> last_played_time = []; // TODO utilize
+  List<int> last_played_nstime = []; // TODO utilize
+  List<int> notification_id = []; // Flutter specific, for killing notifications when call ends
   // TODO buffer (unsure how to do... we need to store both raw data and its length(?), time, nstime)
 }
 
@@ -365,6 +366,7 @@ int set_c(int n, int time, int nstime) {
   t_peer.t_call[n].participant_speaker.add([]);
   t_peer.t_call[n].last_played_time.add(0);
   t_peer.t_call[n].last_played_nstime.add(0);
+  t_peer.t_call[n].notification_id.add(-1);
   return t_peer.t_call[n].joined.length - 1;
 }
 
@@ -413,7 +415,6 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
   void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
     error(0, "Checkpoint restoreState");
     resumptionTasks(); // THIS IS HIGHLY NECESSARY, DO NOT REMOVE. Necessary to re-register callbacks and re-fetch settings from lib.
-    //  if (kDebugMode) Noti.showBigTextNotification(title: 'restoreState', body: '', fln: flutterLocalNotificationsPlugin);
     if (threadsafe_read_global_Uint8("keyed") != 0) {
       setBottomIndex(); // choose landing page
     }
@@ -426,28 +427,23 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       case AppLifecycleState.resumed:
         error(0, "Checkpoint AppLifecycleState.resumed");
         resumptionTasks(); // necessary to remove foreground service
-        //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.resumed', body: '', fln: flutterLocalNotificationsPlugin);
         break;
       case AppLifecycleState.inactive:
         error(0, "Checkpoint AppLifecycleState.inactive");
-        //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.inactive', body: '', fln: flutterLocalNotificationsPlugin);
         break;
       case AppLifecycleState.paused:
         error(0, "Checkpoint AppLifecycleState.paused");
-        //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.paused', body: '', fln: flutterLocalNotificationsPlugin);
         await Noti.startForegroundService(flutterLocalNotificationsPlugin); // 2024/09/22 MUST AWAIT otherwise it won't happen. DO NOT REMOVE AWAIT.
         writeUnread();
         break;
       case AppLifecycleState.detached:
         error(0, "Checkpoint AppLifecycleState.detached");
         // !!! DO NOT PUT ANYTHING OTHER THAN DEBUG PRINT IN HERE (.detached) It will fail and leave errors in android log. !!!
-        //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.detached', body: '', fln: flutterLocalNotificationsPlugin);
         //  flutterLocalNotificationsPlugin.cancelAll();
         //  FlutterForegroundTask.stopService(); // NOTE: this will probably NOT occur and an abandoned foreground service could occur... however torx runs in background so its ok/good
         break;
       case AppLifecycleState.hidden:
         error(0, "Checkpoint AppLifecycleState.hidden");
-        //  if (kDebugMode) Noti.showBigTextNotification(title: 'AppLifecycleState.hidden', body: '', fln: flutterLocalNotificationsPlugin);
         break;
     } // GOAT this switch can be used to do stuff when lifecycle changes occur, but there is a limit. When being detached, its hard to get anything done
     super.didChangeAppLifecycleState(state);
@@ -978,9 +974,10 @@ void print_message(int n, int i, int scroll) {
     if (nn != global_n || globalAppLifecycleState != AppLifecycleState.resumed) {
       if (t_peer.mute[n] == 0 && t_peer.mute[nn] == 0) {
         Noti.showBigTextNotification(
+            id: nn, // ctrl n or group_n, which will now or later be global_n (so we can .cancel)
             title: getter_string(n, INT_MIN, -1, offsetof("peer", "peernick")),
             body: null_terminated_len != 0 ? getter_string(n, i, -1, offsetof("message", "message")) : protocol_string(p_iter, offsetof("protocols", "name")),
-            payload: "$n $group_pm",
+            payload: "message $n $group_pm",
             flnp: flutterLocalNotificationsPlugin);
         Vibration.vibrate(); // Vibrate regardless of mute setting, if current chat not open or application is not in the foreground
         FlutterRingtonePlayer().play(looping: false, fromAsset: "assets/beep.wav"); // Make sound if not muted
@@ -1040,7 +1037,13 @@ void call_join(int n, int c) {
     return;
   }
   call_leave_all_except(n, c);
-  if (t_peer.t_call[n].waiting[c]) ring_stop();
+  if (t_peer.t_call[n].waiting[c]) {
+    ring_stop();
+    if (t_peer.t_call[n].notification_id[c] > -1) {
+      Noti.cancel(t_peer.t_call[n].notification_id[c], flutterLocalNotificationsPlugin);
+      t_peer.t_call[n].notification_id[c] = -1;
+    }
+  }
   t_peer.t_call[n].waiting[c] = false;
   t_peer.t_call[n].joined[c] = true;
   int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
@@ -1069,6 +1072,23 @@ void call_join(int n, int c) {
   call_update(n, c);
 }
 
+void call_ignore(int n, int c) {
+  if (!t_peer.t_call[n].joined[c] && !t_peer.t_call[n].waiting[c]) {
+    error(0, "Sanity check failed in call_ignore. Coding error. Report this.");
+    return;
+  }
+  if (t_peer.t_call[n].waiting[c]) {
+    ring_stop();
+    if (t_peer.t_call[n].notification_id[c] > -1) {
+      Noti.cancel(t_peer.t_call[n].notification_id[c], flutterLocalNotificationsPlugin);
+      t_peer.t_call[n].notification_id[c] = -1;
+    }
+  }
+  t_peer.t_call[n].waiting[c] = false;
+  t_peer.t_call[n].joined[c] = false;
+  call_update(n, c);
+}
+
 void call_leave(int n, int c) {
   if (!t_peer.t_call[n].joined[c] && !t_peer.t_call[n].waiting[c]) {
     error(0, "Sanity check failed in call_leave. Coding error. Report this.");
@@ -1093,10 +1113,7 @@ void call_leave(int n, int c) {
   }
   torx.torx_free_simple(message);
   message = nullptr;
-  if (t_peer.t_call[n].waiting[c]) ring_stop();
-  t_peer.t_call[n].waiting[c] = false;
-  t_peer.t_call[n].joined[c] = false;
-  call_update(n, c);
+  call_ignore(n, c);
 }
 
 void call_leave_all_except(int except_n, int except_c) {
@@ -1156,7 +1173,13 @@ void call_peer_leaving(int n, int c, int peer_n) {
   int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
   if ((t_peer.t_call[n].joined[c] || t_peer.t_call[n].waiting[c]) && (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_PEER)) {
     // Ending the call if it is non-group
-    if (t_peer.t_call[n].waiting[c]) ring_stop();
+    if (t_peer.t_call[n].waiting[c]) {
+      ring_stop();
+      if (t_peer.t_call[n].notification_id[c] > -1) {
+        Noti.cancel(t_peer.t_call[n].notification_id[c], flutterLocalNotificationsPlugin);
+        t_peer.t_call[n].notification_id[c] = -1;
+      }
+    }
     t_peer.t_call[n].joined[c] = false;
     t_peer.t_call[n].waiting[c] = false;
   }

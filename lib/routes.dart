@@ -92,37 +92,55 @@ void response(NotificationResponse notificationResponse) {
     }*/
   String? payload = notificationResponse.payload;
   String? input = notificationResponse.input;
-  if (payload == null || input == null) {
-    printf("Noti fail or user clicked dismiss?");
+  if (payload == null) {
+    printf("Noti fail. UI Coding error. Report this");
     return;
   }
   List<String> parts = payload.split(' ');
-  int n = int.parse(parts[0]);
-  int group_pm = int.parse(parts[1]);
+  if (parts[0] == "message" && input != null) {
+    int n = int.parse(parts[1]);
+    int group_pm = int.parse(parts[2]);
 //    printf("Checkpoint notification response: $n $group_pm ${notificationResponse.input}");
-  Pointer<Utf8> message = input.toNativeUtf8(); // free'd by calloc.free
-  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
-  if (group_pm != 0) {
-    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message, message.length);
-  } else if (owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
-    int g = torx.set_g(n, nullptr);
-    int g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
-    int group_n = torx.getter_group_int(g, offsetof("group", "n"));
-    if (g_invite_required != 0) {
-      // date && sign private group messages
-      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message, message.length);
+    Pointer<Utf8> message = input.toNativeUtf8(); // free'd by calloc.free
+    int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+    if (group_pm != 0) {
+      torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT_PRIVATE, message, message.length);
+    } else if (owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
+      int g = torx.set_g(n, nullptr);
+      int g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
+      int group_n = torx.getter_group_int(g, offsetof("group", "n"));
+      if (g_invite_required != 0) {
+        // date && sign private group messages
+        torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT_DATE_SIGNED, message, message.length);
+      } else {
+        torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
+      }
     } else {
-      torx.message_send(group_n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
+      torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
     }
+    if (message != nullptr) {
+      calloc.free(message);
+      message = nullptr;
+    }
+    /*  if (notificationResponse.id != null) {
+      printf("Checkpoint closing ${notificationResponse.id}");
+      Noti.cancel(notificationResponse.id!, flutterLocalNotificationsPlugin); // Does not work. Cannot close after a reply is sent for unknown reason.
+    } */
+  } else if (parts[0] == "call" && notificationResponse.actionId != null) {
+    String response = notificationResponse.actionId!;
+    int call_n = int.parse(parts[1]);
+    int call_c = int.parse(parts[2]);
+    if (response == "accept") {
+      call_join(call_n, call_c);
+    } else if (response == "reject") {
+      call_leave(call_n, call_c);
+    } else if (response == "ignore") {
+      call_ignore(call_n, call_c);
+    }
+    changeNotifierDrag.callback(integer: -1);
   } else {
-    torx.message_send(n, ENUM_PROTOCOL_UTF8_TEXT, message, message.length);
+    error(0, "UI issue in response function. Coding error. Report this.");
   }
-  if (message != nullptr) {
-    calloc.free(message);
-    message = nullptr;
-  }
-  //   Noti.cancel(notificationResponse.id!); // Does not work, either due to isolate or unknown other reason
-  // GOAT how can these notification IDs be stored in the proper isolate so that they can be individually closed if going to the N's RouteChat? low priority
 }
 
 class Noti {
@@ -153,17 +171,18 @@ class Noti {
     }
   }
 
-  static dynamic showBigTextNotification({var id = 0, required String title, required String body, String? payload, required FlutterLocalNotificationsPlugin flnp}) {
+  static dynamic showBigTextNotification({var id = 0, required String title, required String body, required String payload, required FlutterLocalNotificationsPlugin flnp}) {
+    List<String> parts = payload.split(' ');
     if (notificationsInitialized) {
       AndroidNotificationDetails
           androidPlatformChannelSpecifics = // GOAT use payload as GroupKey, so that messages are grouped per user (does not work. also changing 'channelId' to payload does not work.)
           AndroidNotificationDetails('jykliDPA9dbXfvX', 'Message Notifier',
-              ongoing: false, // true prevents swipe dismiss in android 13/14
+              ongoing: /*parts[0] == "call" ? true :*/ false, // true prevents swipe dismiss in android 13/14, also causes other issues
               enableLights: true,
               ledOnMs: 2000,
               ledOffMs: 10000,
               ledColor: Colors.pink,
-              groupKey: "message", // ( all messages grouped )
+              groupKey: "message $id", // ( all messages grouped by...) NOTE: Calls are set with a random ID, will not be grouped.
               playSound: false,
               enableVibration: false,
               importance: Importance.high,
@@ -171,12 +190,15 @@ class Noti {
               color: Colors.red,
               actions: [
             // GOAT showsUserInterface resumes the application to the foreground before sending, to run on the main isolate. To disable this, we have to implement a messaging mechanism to communicate with the main isolate.
-            if (payload != null)
+            if (parts[0] == "message")
               AndroidNotificationAction('reply', text.reply,
                   /*cancelNotification: cancelAfterReply, titleColor: Colors.green,*/ contextual: false,
                   showsUserInterface: true /*DO NOT SET FALSE Interprocess communication does not work, even using ReceivePort*/,
                   inputs: [const AndroidNotificationActionInput()]),
             //    AndroidNotificationAction('dismiss', text.dismiss, cancelNotification: true) // does NOT work
+            if (parts[0] == "call") AndroidNotificationAction('accept', text.accept, contextual: false, showsUserInterface: true, inputs: []),
+            if (parts[0] == "call") AndroidNotificationAction('reject', text.reject, contextual: false, showsUserInterface: true, inputs: []),
+            if (parts[0] == "call") AndroidNotificationAction('ignore', text.ignore, contextual: false, showsUserInterface: true, inputs: []),
           ]);
       flnp.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
     } else {
@@ -1962,6 +1984,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
           ),
           onTap: () {
             global_n = list[index];
+            Noti.cancel(global_n, flutterLocalNotificationsPlugin);
             if (t_peer.unread[list[index]] > 0) {
               //    printf("Checkpoint unreads to wipe");
               int owner = torx.getter_uint8(list[index], INT_MIN, -1, offsetof("peer", "owner"));

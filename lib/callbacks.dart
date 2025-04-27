@@ -62,6 +62,7 @@ severable if found in contradiction with the License or applicable law.
 // ignore_for_file: non_constant_identifier_names, camel_case_types
 
 import 'dart:ffi';
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
@@ -497,12 +498,20 @@ class Callbacks {
       }
       if (call_c == -1 && (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN || protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE)) {
         // Received offer to join a new call
-        printf("Checkpoint receiving offer to join a new call\n");
         if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE) call_n = n;
         call_c = set_c(call_n, time, nstime); // reserve
         t_peer.t_call[call_n].waiting[call_c] = true;
         call_peer_joining(call_n, call_c, n);
-        if ((owner != ENUM_OWNER_GROUP_PEER || t_peer.mute[group_n] == 0) && t_peer.mute[n] == 0) ring_start();
+        if ((owner != ENUM_OWNER_GROUP_PEER || t_peer.mute[group_n] == 0) && t_peer.mute[call_n] == 0) {
+          t_peer.t_call[call_n].notification_id[call_c] = Random().nextInt(99999999) + 10000; // minimum 10,000 to not conflict with n values
+          Noti.showBigTextNotification(
+              id: t_peer.t_call[call_n].notification_id[call_c],
+              title: text.incoming_call,
+              body: getter_string(call_n, INT_MIN, -1, offsetof("peer", "peernick")),
+              payload: "call $call_n $call_c",
+              flnp: flutterLocalNotificationsPlugin);
+          ring_start();
+        }
       } else if (call_c > -1) {
         if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE) {
           printf("Checkpoint stream_cb_ui AAC_AUDIO_STREAM_DATA_DATE time=$time:$nstime data_len=$data_len"); // TODO PLAY IT
