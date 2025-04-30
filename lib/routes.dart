@@ -2597,16 +2597,16 @@ class _RouteHomeState extends State<RouteHome> {
 
   @override
   Widget build(BuildContext context) {
-    if (dtCurrentType == ENUM_OWNER_CTRL) {
-      buttonTextDelete = text.reject;
-    } else {
-      buttonTextDelete = text.delete;
-    }
     return PopScope(
         onPopInvoked: (didPop) {},
         child: AnimatedBuilder(
             animation: changeNotifierDataTables,
             builder: (BuildContext context, Widget? snapshot) {
+              if (dtCurrentType == ENUM_OWNER_CTRL) {
+                buttonTextDelete = text.reject;
+              } else {
+                buttonTextDelete = text.delete;
+              }
               return Scaffold(
                 backgroundColor: color.right_panel_background,
                 appBar: AppBar(
