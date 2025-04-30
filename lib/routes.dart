@@ -138,6 +138,19 @@ void response(NotificationResponse notificationResponse) {
       call_ignore(call_n, call_c);
     }
     changeNotifierDrag.callback(integer: -1);
+  } else if (parts[0] == "friend_request" && notificationResponse.actionId != null) {
+    String response = notificationResponse.actionId!;
+    int peer_n = int.parse(parts[1]);
+    if (response == "accept") {
+      totalIncoming--;
+      torx.peer_accept(peer_n);
+    } else if (response == "reject") {
+      totalIncoming--;
+      int peer_index = torx.getter_int(peer_n, INT_MIN, -1, offsetof("peer", "peer_index"));
+      torx.takedown_onion(peer_index, 1);
+    }
+    changeNotifierTotalIncoming.callback(integer: totalIncoming);
+    changeNotifierDataTables.callback(integer: peer_n);
   } else {
     error(0, "UI issue in response function. Coding error. Report this.");
   }
@@ -196,8 +209,8 @@ class Noti {
                   showsUserInterface: true /*DO NOT SET FALSE Interprocess communication does not work, even using ReceivePort*/,
                   inputs: [const AndroidNotificationActionInput()]),
             //    AndroidNotificationAction('dismiss', text.dismiss, cancelNotification: true) // does NOT work
-            if (parts[0] == "call") AndroidNotificationAction('accept', text.accept, contextual: false, showsUserInterface: true, inputs: []),
-            if (parts[0] == "call") AndroidNotificationAction('reject', text.reject, contextual: false, showsUserInterface: true, inputs: []),
+            if (parts[0] == "call" || parts[0] == "friend_request") AndroidNotificationAction('accept', text.accept, contextual: false, showsUserInterface: true, inputs: []),
+            if (parts[0] == "call" || parts[0] == "friend_request") AndroidNotificationAction('reject', text.reject, contextual: false, showsUserInterface: true, inputs: []),
             if (parts[0] == "call") AndroidNotificationAction('ignore', text.ignore, contextual: false, showsUserInterface: true, inputs: []),
           ]);
       flnp.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
@@ -2902,6 +2915,10 @@ class _widget_route_generateState extends State<widget_route_generate> {
                   bool_fill_peeronion = true; // indicates error / required field not filled
                   changeNotifierInvalidEntry.callback(integer: -1);
                 } else {
+                  if (bool_fill_peeronion) {
+                    bool_fill_peeronion = false;
+                    changeNotifierInvalidEntry.callback(integer: -1); // necessary, even with .clear
+                  }
                   entryAddPeeronionController.clear();
                   entryAddPeernickController.clear();
                 }
@@ -3069,7 +3086,6 @@ class _RouteAddState extends State<RouteAdd> with TickerProviderStateMixin {
 
   TextEditingController entryAddPeernickController = TextEditingController(); // added
   TextEditingController entryAddGeneratePeernickController = TextEditingController();
-  bool bool_fill_peeronion = false;
 
   @override
   Widget build(BuildContext context) {

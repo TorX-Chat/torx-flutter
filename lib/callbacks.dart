@@ -66,7 +66,6 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
-import 'package:flutter/material.dart';
 import 'change_notifiers.dart';
 import 'colors.dart';
 import 'language.dart';
@@ -221,25 +220,8 @@ class Callbacks {
       error(0, "nullptr in cb_type 8a");
       return;
     }
-    // GOAT does this banner even work? could probably give a notification here instead, with Accept/Reject options
-    MaterialBanner(
-      content: Text("$peernick\n${text.new_friend}"),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.thumb_up),
-          onPressed: () {
-            torx.peer_accept(n);
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.thumb_down),
-          onPressed: () {
-            int peer_index = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "peer_index"));
-            torx.takedown_onion(peer_index, 1);
-          },
-        ),
-      ],
-    );
+    Noti.showBigTextNotification(
+        id: n, title: getter_string(n, INT_MIN, -1, offsetof("peer", "peernick")), body: text.new_friend, payload: "friend_request $n", flnp: flutterLocalNotificationsPlugin);
   }
 
   void onion_deleted_cb_ui(int owner, int n) {
@@ -247,6 +229,7 @@ class Callbacks {
     changeNotifierDataTables.callback(integer: owner);
     // GOAT check if ctrl before updating chatlist
     changeNotifierChatList.callback(integer: owner);
+    Noti.cancel(n, flutterLocalNotificationsPlugin); // cancel all related notifications, whether PEER (friend_request) or CTRL (message).
     if (generated_n > -1) {
       String generated = getter_string(generated_n, INT_MIN, -1, offsetof("peer", "onion"));
       if (generated.startsWith('000000')) {
@@ -276,6 +259,18 @@ class Callbacks {
   }
 
   void peer_loaded_cb_ui(int n) {
+    int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+    if (owner == ENUM_OWNER_CTRL) {
+      int status = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status"));
+      if (status == ENUM_STATUS_PENDING) {
+        totalIncoming++;
+        if (launcherBadges) {
+          AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+        }
+        changeNotifierTotalIncoming.callback(integer: totalIncoming);
+        changeNotifierDataTables.callback(integer: n);
+      }
+    }
     peer_online_cb_ui(n);
   }
 
