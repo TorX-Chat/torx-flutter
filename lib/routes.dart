@@ -1494,10 +1494,10 @@ class _RouteChatState extends State<RouteChat> {
                         onTap: () {
                           // DO NOT SET STATE HERE because its all zeros. We should popuntil instead
                           toggleKill(widget.n);
-                          int count = 0;
-                          Navigator.popUntil(context, (route) {
-                            return count++ == 2;
-                          });
+                          /*    int count = 0;
+                                Navigator.popUntil(context, (route) {
+                                  return count++ == 2;
+                                }); */
                           //        Navigator.of(context).popUntil(ModalRoute.withName("/RouteChatList"));
                         },
                       ),
@@ -1514,10 +1514,10 @@ class _RouteChatState extends State<RouteChat> {
                       onTap: () {
                         // DO NOT SET STATE HERE because its all zeros. We should popuntil instead
                         toggleDelete(widget.n);
-                        int count = 0;
-                        Navigator.popUntil(context, (route) {
-                          return count++ == 2;
-                        });
+                        /*    int count = 0;
+                              Navigator.popUntil(context, (route) {
+                                return count++ == 2;
+                              }); */
                         //      Navigator.of(context).popUntil(ModalRoute.withName("/RouteChatList"));
                       },
                     ),

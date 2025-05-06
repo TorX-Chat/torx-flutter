@@ -230,12 +230,13 @@ class Callbacks {
     // GOAT check if ctrl before updating chatlist
     changeNotifierChatList.callback(integer: owner);
     Noti.cancel(n, flutterLocalNotificationsPlugin); // cancel all related notifications, whether PEER (friend_request) or CTRL (message).
-    if (generated_n > -1) {
-      String generated = getter_string(generated_n, INT_MIN, -1, offsetof("peer", "onion"));
-      if (generated.startsWith('000000')) {
-        changeNotifierOnionReady.callback(integer: -1);
-        entryAddGenerateOutputController.clear();
-      }
+    if (generated_n == n) {
+      generated_n = -1;
+      changeNotifierOnionReady.callback(integer: -1);
+      entryAddGenerateOutputController.clear();
+    }
+    if (n == global_n) {
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
     }
   }
 

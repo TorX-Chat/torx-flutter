@@ -88,6 +88,8 @@ import 'package:screen_protector/screen_protector.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:vibration/vibration.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 /* Global Variables */
 int current_index = 0;
 int global_n = -1; // for current RouteChat
@@ -455,6 +457,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
     Callbacks().build_times++;
     initialization_functions(context);
     return MaterialApp(
+        navigatorKey: navigatorKey,
         restorationScopeId: 'app',
         title: text.title,
         theme: ThemeData(
