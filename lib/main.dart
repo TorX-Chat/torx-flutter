@@ -245,7 +245,7 @@ void resumptionTasks() {
   if (threadsafe_read_global_Uint8("keyed") > 0) {
     if (!callbacks_registered) {
       register_callbacks(); // NECESSARY to call again, in case .detach occured
-      torx.re_expand_callbacks();
+      torx.re_expand_callbacks(); // NOTE: Prior to this, need to initialize 0-10 of everything, which we have done statically in Flutter
       torx.sql_populate_setting(1); // re-load plaintext settings to get UI settings
       torx.sql_populate_setting(0); // re-load settings to get UI settings and stickers, etc
     }
@@ -879,6 +879,23 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
   ];
 }
 
+void reset_unread(int n) {
+  if (t_peer.unread[n] > 0) {
+    int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+    if (owner == ENUM_OWNER_GROUP_CTRL) {
+      totalUnreadGroup -= t_peer.unread[n];
+    } else {
+      totalUnreadPeer -= t_peer.unread[n];
+    }
+    t_peer.unread[n] = 0;
+    if (launcherBadges) {
+      AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+    }
+    changeNotifierChatList.callback(integer: n); // TODO is this duplicating?
+    changeNotifierTotalUnread.callback(integer: -1);
+  }
+}
+
 void print_message(int n, int i, int scroll) {
   if (n < 0 || i == INT_MIN) {
     error(0, "Sanity checkfailed in print_message");
@@ -1012,20 +1029,7 @@ void print_message(int n, int i, int scroll) {
       nn = torx.getter_group_int(g, offsetof("group", "n"));
       owner = ENUM_OWNER_GROUP_CTRL;
     }
-    if (t_peer.unread[nn] > 0) {
-      if (owner == ENUM_OWNER_GROUP_CTRL) {
-        totalUnreadGroup -= t_peer.unread[nn];
-      } else {
-        totalUnreadPeer -= t_peer.unread[nn];
-      }
-
-      t_peer.unread[nn] = 0;
-      if (launcherBadges) {
-        AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
-      }
-      changeNotifierChatList.callback(integer: -1); // TODO is this duplicating below?
-      changeNotifierTotalUnread.callback(integer: -1);
-    }
+    reset_unread(nn);
   }
   changeNotifierMessage.callback(n: n, i: i, scroll: scroll);
   int max_i = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "max_i"));

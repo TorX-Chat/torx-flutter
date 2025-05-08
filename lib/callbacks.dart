@@ -96,8 +96,10 @@ class Callbacks {
   }
 
   int build_times = 0;
+  bool verbose = false;
 
   void initialize_n_cb_ui(int n) {
+    if (verbose) printf("Checkpoint initialize_n_cb_ui n=$n");
     t_peer.unsent[n] = "";
     t_peer.mute[n] = 0;
     t_peer.unread[n] = 0;
@@ -111,19 +113,23 @@ class Callbacks {
   }
 
   void initialize_i_cb_ui(int n, int i) {
+    if (verbose) printf("Checkpoint initialize_i_cb_ui n=$n i=$i");
     t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 1;
   }
 
   void initialize_f_cb_ui(int n, int f) {
+    if (verbose) printf("Checkpoint initialize_f_cb_ui n=$n f=$f");
     t_peer.t_file[n].changeNotifierTransferProgress[f] = ChangeNotifierTransferProgress();
     t_peer.t_file[n].previously_completed[f] = 0;
   }
 
   void initialize_g_cb_ui(int g) {
+    if (verbose) printf("Checkpoint initialize_g_cb_ui g=$g");
     /* currently null */
   }
 
   void shrinkage_cb_ui(int n, int shrinkage) {
+    if (verbose) printf("Checkpoint shrinkage_cb_ui n=$n shrinkage=$shrinkage");
     if (shrinkage != 0) {
       List<int> tmp = [];
       for (int iter = 0; iter < t_peer.t_message[n].unheard.length - shrinkage.abs(); iter++) {
@@ -144,6 +150,7 @@ class Callbacks {
   }
 
   void expand_file_struc_cb_ui(int n, int f) {
+    if (verbose) printf("Checkpoint expand_file_struc_cb_ui n=$n f=$f");
     for (int i = 0; i < 10; i++) {
       t_peer.t_file[n].changeNotifierTransferProgress.add(ChangeNotifierTransferProgress());
       t_peer.t_file[n].previously_completed.add(0);
@@ -151,6 +158,7 @@ class Callbacks {
   }
 
   void expand_message_struc_cb_ui(int n, int i) {
+    if (verbose) printf("Checkpoint expand_message_struc_cb_ui n=$n i=$i");
     if (i > -1) {
       for (int ii = 0; ii < 10; ii++) {
         t_peer.t_message[n].unheard.add(1);
@@ -162,6 +170,7 @@ class Callbacks {
   }
 
   void expand_peer_struc_cb_ui(int n) {
+    if (verbose) printf("Checkpoint expand_peer_struc_cb_ui n=$n");
     for (int i = 0; i < 10; i++) {
       t_peer.unsent.add("");
       t_peer.mute.add(0);
@@ -177,10 +186,12 @@ class Callbacks {
   }
 
   void expand_group_struc_cb_ui(int g) {
+    if (verbose) printf("Checkpoint expand_group_struc_cb_ui g=$g");
     /* currently null */
   }
 
   void transfer_progress_cb_ui(int n, int f, int transferred) {
+    if (verbose) printf("Checkpoint transfer_progress_cb_ui n=$n f=$f transferred=$transferred");
     int size = torx.getter_uint64(n, INT_MIN, f, offsetof("file", "size"));
     int file_status = torx.file_status_get(n, f);
     if (t_peer.t_file[n].previously_completed[f] == 0 && (file_status == ENUM_FILE_INACTIVE_COMPLETE || transferred == size)) {
@@ -194,6 +205,7 @@ class Callbacks {
   }
 
   void change_password_cb_ui(int value) {
+    if (verbose) printf("Checkpoint change_password_cb_ui value=$value");
     if (value == 0 || value == -1) {
       controllerPassOld.clear();
       controllerPassNew.clear();
@@ -209,6 +221,7 @@ class Callbacks {
   }
 
   void incoming_friend_request_cb_ui(int n) {
+    if (verbose) printf("Checkpoint incoming_friend_request_cb_ui n=$n");
     totalIncoming++;
     if (launcherBadges) {
       AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
@@ -225,6 +238,7 @@ class Callbacks {
   }
 
   void onion_deleted_cb_ui(int owner, int n) {
+    if (verbose) printf("Checkpoint onion_deleted_cb_ui owner=$owner n=$n");
     initialize_n_cb_ui(n);
     changeNotifierDataTables.callback(integer: owner);
     // GOAT check if ctrl before updating chatlist
@@ -241,6 +255,7 @@ class Callbacks {
   }
 
   void peer_online_cb_ui(int n) {
+    if (verbose) printf("Checkpoint peer_online_cb_ui n=$n");
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (n == global_n || owner == ENUM_OWNER_GROUP_PEER) {
       changeNotifierOnlineOffline.callback(integer: n);
@@ -249,6 +264,7 @@ class Callbacks {
   }
 
   void peer_offline_cb_ui(int n) {
+    if (verbose) printf("Checkpoint peer_offline_cb_ui n=$n");
     int sendfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "sendfd_connected"));
     int recvfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "recvfd_connected"));
     int online = recvfd_connected + sendfd_connected;
@@ -260,6 +276,7 @@ class Callbacks {
   }
 
   void peer_loaded_cb_ui(int n) {
+    if (verbose) printf("Checkpoint peer_loaded_cb_ui A n=$n");
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_CTRL) {
       int status = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status"));
@@ -272,16 +289,19 @@ class Callbacks {
         changeNotifierDataTables.callback(integer: n);
       }
     }
-    peer_online_cb_ui(n);
+    changeNotifierChatList.callback(integer: n);
+    if (verbose) printf("Checkpoint peer_loaded_cb_ui B n=$n");
   }
 
   void peer_new_cb_ui(int n) {
+    if (verbose) printf("Checkpoint peer_new_cb_ui n=$n");
     changeNotifierOnlineOffline.callback(integer: n); // especially for groups
     changeNotifierChatList.callback(integer: n);
     changeNotifierDataTables.callback(integer: n);
   }
 
   void onion_ready_cb_ui(int n) {
+    if (verbose) printf("Checkpoint onion_ready_cb_ui n=$n");
     String onion = getter_string(n, INT_MIN, -1, offsetof("peer", "onion"));
     String torxid = getter_string(n, INT_MIN, -1, offsetof("peer", "torxid"));
     if (torxid.isEmpty || onion.isEmpty) {
@@ -299,6 +319,7 @@ class Callbacks {
   }
 
   void cleanup_cb_ui(int sig_num) {
+    if (verbose) printf("Checkpoint cleanup_cb_ui sig_num=$sig_num");
     cleanup_idle(sig_num);
   }
 
@@ -306,6 +327,7 @@ class Callbacks {
     if (message == nullptr) {
       return;
     }
+    if (verbose) printf("Checkpoint tor_log_cb_ui: $message");
     torLogBuffer = torLogBuffer + message.toDartString();
     changeNotifierTorLog.callback(string: message.toDartString());
     if (scrollcontroller_log_tor.hasClients &&
@@ -321,6 +343,7 @@ class Callbacks {
     if (error_message == nullptr) {
       return;
     }
+    if (verbose) printf("Checkpoint error_cb_ui: $error_message");
     String message_string = error_message.toDartString();
     printf(message_string);
     torxLogBuffer = torxLogBuffer + message_string;
@@ -342,6 +365,7 @@ class Callbacks {
     if (setting_name == nullptr || setting_value == nullptr) {
       return;
     }
+    if (verbose) printf("Checkpoint custom_setting_cb_ui n=$n name=$setting_name value=$setting_value len=$setting_value_len plain=$plaintext");
     String name = setting_name.toDartString();
     if (plaintext == 0) {
       // Only considering encrypted/non-cleartext
@@ -403,14 +427,17 @@ class Callbacks {
   }
 
   void message_new_cb_ui(int n, int i) {
+    if (verbose) printf("Checkpoint message_new_cb_ui n=$n i=$i");
     print_message(n, i, 1);
   }
 
   void message_modified_cb_ui(int n, int i) {
+    if (verbose) printf("Checkpoint message_modified_cb_ui n=$n i=$i");
     print_message(n, i, 2);
   }
 
   void message_deleted_cb_ui(int n, int i) {
+    if (verbose) printf("Checkpoint message_deleted_cb_ui n=$n i=$i");
     // XXX WARNING: DO NOT ACCESS .message STRUCT due to shrinkage possibly having occurred
     changeNotifierMessage.callback(n: n, i: i, scroll: 3);
     int max_i = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "max_i"));
@@ -420,6 +447,7 @@ class Callbacks {
   }
 
   void stream_cb_ui(int n, int p_iter, Pointer<Utf8> data, int data_len) {
+    if (verbose) printf("Checkpoint stream_cb_ui n=$n p_iter=$p_iter");
     if (data == nullptr || data_len == 0 || n < 0 || p_iter < 0) {
       torx.torx_free_simple(data);
       data = nullptr;
@@ -528,6 +556,7 @@ class Callbacks {
   }
 
   void message_extra_cb_ui(int n, int i, Pointer<Utf8> data, int data_len) {
+    if (verbose) printf("Checkpoint message_extra_cb_ui n=$n i=$i");
     int p_iter = torx.getter_int(n, i, -1, offsetof("message", "p_iter"));
     if (p_iter < 0) {
       error(0, "message_extra_cb_ui hit a negative p_iter. Coding error. Report this.");
@@ -544,10 +573,12 @@ class Callbacks {
   }
 
   void message_more_cb_ui(int loaded, Pointer<Int> loaded_array_n, Pointer<Int> loaded_array_i) {
+    if (verbose) printf("Checkpoint message_more_cb_ui loaded=$loaded");
     //  printf("Checkpoint message_more_cb_ui is currently non-op. See around call to message_load_more.");
   }
 
   void login_cb_ui(int value) {
+    if (verbose) printf("Checkpoint login_cb_ui value=$value");
     login_failed = true;
     changeNotifierLogin.callback(integer: value);
   }
