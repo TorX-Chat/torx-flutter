@@ -50,15 +50,15 @@ else()
 	set(REPO_TORX "https://github.com/TorX-Chat/libtorx/")
 endif()
 
-set(JNILIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI})
-set(REQUIRED_LIBS "libevent_core-2.2.so" "libevent_pthreads-2.2.so" "libsodium.so" "libsqlcipher.so" "libpng16.so" )
-foreach(LIB ${REQUIRED_LIBS}) # WARNING: This will NOT be re-evaluated every rebuild. This just allows dropping in of .so into JNILIBS_DIR for faster builds.
-	if(NOT EXISTS "${JNILIBS_DIR}/${LIB}")
+set(JNILIBS_LIST _deps/event-build/lib/libevent_pthreads-2.2.so _deps/event-build/lib/libevent_core-2.2.so sodium-download-prefix/src/sodium-download/src/libsodium/.libs/libsodium.so _deps/png-build/libpng16.so sqlcipher-download-prefix/src/sqlcipher-download/.libs/libsqlcipher.so) # REMOVED: openssl-download-prefix/src/openssl-download/libcrypto_1_1.so openssl-download-prefix/src/openssl-download/libssl_1_1.so
+foreach(LIB ${JNILIBS_LIST}) # WARNING: This will NOT be re-evaluated every rebuild.
+	if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/torx-prefix/src/torx-build/${LIB}")
 		set(BUILD_TORX_DEPS 1) ### NOTE: For some reason, MUST be ENV here but $ENV elsewhere
 	endif()
 endforeach()
 
-set(ANDROID_VERSION 21) ## find a way to set this properly from env variables, or ANDROID_PLATFORM (is an int), or ANDROID_API_LEVEL (i think also int?? not sure tho) #set(CMAKE_SYSTEM_VERSION 21) # TODO NOT WORKING in our dependancy builds. Defaulting to 1. use __ANDROID_MIN_SDK_VERSION__ ?
+
+string(REGEX REPLACE "[^0-9]" "" ANDROID_VERSION "${ANDROID_PLATFORM}") ## Sets ANDROID_VERSION from what we set in build.gradle
 set(ANDROID_PLATFORM ${ANDROID_VERSION})
 if("${ANDROID_ABI}" STREQUAL "arm64-v8a")
 	set(TOR_PLATFORM aarch64-linux-android )
@@ -89,7 +89,7 @@ set(CLANGPP_BINARY ${BINARY_PREFIX}-linux-android${ANDROID_VERSION_STR}-clang++)
 set(CLANG_BINARY_PATH ${BINARY_PATH}${CLANG_BINARY})
 set(CLANGPP_BINARY_PATH ${BINARY_PATH}${CLANGPP_BINARY})
 set(CUSTOM_ARGS_FLUTTER -DCMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME} -DCMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION} -DCLANG_BINARY=${CLANG_BINARY} -DCLANGPP_BINARY=${CLANGPP_BINARY} -DCLANG_BINARY_PATH=${CLANG_BINARY_PATH} -DCLANGPP_BINARY_PATH=${CLANGPP_BINARY_PATH} -DANDROID_ABI=${ANDROID_ABI} -DANDROID_PLATFORM=${ANDROID_PLATFORM} -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ABI} -DCMAKE_ANDROID_NDK=${CMAKE_ANDROID_NDK} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
-set(JNILIBS_LIST _deps/event-build/lib/libevent_pthreads-2.2.so _deps/event-build/lib/libevent_core-2.2.so sodium-download-prefix/src/sodium-download/src/libsodium/.libs/libsodium.so _deps/png-build/libpng16.so sqlcipher-download-prefix/src/sqlcipher-download/.libs/libsqlcipher.so) # REMOVED: openssl-download-prefix/src/openssl-download/libcrypto_1_1.so openssl-download-prefix/src/openssl-download/libssl_1_1.so
+set(JNILIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI})
 ################################################################################################################################################################
 ################################################################################################################################################################
 ################################################################################################################################################################

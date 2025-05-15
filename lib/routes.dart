@@ -1280,7 +1280,7 @@ class _RouteChatState extends State<RouteChat> {
     }
   }
 
-  late Uint8List bytes;
+  Uint8List bytes = Uint8List(0);
   bool show_keyboard = true;
   bool currently_recording = false;
   final record = AudioRecorder();
@@ -1695,33 +1695,41 @@ class _RouteChatState extends State<RouteChat> {
                                           child: GestureDetector(
                                               behavior: HitTestBehavior.opaque,
                                               onLongPressDown: (yes) async {
-                                                printf("Check recording permission");
                                                 if (await record.hasPermission()) {
-                                                  printf("Start recording");
+                                                  printf("Checkpoint starting recording");
                                                   currently_recording = true;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+                                                  start_time = DateTime.now().millisecondsSinceEpoch;
+
+                                                  /*  DEPRECIATED now that streaming works:
                                                   String path = "$temporaryDir/myFile.m4a";
                                                   File(path).writeAsBytesSync([]);
-                                                  start_time = DateTime.now().millisecondsSinceEpoch;
-                                                  record.start(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true), path: path);
-                                                  /*  final List<Uint8List> recordedDataChunks = [];
-                                                  final stream = await record.startStream(const RecordConfig(encoder: AudioEncoder.aacEld, noiseSuppress: true, echoCancel: true));
+                                                   record.start(
+                                                      const RecordConfig(encoder: AudioEncoder.aacEld, sampleRate: 16000, numChannels: 1, noiseSuppress: true, echoCancel: true),
+                                                      path: path); */
+
+                                                  final List<Uint8List> recordedDataChunks = [];
+                                                  final stream = await record.startStream(const RecordConfig(
+                                                      encoder: AudioEncoder.aacLc,
+                                                      sampleRate: 16000,
+                                                      numChannels: 2 /* 2 is much louder than 1 */,
+                                                      noiseSuppress: true,
+                                                      echoCancel: true));
                                                   stream.listen(
-                                                    // TODO must be pcm16bits or .listen doesn't work... however PCM cannot be played later
                                                     (data) {
-                                                      printf("Need to concat the data here");
-                                                      //    blank.addAll(record.convertBytesToInt16(Uint8List.fromList(data)));
-                                                      //  recordedDataChunks.add(data);
+                                                      //      final aptitude = await record.getAmplitude();
+                                                      //    if (aptitude.current > -10) {
+                                                      //    printf("Checkpoint Aptitude: ${aptitude.current} data_len=${data.length}");
+                                                      recordedDataChunks.add(data);
+                                                      //  }
                                                     },
-                                                    onDone: () async {
-                                                      bytes = Uint8List.fromList(recordedDataChunks.expand((x) => x).toList());
-                                                      int length = bytes.length;
-                                                      printf("Checkpoint length: $length");
+                                                    onDone: () {
+                                                      bytes = Uint8List.fromList(recordedDataChunks.expand((x) => x).toList()); // chatgpt says this is simple concat
                                                     },
                                                     onError: (error) {
-                                                      printf("Error recording audio: $error");
+                                                      error(0, "Recording error: $error");
                                                     },
-                                                  ); */
+                                                  );
                                                 }
                                               },
                                               onLongPressCancel: () async {
@@ -1742,15 +1750,16 @@ class _RouteChatState extends State<RouteChat> {
                                               },
                                               onLongPressUp: () async {
                                                 if (currently_recording) {
-                                                  printf("Send audio");
                                                   currently_recording = false;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
                                                   int duration = DateTime.now().millisecondsSinceEpoch - start_time;
                                                   printf("Checkpoint duration: ${DateTime.now().millisecondsSinceEpoch} - $start_time = $duration milliseconds");
-                                                  final path = await record.stop();
-                                                  if (path != null) {
-                                                    bytes = await File(path).readAsBytes();
-                                                    destroy_file(path);
+                                                  final path = await record.stop(); // NOTE: Path usage is depreciated, but it is not harmful to leave this check and functionality
+                                                  if (path != null || bytes.isNotEmpty) {
+                                                    if (path != null && bytes.isEmpty) {
+                                                      bytes = await File(path).readAsBytes();
+                                                      destroy_file(path);
+                                                    }
                                                     final Pointer<Uint8> ptr = malloc(4 + bytes.length);
                                                     ptr.asTypedList(4).setAll(0, htobe32(duration));
                                                     (ptr + 4).asTypedList(bytes.length).setAll(0, bytes);
@@ -1775,8 +1784,7 @@ class _RouteChatState extends State<RouteChat> {
                                                     }
                                                     malloc.free(ptr);
                                                   } else {
-                                                    printf("Testing without an intermediary file. If audio plays, it works!");
-                                                    await player.play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
+                                                    error(0, "Final stream data length is zero. Coding error. Report this to UI Devs.");
                                                   }
                                                 }
                                               },
