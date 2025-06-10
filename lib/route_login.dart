@@ -223,9 +223,9 @@ class _RouteLoginState extends State<RouteLogin> {
                                   } else /*if (value == true)*/ {
                                     val = 1;
                                   }
-                                  torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                  torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                   torx.censored_region.value = val;
-                                  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                  torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                   set_setting_string(1, -1, "censored_region", val.toString());
                                   changeNotifierSettingChange.callback(integer: -1);
                                 },

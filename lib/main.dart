@@ -65,6 +65,7 @@ import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'package:app_badge_plus/app_badge_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:chat/callbacks.dart';
 import 'package:chat/stickers.dart';
 import 'package:ffi/ffi.dart';
@@ -77,6 +78,7 @@ import 'package:intl/intl.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 import 'package:share_plus/share_plus.dart';
 import 'colors.dart';
 import 'routes.dart';
@@ -122,6 +124,9 @@ String? nativeLibraryDir;
 String? applicationDocumentsDir;
 bool initialized = false; // initialization_functions() only
 
+AudioRecorder current_recording = AudioRecorder();
+bool currently_recording = false;
+
 const double size_large_icon = 50;
 const double size_medium_icon = 32;
 
@@ -151,6 +156,17 @@ class t_file_class {
   List<int> previously_completed = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; //11
 }
 
+class t_cache_info_class {
+  List<Uint8List> audio_cache = []; // Note: this is a list of lists
+  //	size_t *audio_cache_len; // unnecessary in Dart, use audio_cache[iter].length
+  List<int> audio_time = [];
+  List<int> audio_nstime = [];
+  int last_played_time = 0;
+  int last_played_nstime = 0;
+//		GstElement *stream_pipeline;
+  bool playing = false;
+}
+
 class t_message_class {
   // NOTE: if adding things, be sure to handle them in expand_message_struc_cb(), initialize_i_cb(), and shrinkage_cb_ui
   List<int> unheard = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 21
@@ -171,8 +187,6 @@ class t_call_class {
   List<List<int>> participating = [[]]; // Participating peers' n
   List<List<bool>> participant_mic = [[]];
   List<List<bool>> participant_speaker = [[]];
-  List<int> last_played_time = []; // TODO utilize
-  List<int> last_played_nstime = []; // TODO utilize
   List<int> notification_id = []; // Flutter specific, for killing notifications when call ends
   // TODO buffer (unsure how to do... we need to store both raw data and its length(?), time, nstime)
 }
@@ -225,6 +239,19 @@ class t_peer {
     t_call_class(),
     t_call_class(),
     t_call_class(),
+  ]; // 11
+  static List<t_cache_info_class> t_cache_info = [
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
+    t_cache_info_class(),
   ]; // 11
 }
 
@@ -282,9 +309,9 @@ void initialization_functions(BuildContext? context) {
   String conjure_location = "nativeLibraryDir/libconjure.so"; // This is a FAKE location that is replaced by the library with native_library_directory
   String snowflake_location = "nativeLibraryDir/libsnowflake.so"; // This is a FAKE location that is replaced by the library with native_library_directory
 
-  torx.torx_debug_level(0);
+  torx.torx_debug_level(4);
 
-  torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
 //  torx.show_log_messages.value = 15;
   torx.tor_location[0] = tor_location.toNativeUtf8();
   torx.lyrebird_location[0] = lyrebird_location.toNativeUtf8();
@@ -294,7 +321,7 @@ void initialization_functions(BuildContext? context) {
   torx.reduced_memory.value = 2; // 1 == 256mb, 2 == 64mb
   torx.working_dir[0] = applicationDocumentsDir!.toNativeUtf8(); // necessary before initial on systems where $HOME is not set
   torx.tor_data_directory[0] = "$applicationDocumentsDir/tor".toNativeUtf8(); // hardcoding this. This will override user settings for sanity purposes.
-  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
 
   printf("Tor Location: $tor_location");
   torx.initial(); // !!! GOAT DO NOT PUT ANY (other) TORX FUNCTIONS BEFORE THIS (such as set_torrc or errorr) !!! TODO
@@ -306,12 +333,12 @@ void initialization_functions(BuildContext? context) {
   error(0, "Working dir: $applicationDocumentsDir");
 
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH, "Sticker", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, "Sticker Date Signed", "", 0, 2 * 4, crypto_sign_BYTES, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
+  protocol_registration(ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, "Sticker Date Signed", "", 0, 1, 1, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_HASH_PRIVATE, "Sticker Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_REQUEST, "Sticker Request", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_STICKER_DATA_GIF, "Sticker data", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG, "AAC Audio Message", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, "AAC Audio Message Date Signed", "", 0, 2 * 4, crypto_sign_BYTES, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
+  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, "AAC Audio Message Date Signed", "", 0, 1, 1, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, "AAC Audio Message Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN, "AAC Audio Stream Join", "", 0, 0, 0, 0, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
   protocol_registration(
@@ -366,8 +393,6 @@ int set_c(int n, int time, int nstime) {
   t_peer.t_call[n].participating.add([]);
   t_peer.t_call[n].participant_mic.add([]);
   t_peer.t_call[n].participant_speaker.add([]);
-  t_peer.t_call[n].last_played_time.add(0);
-  t_peer.t_call[n].last_played_nstime.add(0);
   t_peer.t_call[n].notification_id.add(-1);
   return t_peer.t_call[n].joined.length - 1;
 }
@@ -642,6 +667,10 @@ void toggleBlock(int n) {
 }
 
 void call_update(int call_n, int call_c) {
+  // TODO can probably do more here, like in GTK
+  if (t_peer.t_call[call_n].participating[call_c].isEmpty && t_peer.t_call[call_n].joined[call_c] && t_peer.t_call[call_n].mic_on[call_c] && currently_recording) {
+    record_stop(); // Must do this here instead of in UI
+  }
   changeNotifierCallUpdate.callback(integer: call_n);
 }
 
@@ -908,7 +937,7 @@ void print_message(int n, int i, int scroll) {
   int stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
   int protocol = protocol_int(p_iter, "protocol");
   if (stat == ENUM_MESSAGE_RECV && scroll == 1) {
-    int message_len = torx.getter_uint32(n, i, -1, offsetof("message", "message_len"));
+    int message_len = torx.getter_length(n, i, -1, offsetof("message", "message"));
     if (message_len >= CHECKSUM_BIN_LEN &&
         (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
       Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message")); // free'd by torx_free
@@ -1091,6 +1120,9 @@ void call_ignore(int n, int c) {
       t_peer.t_call[n].notification_id[c] = -1;
     }
   }
+  if (t_peer.t_call[n].joined[c] && t_peer.t_call[n].mic_on[c] && currently_recording) {
+    record_stop();
+  }
   t_peer.t_call[n].waiting[c] = false;
   t_peer.t_call[n].joined[c] = false;
   call_update(n, c);
@@ -1131,6 +1163,27 @@ void call_leave_all_except(int except_n, int except_c) {
       for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
         if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
           if (call_n != except_n || c != except_c) call_leave(call_n, c);
+        }
+      }
+    }
+  }
+}
+
+void call_mute_all_except(int except_n, int except_c) {
+  // Leave or reject all active calls, except one (or none if -1). To be called primarily when call_join is called, but may also be called for other purposes.
+  for (int call_n = 0; torx.getter_byte(call_n, INT_MIN, -1, offsetof("peer", "onion")) != 0; call_n++) {
+    int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
+    if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
+      for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
+        if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
+          if (call_n != except_n || c != except_c) {
+            if (t_peer.t_call[call_n].joined[c] && t_peer.t_call[call_n].mic_on[c] && currently_recording) {
+              // This isn't 100% certainty that the current_recording is for this call but it's a very good indication
+              record_stop();
+            }
+            t_peer.t_call[call_n].mic_on[c] = false;
+            t_peer.t_call[call_n].speaker_on[c] = false;
+          }
         }
       }
     }
@@ -1210,6 +1263,125 @@ void call_peer_leaving_all_except(int n, int except_n, int except_c) {
     if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
       if (call_n != except_n || c != except_c) call_peer_leaving(call_n, c, n);
     }
+  }
+}
+
+Future<void> cache_play(int n) async {
+  if (!t_peer.t_cache_info[n].playing) {
+    AudioPlayer player = AudioPlayer(); // TODO continually creating and destroying this may be expensive
+    t_peer.t_cache_info[n].playing = true;
+    while (t_peer.t_cache_info[n].playing && t_peer.t_cache_info[n].audio_cache.isNotEmpty) {
+      t_peer.t_cache_info[n].last_played_time = t_peer.t_cache_info[n].audio_time[0]; // Important
+      t_peer.t_cache_info[n].last_played_nstime = t_peer.t_cache_info[n].audio_nstime[0]; // Important
+      await player.play(BytesSource(t_peer.t_cache_info[n].audio_cache[0] /*, mimeType: "audio/L16"*/));
+      t_peer.t_cache_info[n].audio_cache.removeAt(0);
+      t_peer.t_cache_info[n].audio_time.removeAt(0);
+      t_peer.t_cache_info[n].audio_nstime.removeAt(0);
+    }
+    t_peer.t_cache_info[n].playing = false;
+    player.dispose();
+  }
+}
+
+void cache_add(int n, int time, int nstime, Uint8List data) {
+  // Handles ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE data
+  if (time < t_peer.t_cache_info[n].last_played_time || (time == t_peer.t_cache_info[n].last_played_time && nstime < t_peer.t_cache_info[n].last_played_nstime)) {
+    error(0, "Received audio older than last played. Disgarding it. Carry on.");
+    return;
+  }
+  int prior_count = t_peer.t_cache_info[n].audio_cache.length;
+  if (prior_count > 0 &&
+      (t_peer.t_cache_info[n].audio_time[prior_count - 1] > time ||
+          (t_peer.t_cache_info[n].audio_time[prior_count - 1] == time && t_peer.t_cache_info[n].audio_nstime[prior_count - 1] > nstime))) {
+    // Received audio is older than something we already have in our struct, so we need to re-order it.
+    List<Uint8List> audio_cache = []; // Note: this is a list of lists
+    List<int> audio_time = [];
+    List<int> audio_nstime = [];
+    bool already_placed_new_data = false; // must avoid placing more than once
+    for (int old = prior_count - 1; old > -1;) {
+      if (already_placed_new_data ||
+          t_peer.t_cache_info[n].audio_time[old] > time ||
+          (t_peer.t_cache_info[n].audio_time[old] == time && t_peer.t_cache_info[n].audio_nstime[old] > nstime)) {
+        // Existing is newer, place it (may occur many times)
+        audio_cache.add(t_peer.t_cache_info[n].audio_cache[old]);
+        audio_time.add(t_peer.t_cache_info[n].audio_time[old]);
+        audio_nstime.add(t_peer.t_cache_info[n].audio_nstime[old]);
+        old--; // only -- when utilizing old data
+      } else {
+        // Ours is newer, place it (must only occur once)
+        audio_cache.add(data);
+        audio_time.add(time);
+        audio_nstime.add(nstime);
+        already_placed_new_data = true;
+      }
+    }
+    t_peer.t_cache_info[n].audio_cache = audio_cache;
+    t_peer.t_cache_info[n].audio_time = audio_time;
+    t_peer.t_cache_info[n].audio_nstime = audio_nstime;
+  } else {
+    // Add the new data at the end because it is newest
+    t_peer.t_cache_info[n].audio_cache.add(data);
+    t_peer.t_cache_info[n].audio_time.add(time);
+    t_peer.t_cache_info[n].audio_nstime.add(nstime);
+  }
+}
+
+void audio_ready(int call_n, int call_c, Uint8List data) {
+  Pointer<Int> recipient_list = torx.torx_insecure_malloc(t_peer.t_call[call_n].participating[call_c].length * 4) as Pointer<Int>;
+  int recipient_count = 0;
+  for (int iter = 0; iter < t_peer.t_call[call_n].participating[call_c].length; iter++) {
+    if (t_peer.t_call[call_n].participating[call_c][iter] > -1 && t_peer.t_call[call_n].participant_mic[call_c][iter]) {
+      recipient_list[recipient_count] = t_peer.t_call[call_n].participating[call_c][iter];
+      recipient_count++;
+    }
+  }
+  if (recipient_count == 0) {
+    record_stop();
+    return;
+  }
+  int message_len = (8 + data.length);
+  Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
+  message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_time[call_c]));
+  (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_nstime[call_c]));
+  (message + 8).asTypedList(data.length).setAll(0, data);
+  printf("Checkpoint audio_ready First: ${data[0]}.${data[1]} Last: ${data[data.length - 2]}.${data[data.length - 1]}");
+  torx.message_send_select(recipient_count, recipient_list, ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE, message, message_len);
+  torx.torx_free_simple(recipient_list);
+  recipient_list = nullptr;
+  torx.torx_free_simple(message);
+  message = nullptr;
+}
+
+Future<void> record_start(int call_n, int call_c) async {
+  // This is ONLY for streams, not for voice messages. See other usage of startStream for voice messages.
+  if (t_peer.t_call[call_n].joined[call_c] && t_peer.t_call[call_n].mic_on[call_c] && !currently_recording && t_peer.t_call[call_n].participating[call_c].isNotEmpty) {
+    currently_recording = true;
+    final stream = await current_recording
+        .startStream(const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 16000, numChannels: 2 /* 2 is much louder than 1 */, noiseSuppress: true, echoCancel: true));
+    stream.listen(
+      (data) async {
+        final aptitude = await current_recording.getAmplitude();
+        if (aptitude.current > -10) {
+          // Aptitude check is to avoid sending silence during streams. For voice messages we permit silence.
+          audio_ready(call_n, call_c, data);
+        }
+      },
+      onDone: () {
+        currently_recording = false;
+        printf("Checkpoint ending call. Should call call_update?");
+      },
+      onError: (error) {
+        error(0, "Recording error: $error");
+      },
+    );
+  }
+}
+
+void record_stop() {
+  if (currently_recording) {
+    currently_recording = false;
+    changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+    current_recording.stop(); // TODO consider using stop vs cancel
   }
 }
 

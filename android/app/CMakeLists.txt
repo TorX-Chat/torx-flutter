@@ -26,21 +26,22 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 # ANDROID_SYSROOT TODO set
 # ANDROID_TOOLCHAIN TODO set
 # ??? CMAKE_PREFIX_PATH ==
-#set($ENV{TORX_TAG} "dev")			### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
-#set($ENV{LAN_REPO} "http://10.8.88.11/") 	### XXX XXX XXX NOTE: For some reason, MUST be $ENV here but ENV elsewhere
+#set(ENV{TORX_TAG} "dev")
+#set(ENV{LAN_REPO} "http://10.8.88.11/")
 
-if($ENV{TORX_TAG}) ### TODO Should probably be if(DEFINED ENV{TORX_TAG}), but Flutter is problematic
-	set(TAG_REPO "$ENV{TORX_TAG}")
+if(DEFINED ENV{TORX_TAG}) ### TODO Should probably be if(DEFINED ENV{TORX_TAG}), but Flutter is problematic
+	set(TAG_REPO $ENV{TORX_TAG})
 else()
 	set(TAG_REPO "main")
 endif()
-if($ENV{LAN_REPO}) ### TODO Should probably be if(DEFINED ENV{LAN_REPO}), but Flutter is problematic
+
+if(DEFINED ENV{LAN_REPO}) ### TODO Should probably be if(DEFINED ENV{LAN_REPO}), but Flutter is problematic
 	message(STATUS "Using LAN repository: $ENV{LAN_REPO}")
-	set(REPO_TOR "$ENV{LAN_REPO}/tor.git")
-	set(REPO_LYREBIRD "$ENV{LAN_REPO}/lyrebird.git")
-	set(REPO_CONJURE "$ENV{LAN_REPO}/conjure.git")
-	set(REPO_SNOWFLAKE "$ENV{LAN_REPO}/snowflake.git")
-	set(REPO_TORX "$ENV{LAN_REPO}/libtorx.git")
+	set(REPO_TOR $ENV{LAN_REPO}/tor.git)
+	set(REPO_LYREBIRD $ENV{LAN_REPO}/lyrebird.git)
+	set(REPO_CONJURE $ENV{LAN_REPO}/conjure.git)
+	set(REPO_SNOWFLAKE $ENV{LAN_REPO}/snowflake.git)
+	set(REPO_TORX $ENV{LAN_REPO}/libtorx.git)
 else()
 	message(STATUS "Using default remote repositories instead of LAN.")
 	set(REPO_TOR "https://gitlab.torproject.org/tpo/core/tor.git") # http://xtlfhaspqtkeeqxk6umggfbr3gyfznvf4jhrge2fujz53433i2fcs3id.onion/tor.git

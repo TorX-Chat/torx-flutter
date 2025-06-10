@@ -110,6 +110,7 @@ class Callbacks {
     t_peer.t_file[n] = t_file_class();
     t_peer.stickers_requested[n] = [];
     t_peer.t_call[n] = t_call_class();
+    t_peer.t_cache_info[n] = t_cache_info_class();
   }
 
   void initialize_i_cb_ui(int n, int i) {
@@ -182,6 +183,7 @@ class Callbacks {
       t_peer.t_file.add(t_file_class());
       t_peer.stickers_requested.add([]);
       t_peer.t_call.add(t_call_class());
+      t_peer.t_cache_info.add(t_cache_info_class());
     }
   }
 
@@ -501,9 +503,9 @@ class Callbacks {
             protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN ||
             protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE ||
             protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE)) {
-      Uint8List typecast = (data as Pointer<Uint8>).asTypedList(8);
-      int time = be32toh(typecast);
-      int nstime = be32toh(typecast.sublist(4));
+      Uint8List typecast_times_only = (data as Pointer<Uint8>).asTypedList(8);
+      int time = be32toh(typecast_times_only); // this is for the CALL, not MESSAGE
+      int nstime = be32toh(typecast_times_only.sublist(4)); // this is for the CALL, not MESSAGE
       printf("Checkpoint received host: $time $nstime");
       int call_n = n;
       int call_c = -1;
@@ -538,7 +540,26 @@ class Callbacks {
         }
       } else if (call_c > -1) {
         if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE) {
-          printf("Checkpoint stream_cb_ui AAC_AUDIO_STREAM_DATA_DATE time=$time:$nstime data_len=$data_len"); // TODO PLAY IT
+          int iter = 0;
+
+          for (; iter < t_peer.t_call[call_n].participating[call_c].length; iter++) {
+            if (t_peer.t_call[call_n].participating[call_c][iter] == n) break;
+          }
+          if (iter == t_peer.t_call[call_n].participating[call_c].length) {
+            // Sanity check. Might be fatal.
+            error(0,
+                "Serious error in stream_idle caused by race condition, or more likely by a peer mistakenly sending AUDIO before joining or after leaving a call. Coding error. Report this.");
+          } else if (t_peer.t_call[call_n].speaker_on[call_c] && t_peer.t_call[call_n].participant_speaker[call_c][iter]) {
+            printf("Checkpoint cache_add some audio\n"); // TODO PLAY IT
+            Uint8List typecast_full = (data as Pointer<Uint8>)
+                .asTypedList(data_len + 8); // NOTE: this is intentionally reading outside data_len because that is where *message* date/time is stored by library
+            int audio_time = be32toh(typecast_full.sublist(data_len));
+            int audio_nstime = be32toh(typecast_full.sublist(data_len + 4));
+            cache_add(n, audio_time, audio_nstime, typecast_full.sublist(8, data_len)); // data_len as END is CORRECT here, which makes size data_len - 8.
+            cache_play(n);
+          } else {
+            printf("Checkpoint Disgarding streaming audio because speaker is off");
+          }
         } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE) {
           call_peer_leaving(call_n, call_c, n);
         } else // if(protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN || protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE)

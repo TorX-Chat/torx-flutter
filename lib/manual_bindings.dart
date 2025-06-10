@@ -406,6 +406,9 @@ typedef FnDARTtorx_fn_unlock = void Function(int);
 typedef FnCerror_simple = Void Function(Int, Pointer<Utf8>);
 typedef FnDARTerror_simple = void Function(int, Pointer<Utf8>);
 
+typedef FnCgetter_length = Uint32 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_length = int Function(int, int, int, int);
+
 typedef FnCgetter_string = Pointer<Utf8> Function(Pointer<Uint32>, Int, Int, Int, Size_t);
 typedef FnDARTgetter_string = Pointer<Utf8> Function(Pointer<Uint32>, int, int, int, int);
 
@@ -532,7 +535,7 @@ typedef FnDARTthreadsafe_read_uint64 = int Function(Pointer<NativeType>, Pointer
 typedef FnCprotocol_lookup = Int Function(Uint16);
 typedef FnDARTprotocol_lookup = int Function(int);
 
-typedef FnCprotocol_registration = Int Function(Int16, Pointer<Utf8>, Pointer<Utf8>, Uint32, Uint32, Uint32, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8);
+typedef FnCprotocol_registration = Int Function(Int16, Pointer<Utf8>, Pointer<Utf8>, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8);
 typedef FnDARTprotocol_registration = int Function(int, Pointer<Utf8>, Pointer<Utf8>, int, int, int, int, int, int, int, int, int, int, int);
 
 typedef FnCread_bytes = Pointer<Uint8> Function(Pointer<Size_t>, Pointer<Utf8>);
@@ -739,11 +742,11 @@ typedef FnDARTxstrupr = void Function(Pointer<Utf8>);
 typedef FnCxstrlwr = Void Function(Pointer<Utf8>);
 typedef FnDARTxstrlwr = void Function(Pointer<Utf8>);
 
-typedef FnCload_onion_events = Void Function(Int);
-typedef FnDARTload_onion_events = void Function(int);
+typedef FnCtor_call = Pointer<Utf8> Function(Pointer<Utf8>);
+typedef FnDARTtor_call = Pointer<Utf8> Function(Pointer<Utf8>);
 
-typedef FnCtor_call = Int Function(Pointer<NativeType>, Int, Pointer<Utf8>);
-typedef FnDARTtor_call = int Function(Pointer<NativeType>, int, Pointer<Utf8>);
+typedef FnCtor_call_async = Void Function(Pointer<NativeFunction<Void Function(Pointer<Utf8>)>>, Pointer<Utf8>);
+typedef FnDARTtor_call_async = void Function(Pointer<NativeFunction<Void Function(Pointer<Utf8>)>>, Pointer<Utf8>);
 
 typedef FnConion_from_privkey = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnDARTonion_from_privkey = Pointer<Utf8> Function(Pointer<Utf8>);
@@ -858,6 +861,9 @@ typedef FnDARTsection_unclaim = int Function(int, int, int, int);
 
 typedef FnCmessage_resend = Int Function(Int, Int);
 typedef FnDARTmessage_resend = int Function(int, int);
+
+typedef FnCmessage_send_select = Int Function(Uint32, Pointer<Int>, Uint16, Pointer<NativeType>, Uint32);
+typedef FnDARTmessage_send_select = int Function(int, Pointer<Int>, int, Pointer<NativeType>, int);
 
 typedef FnCmessage_send = Int Function(Int, Uint16, Pointer<NativeType>, Uint32);
 typedef FnDARTmessage_send = int Function(int, int, Pointer<NativeType>, int);
@@ -1073,10 +1079,10 @@ String protocol_string(int p_iter, int offset) {
     error(0, "Negative p_iter passed to protocol_string. Coding error. Report to UI devs.");
     return "";
   }
-  torx.pthread_rwlock_rdlock(torx.mutex_protocols);
+  torx.pthread_rwlock_rdlock(torx.mutex_protocols); // 🟧
   Pointer<Utf8> pointer = torx.protocol_access(p_iter, offset) as Pointer<Utf8>; // DO NOT FREE
   String ret = pointer.toDartString();
-  torx.pthread_rwlock_unlock(torx.mutex_protocols);
+  torx.pthread_rwlock_unlock(torx.mutex_protocols); // 🟩
   return ret;
 }
 
@@ -1092,20 +1098,20 @@ int protocol_int(int p_iter, String member) {
   member_p = nullptr;
   int value = 0;
   if (size == 1) {
-    torx.pthread_rwlock_rdlock(torx.mutex_protocols);
+    torx.pthread_rwlock_rdlock(torx.mutex_protocols); // 🟧
     Pointer<Uint8> pointer = torx.protocol_access(p_iter, offset) as Pointer<Uint8>; // DO NOT FREE
     value = pointer.value;
-    torx.pthread_rwlock_unlock(torx.mutex_protocols);
+    torx.pthread_rwlock_unlock(torx.mutex_protocols); // 🟩
   } else if (size == 2) {
-    torx.pthread_rwlock_rdlock(torx.mutex_protocols);
+    torx.pthread_rwlock_rdlock(torx.mutex_protocols); // 🟧
     Pointer<Uint16> pointer = torx.protocol_access(p_iter, offset) as Pointer<Uint16>; // DO NOT FREE
     value = pointer.value;
-    torx.pthread_rwlock_unlock(torx.mutex_protocols);
+    torx.pthread_rwlock_unlock(torx.mutex_protocols); // 🟩
   } else if (size == 4) {
-    torx.pthread_rwlock_rdlock(torx.mutex_protocols);
+    torx.pthread_rwlock_rdlock(torx.mutex_protocols); // 🟧
     Pointer<Uint32> pointer = torx.protocol_access(p_iter, offset) as Pointer<Uint32>; // DO NOT FREE
     value = pointer.value;
-    torx.pthread_rwlock_unlock(torx.mutex_protocols);
+    torx.pthread_rwlock_unlock(torx.mutex_protocols); // 🟩
   } else {
     error(-1, "Bad times in protocol_int. Coding error. Report this.");
   }
@@ -1119,12 +1125,12 @@ void error(int level, String message) {
   pointer = nullptr;
 }
 
-int protocol_registration(int protocol, String name, String description, int null_terminated_len, int date_len, int signature_len, int logged, int notifiable, int file_checksum,
-    int file_offer, int exclusive_type, int utf8, int socket_swappable, int stream) {
+int protocol_registration(int protocol, String name, String description, int null_terminate, int date, int signature, int logged, int notifiable, int file_checksum, int file_offer,
+    int exclusive_type, int utf8, int socket_swappable, int stream) {
   Pointer<Utf8> name_p = name.toNativeUtf8(); // free'd by calloc.free
   Pointer<Utf8> description_p = description.toNativeUtf8(); // free'd by calloc.free
   int ret = torx.protocol_registration(
-      protocol, name_p, description_p, null_terminated_len, date_len, signature_len, logged, notifiable, file_checksum, file_offer, exclusive_type, utf8, socket_swappable, stream);
+      protocol, name_p, description_p, null_terminate, date, signature, logged, notifiable, file_checksum, file_offer, exclusive_type, utf8, socket_swappable, stream);
   calloc.free(name_p);
   name_p = nullptr;
   calloc.free(description_p);
@@ -1221,6 +1227,8 @@ class torx {
   static final torx_fn_unlock = dynamicLibrary.lookupFunction<FnCtorx_fn_unlock, FnDARTtorx_fn_unlock>('torx_fn_unlock');
 
   static final error_simple = dynamicLibrary.lookupFunction<FnCerror_simple, FnDARTerror_simple>('error_simple');
+
+  static final getter_length = dynamicLibrary.lookupFunction<FnCgetter_length, FnDARTgetter_length>('getter_length');
 
   static final getter_string = dynamicLibrary.lookupFunction<FnCgetter_string, FnDARTgetter_string>('getter_string');
 
@@ -1444,9 +1452,9 @@ class torx {
 
   static final xstrlwr = dynamicLibrary.lookupFunction<FnCxstrlwr, FnDARTxstrlwr>('xstrlwr');
 
-  static final load_onion_events = dynamicLibrary.lookupFunction<FnCload_onion_events, FnDARTload_onion_events>('load_onion_events');
-
   static final tor_call = dynamicLibrary.lookupFunction<FnCtor_call, FnDARTtor_call>('tor_call');
+
+  static final tor_call_async = dynamicLibrary.lookupFunction<FnCtor_call_async, FnDARTtor_call_async>('tor_call_async');
 
   static final onion_from_privkey = dynamicLibrary.lookupFunction<FnConion_from_privkey, FnDARTonion_from_privkey>('onion_from_privkey');
 
@@ -1524,6 +1532,8 @@ class torx {
 
   static final message_resend = dynamicLibrary.lookupFunction<FnCmessage_resend, FnDARTmessage_resend>('message_resend');
 
+  static final message_send_select = dynamicLibrary.lookupFunction<FnCmessage_send_select, FnDARTmessage_send_select>('message_send_select');
+
   static final message_send = dynamicLibrary.lookupFunction<FnCmessage_send, FnDARTmessage_send>('message_send');
 
   static final message_extra = dynamicLibrary.lookupFunction<FnCmessage_extra, FnDARTmessage_extra>('message_extra');
@@ -1598,46 +1608,46 @@ class torx {
 /* // The following work (mutex confirmed working by not unlocking), do not delete, even if not using. Good examples. */
 String threadsafe_read_global_string(String symbolName) {
   Pointer<Pointer<Utf8>> symbol = dynamicLibrary.lookup(symbolName);
-  torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
   String ret;
   if (symbol[0] == nullptr) {
     ret = "";
   } else {
     ret = symbol[0].toDartString();
   }
-  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
   return ret;
 }
 
 int threadsafe_read_global_Uint8(String symbolName) {
   Pointer<Uint8> symbol = dynamicLibrary.lookup(symbolName);
-  torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
   int ret = symbol.value;
-  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
   return ret;
 }
 
 int threadsafe_read_global_Uint16(String symbolName) {
   Pointer<Uint16> symbol = dynamicLibrary.lookup(symbolName);
-  torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
   int ret = symbol.value;
-  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
   return ret;
 }
 
 int threadsafe_read_global_Uint32(String symbolName) {
   Pointer<Uint32> symbol = dynamicLibrary.lookup(symbolName);
-  torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
   int ret = symbol.value;
-  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
   return ret;
 }
 
 int threadsafe_read_global_Int(String symbolName) {
   Pointer<Int> symbol = dynamicLibrary.lookup(symbolName);
-  torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
   int ret = symbol.value;
-  torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+  torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
   return ret;
 }
 //*/

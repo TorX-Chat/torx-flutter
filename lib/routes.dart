@@ -152,7 +152,7 @@ void response(NotificationResponse notificationResponse) {
     changeNotifierTotalIncoming.callback(integer: totalIncoming);
     changeNotifierDataTables.callback(integer: peer_n);
   } else {
-    error(0, "UI issue in response function. Coding error. Report this.");
+    error(0, "UI response function has unexpected args: ${parts[0]} + ${notificationResponse.actionId}. Coding error. Report this.");
   }
 }
 
@@ -536,12 +536,15 @@ class _RoutePopoverParticipantListState extends State<RoutePopoverParticipantLis
                                   ? Icon(Icons.mic_off, color: color.torch_off)
                                   : Icon(Icons.mic, color: color.torch_off),
                               onPressed: () {
+                                // toggle_mic
                                 if (t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index]) {
                                   t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index] = false;
+                                  record_stop();
                                 } else {
                                   t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index] = true;
                                 }
                                 changeNotifierPopoverList.callback(integer: -1);
+                                // TODO consider whether to call_update?
                               },
                             ),
                             IconButton(
@@ -549,12 +552,14 @@ class _RoutePopoverParticipantListState extends State<RoutePopoverParticipantLis
                                   ? Icon(Icons.volume_off, color: color.torch_off)
                                   : Icon(Icons.volume_up, color: color.torch_off),
                               onPressed: () {
+                                // toggle_speaker
                                 if (t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index]) {
                                   t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index] = false;
                                 } else {
                                   t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index] = true;
                                 }
                                 changeNotifierPopoverList.callback(integer: -1);
+                                // TODO consider whether to call_update?
                               },
                             ),
                           ],
@@ -821,7 +826,7 @@ class _RouteChatState extends State<RouteChat> {
     //  int file_checksum = protocol_int(p_iter, "file_checksum");
     int protocol = protocol_int(p_iter, "protocol");
     int stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
-    int message_len = torx.getter_uint32(n, i, -1, offsetof("message", "message_len"));
+    int message_len = torx.getter_length(n, i, -1, offsetof("message", "message"));
 
     if (null_terminated_len > 0) {
       return message_bubble(
@@ -886,9 +891,9 @@ class _RouteChatState extends State<RouteChat> {
                 return GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () async {
-                      torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+                      torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
                       Pointer<Utf8> download_dir = torx.download_dir[0];
-                      torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                      torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                       if ((filename == file_path || file_path == "") && download_dir == nullptr) {
                         String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
                         if (selectedDirectory != null && write_test(selectedDirectory)) {
@@ -1213,8 +1218,10 @@ class _RouteChatState extends State<RouteChat> {
             icon: t_peer.t_call[call_n].mic_on[call_c] ? Icon(Icons.mic_off, color: color.torch_off) : Icon(Icons.mic, color: color.torch_off),
             iconSize: size_medium_icon,
             onPressed: () {
+              // toggle_mic
               if (t_peer.t_call[call_n].mic_on[call_c]) {
                 t_peer.t_call[call_n].mic_on[call_c] = false;
+                record_stop();
               } else {
                 t_peer.t_call[call_n].mic_on[call_c] = true;
               }
@@ -1226,6 +1233,7 @@ class _RouteChatState extends State<RouteChat> {
             icon: t_peer.t_call[call_n].speaker_on[call_c] ? Icon(Icons.volume_off, color: color.torch_off) : Icon(Icons.volume_up, color: color.torch_off),
             iconSize: size_medium_icon,
             onPressed: () {
+              // toggle_speaker
               if (t_peer.t_call[call_n].speaker_on[call_c]) {
                 t_peer.t_call[call_n].speaker_on[call_c] = false;
               } else {
@@ -1282,14 +1290,13 @@ class _RouteChatState extends State<RouteChat> {
 
   Uint8List bytes = Uint8List(0);
   bool show_keyboard = true;
-  bool currently_recording = false;
-  final record = AudioRecorder();
+//  AudioRecorder record = AudioRecorder();
   int former_text_len = t_peer.unsent[global_n].length;
   int start_time = 0;
 
   @override
   void dispose() {
-    record.dispose(); // says we have to do this
+    //  record.dispose(); // says we have to do this
     super.dispose();
   }
 
@@ -1610,6 +1617,7 @@ class _RouteChatState extends State<RouteChat> {
                     for (int c = 0; c < t_peer.t_call[widget.n].joined.length; c++) {
                       Widget? column = CallColumn(widget.n, c);
                       if (column != null) call_rows.add(column);
+                      record_start(widget.n, c);
                     }
                     if (owner == ENUM_OWNER_GROUP_CTRL) {
                       // Iterate through all group peers and add their rows too
@@ -1620,6 +1628,7 @@ class _RouteChatState extends State<RouteChat> {
                         for (int c = 0; c < t_peer.t_call[peer_n].joined.length; c++) {
                           Widget? column = CallColumn(peer_n, c);
                           if (column != null) call_rows.add(column);
+                          record_start(peer_n, c);
                         }
                       }
                     }
@@ -1695,8 +1704,13 @@ class _RouteChatState extends State<RouteChat> {
                                           child: GestureDetector(
                                               behavior: HitTestBehavior.opaque,
                                               onLongPressDown: (yes) async {
-                                                if (await record.hasPermission()) {
+                                                if (await current_recording.hasPermission()) {
                                                   printf("Checkpoint starting recording");
+                                                  if (currently_recording) {
+                                                    record_stop();
+                                                    call_mute_all_except(-1, -1);
+                                                  }
+
                                                   currently_recording = true;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
                                                   start_time = DateTime.now().millisecondsSinceEpoch;
@@ -1709,7 +1723,7 @@ class _RouteChatState extends State<RouteChat> {
                                                       path: path); */
 
                                                   final List<Uint8List> recordedDataChunks = [];
-                                                  final stream = await record.startStream(const RecordConfig(
+                                                  final stream = await current_recording.startStream(const RecordConfig(
                                                       encoder: AudioEncoder.aacLc,
                                                       sampleRate: 16000,
                                                       numChannels: 2 /* 2 is much louder than 1 */,
@@ -1717,11 +1731,7 @@ class _RouteChatState extends State<RouteChat> {
                                                       echoCancel: true));
                                                   stream.listen(
                                                     (data) {
-                                                      //      final aptitude = await record.getAmplitude();
-                                                      //    if (aptitude.current > -10) {
-                                                      //    printf("Checkpoint Aptitude: ${aptitude.current} data_len=${data.length}");
                                                       recordedDataChunks.add(data);
-                                                      //  }
                                                     },
                                                     onDone: () {
                                                       bytes = Uint8List.fromList(recordedDataChunks.expand((x) => x).toList()); // chatgpt says this is simple concat
@@ -1730,6 +1740,8 @@ class _RouteChatState extends State<RouteChat> {
                                                       error(0, "Recording error: $error");
                                                     },
                                                   );
+                                                } else {
+                                                  error(0, "No permission to record, or already recording (in a call?)");
                                                 }
                                               },
                                               onLongPressCancel: () async {
@@ -1737,7 +1749,7 @@ class _RouteChatState extends State<RouteChat> {
                                                   printf("Cancel recording. Too short.");
                                                   currently_recording = false;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
-                                                  await record.cancel();
+                                                  await current_recording.cancel();
                                                 }
                                               },
                                               onLongPressMoveUpdate: (det) async {
@@ -1745,7 +1757,7 @@ class _RouteChatState extends State<RouteChat> {
                                                   printf("Cancel via drag");
                                                   currently_recording = false;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
-                                                  await record.cancel();
+                                                  await current_recording.cancel();
                                                 }
                                               },
                                               onLongPressUp: () async {
@@ -1753,8 +1765,9 @@ class _RouteChatState extends State<RouteChat> {
                                                   currently_recording = false;
                                                   changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
                                                   int duration = DateTime.now().millisecondsSinceEpoch - start_time;
-                                                  printf("Checkpoint duration: ${DateTime.now().millisecondsSinceEpoch} - $start_time = $duration milliseconds");
-                                                  final path = await record.stop(); // NOTE: Path usage is depreciated, but it is not harmful to leave this check and functionality
+                                                  //  printf("Checkpoint duration: ${DateTime.now().millisecondsSinceEpoch} - $start_time = $duration milliseconds");
+                                                  final path = await current_recording
+                                                      .stop(); // NOTE: Path usage is depreciated, but it is not harmful to leave this check and functionality
                                                   if (path != null || bytes.isNotEmpty) {
                                                     if (path != null && bytes.isEmpty) {
                                                       bytes = await File(path).readAsBytes();
@@ -3432,14 +3445,14 @@ class _RouteSettingsState extends State<RouteSettings> {
   Color inputColor = Colors.transparent;
 
   void _saveIntSetting(Pointer<Int> p, String name, TextEditingController tec) {
-    torx.pthread_rwlock_rdlock(torx.mutex_global_variable);
+    torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
     int original_value = p.value;
-    torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+    torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
     if (tec.text.isNotEmpty && int.parse(tec.text) != original_value) {
       // might need a max here and in GTK? itoa should handle it?
-      torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+      torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
       p.value = int.parse(tec.text);
-      torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+      torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
       set_setting_string(0, -1, name, tec.text);
     } else {
       // invalid, empty, or unchanged --> reset
@@ -3691,9 +3704,9 @@ class _RouteSettingsState extends State<RouteSettings> {
                                           } else if (value == text.generate_torxid) {
                                             shorten_torxids = 1;
                                           }
-                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                           torx.shorten_torxids.value = shorten_torxids;
-                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                           set_setting_string(0, -1, "shorten_torxids", shorten_torxids.toString());
                                           _selectedIdType = value;
                                           changeNotifierSettingChange.callback(integer: -1);
@@ -3718,9 +3731,9 @@ class _RouteSettingsState extends State<RouteSettings> {
                                         } else if (value == true) {
                                           global_log_messages = 1;
                                         }
-                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                         torx.global_log_messages.value = global_log_messages;
-                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                         set_setting_string(0, -1, "global_log_messages", global_log_messages.toString());
                                         _selectedGlobalLogging = value;
                                         changeNotifierSettingChange.callback(integer: -1);
@@ -3746,9 +3759,9 @@ class _RouteSettingsState extends State<RouteSettings> {
                                         } else if (value == true) {
                                           auto_resume_inbound = 1;
                                         }
-                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                         torx.auto_resume_inbound.value = auto_resume_inbound;
-                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                         set_setting_string(0, -1, "auto_resume_inbound", auto_resume_inbound.toString());
                                         _selectedAutoResumeInbound = value;
                                         changeNotifierSettingChange.callback(integer: -1);
@@ -3826,20 +3839,20 @@ class _RouteSettingsState extends State<RouteSettings> {
                                           Pointer<Utf8> directory = selectedDirectory.toNativeUtf8(); // free'd by calloc.free
                                           Pointer<Void> allocation = torx.torx_secure_malloc(selectedDirectory.length + 1);
                                           torx.memcpy(allocation, directory, selectedDirectory.length + 1);
-                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                           torx.torx_free_simple(torx.download_dir[0]);
                                           torx.download_dir[0] = allocation as Pointer<Utf8>;
-                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                           set_setting_string(0, -1, "download_dir", selectedDirectory);
                                           calloc.free(directory);
                                           directory = nullptr;
                                         } else {
-                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                           if (torx.download_dir[0] != nullptr) {
                                             torx.torx_free_simple(torx.download_dir[0]);
                                             torx.download_dir[0] = nullptr;
                                           }
-                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                           torx.sql_delete_setting(0, -1, name);
                                         }
                                         calloc.free(name);
@@ -3886,9 +3899,9 @@ class _RouteSettingsState extends State<RouteSettings> {
                                             return; // compensating for flutter triggering when there is no change
                                           }
                                           global_threads = int.parse(value);
-                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                           torx.global_threads.value = global_threads;
-                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                           set_setting_string(0, -1, "global_threads", global_threads.toString());
                                           _selectedCpuThreads = value;
                                           changeNotifierSettingChange.callback(integer: -1);
@@ -3924,9 +3937,9 @@ class _RouteSettingsState extends State<RouteSettings> {
                                             return; // compensating for flutter triggering when there is no change
                                           }
                                           suffix_length = int.parse(value);
-                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                           torx.suffix_length.value = suffix_length;
-                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                          torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                           set_setting_string(0, -1, "suffix_length", suffix_length.toString());
                                           _selectedSuffixLength = value;
                                           changeNotifierSettingChange.callback(integer: -1);
@@ -4013,9 +4026,9 @@ class _RouteSettingsState extends State<RouteSettings> {
                                         } else if (value == true) {
                                           auto_accept_mult = 1;
                                         }
-                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable);
+                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                         torx.auto_accept_mult.value = auto_accept_mult;
-                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable);
+                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                         set_setting_string(0, -1, "auto_accept_mult", auto_accept_mult.toString());
                                         _selectedAutoMult = value;
                                         changeNotifierSettingChange.callback(integer: -1);
