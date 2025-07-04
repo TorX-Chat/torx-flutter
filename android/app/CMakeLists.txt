@@ -26,16 +26,14 @@ set(CMAKE_TOOLCHAIN_FILE ${CMAKE_ANDROID_NDK}/build/cmake/android.toolchain.cmak
 # ANDROID_SYSROOT TODO set
 # ANDROID_TOOLCHAIN TODO set
 # ??? CMAKE_PREFIX_PATH ==
-#set(ENV{TORX_TAG} "dev")
-#set(ENV{LAN_REPO} "http://10.8.88.11/")
 
-if(DEFINED ENV{TORX_TAG}) ### TODO Should probably be if(DEFINED ENV{TORX_TAG}), but Flutter is problematic
+if(DEFINED ENV{TORX_TAG}) # flutter run --dart-define=TORX_TAG=dev
 	set(TAG_REPO $ENV{TORX_TAG})
 else()
 	set(TAG_REPO "main")
 endif()
 
-if(DEFINED ENV{LAN_REPO}) ### TODO Should probably be if(DEFINED ENV{LAN_REPO}), but Flutter is problematic
+if(DEFINED ENV{LAN_REPO}) # flutter run --dart-define=LAN_REPO=http://10.8.88.11/
 	message(STATUS "Using LAN repository: $ENV{LAN_REPO}")
 	set(REPO_TOR $ENV{LAN_REPO}/tor.git)
 	set(REPO_LYREBIRD $ENV{LAN_REPO}/lyrebird.git)
@@ -57,7 +55,6 @@ foreach(LIB ${JNILIBS_LIST}) # WARNING: This will NOT be re-evaluated every rebu
 		set(BUILD_TORX_DEPS 1) ### NOTE: For some reason, MUST be ENV here but $ENV elsewhere
 	endif()
 endforeach()
-
 
 string(REGEX REPLACE "[^0-9]" "" ANDROID_VERSION "${ANDROID_PLATFORM}") ## Sets ANDROID_VERSION from what we set in build.gradle
 set(ANDROID_PLATFORM ${ANDROID_VERSION})
@@ -111,8 +108,8 @@ ExternalProject_Add(
 	BUILD_IN_SOURCE 1
 	UPDATE_COMMAND "" # XXX taken out of ./configure XXX #
 	## XXX NOTE: based on testing, it seems like libtor.so has to be statically linked to everything because as a binary it does not look in the JNILIBS folder and fails if it cannot find its depends on android itself ##
-	CONFIGURE_COMMAND cp -r ../../../torx-prefix/src/torx-build/_deps/event-src/include/ ../../../torx-prefix/src/torx-build/_deps/event-build && export CC=${CLANG_BINARY_PATH} && export CXX=${CLANGPP_BINARY_PATH} && export PATH=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/:$ENV{PATH} && ./autogen.sh -v && ./configure --host=${TOR_PLATFORM} --enable-systemd=no --disable-system-torrc --disable-tool-name-check --enable-pic --disable-module-dirauth --enable-android --disable-unittests --disable-manpage --disable-html-manual --disable-module-relay --disable-asciidoc --disable-seccomp --disable-libscrypt --disable-lzma --disable-zstd --with-zlib-dir=../../../torx-prefix/src/torx-build/zlib-download-prefix/src/zlib-download/ --with-libevent-dir=../../../torx-prefix/src/torx-build/_deps/event-build --with-openssl-dir=../../../torx-prefix/src/torx-build/openssl-download-prefix/src/openssl-download/ --enable-static-zlib --enable-static-openssl --enable-static-libevent # TODO have put zlib as static because we currently fail to remove soname (and it is trivially small anyway), libevent is static because we suck at linking libevent-2.2.so, openssl is static only because the other two are XXX NOTE: we added --disable-system-torrc. This may or may not work with what we expect.
-	BUILD_COMMAND make -j8
+	CONFIGURE_COMMAND cp -r ${CMAKE_CURRENT_BINARY_DIR}/torx-prefix/src/torx-build/_deps/event-src/include/ ${CMAKE_CURRENT_BINARY_DIR}/torx-prefix/src/torx-build/_deps/event-build && export CC=${CLANG_BINARY_PATH} && export CXX=${CLANGPP_BINARY_PATH} && export PATH=${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin/:$ENV{PATH} && ./autogen.sh -v && ./configure --host=${TOR_PLATFORM} --enable-systemd=no --disable-system-torrc --disable-tool-name-check --enable-pic --disable-module-dirauth --enable-android --disable-unittests --disable-manpage --disable-html-manual --disable-module-relay --disable-asciidoc --disable-seccomp --disable-libscrypt --disable-lzma --disable-zstd --with-zlib-dir=${CMAKE_CURRENT_BINARY_DIR}/torx-prefix/src/torx-build/zlib-download-prefix/src/zlib-download/ --with-libevent-dir=${CMAKE_CURRENT_BINARY_DIR}/torx-prefix/src/torx-build/_deps/event-build --with-openssl-dir=${CMAKE_CURRENT_BINARY_DIR}/torx-prefix/src/torx-build/openssl-download-prefix/src/openssl-download/ --enable-static-zlib --enable-static-openssl --enable-static-libevent # TODO have put zlib as static because we currently fail to remove soname (and it is trivially small anyway), libevent is static because we suck at linking libevent-2.2.so, openssl is static only because the other two are XXX NOTE: we added --disable-system-torrc. This may or may not work with what we expect.
+	BUILD_COMMAND make -j8 # TODO eliminate -j8
 	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp src/app/tor ${JNILIBS_DIR}/libtor.so
 	BUILD_BYPRODUCTS src/app/tor
 )
@@ -148,10 +145,8 @@ ExternalProject_Add(
 )
 ExternalProject_Add(
 	torx
-#	BUILD_ALWAYS TRUE # BUILD_BYPRODUCTS
 	GIT_REPOSITORY ${REPO_TORX} ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 	GIT_TAG ${TAG_REPO}
-#	CMAKE_PLATFORM_NO_VERSIONED_SONAME TRUE
 	CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=${BUILD_TORX_DEPS} -D BUILD_SHARED_LIBS=1 -D QR_GENERATOR=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
 	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} libtorx.so ${JNILIBS_LIST}
 ) # TODO get zlib, currently not able to remove sonames.
