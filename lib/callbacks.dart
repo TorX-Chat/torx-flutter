@@ -63,7 +63,6 @@ severable if found in contradiction with the License or applicable law.
 
 import 'dart:ffi';
 import 'dart:math';
-import 'dart:typed_data';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:ffi/ffi.dart';
 import 'change_notifiers.dart';
@@ -110,7 +109,7 @@ class Callbacks {
     t_peer.t_file[n] = t_file_class();
     t_peer.stickers_requested[n] = [];
     t_peer.t_call[n] = t_call_class();
-    t_peer.t_cache_info[n] = t_cache_info_class();
+    t_peer.playing[n] = false;
   }
 
   void initialize_i_cb_ui(int n, int i) {
@@ -150,6 +149,11 @@ class Callbacks {
     }
   }
 
+  void initialize_peer_call_cb_ui(int call_n, int call_c) {
+    t_peer.t_call[call_n].speaker_phone[call_c] = false;
+    t_peer.t_call[call_n].notification_id[call_c] = -1;
+  }
+
   void expand_file_struc_cb_ui(int n, int f) {
     if (verbose) printf("Checkpoint expand_file_struc_cb_ui n=$n f=$f");
     for (int i = 0; i < 10; i++) {
@@ -183,13 +187,18 @@ class Callbacks {
       t_peer.t_file.add(t_file_class());
       t_peer.stickers_requested.add([]);
       t_peer.t_call.add(t_call_class());
-      t_peer.t_cache_info.add(t_cache_info_class());
+      t_peer.playing.add(false);
     }
   }
 
   void expand_group_struc_cb_ui(int g) {
     if (verbose) printf("Checkpoint expand_group_struc_cb_ui g=$g");
     /* currently null */
+  }
+
+  void expand_call_struc_cb_ui(int call_n, int call_c) {
+    t_peer.t_call[call_n].speaker_phone.add(false);
+    t_peer.t_call[call_n].notification_id.add(-1);
   }
 
   void transfer_progress_cb_ui(int n, int f, int transferred) {
@@ -267,13 +276,6 @@ class Callbacks {
 
   void peer_offline_cb_ui(int n) {
     if (verbose) printf("Checkpoint peer_offline_cb_ui n=$n");
-    int sendfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "sendfd_connected"));
-    int recvfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "recvfd_connected"));
-    int online = recvfd_connected + sendfd_connected;
-    if (online == 0) {
-      // Peer is completely offline
-      call_peer_leaving_all_except(n, -1, -1);
-    }
     peer_online_cb_ui(n);
   }
 
@@ -448,6 +450,63 @@ class Callbacks {
     }
   }
 
+  void call_update_cb_ui(int call_n, int call_c) {
+    printf("Checkpoint call_update_cb_ui");
+
+    bool joined = torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "joined")) == 1 ? true : false;
+    bool waiting = torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "waiting")) == 1 ? true : false;
+    int participants = torx.call_participant_count(call_n, call_c);
+    int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
+
+    int group_n = -1;
+    if (owner == ENUM_OWNER_GROUP_PEER) {
+      int g = torx.set_g(call_n, nullptr);
+      group_n = torx.getter_group_int(g, offsetof("group", "n"));
+    } // NOT else if
+
+    if (joined) {
+      if (participants > 0) {
+        bool mic_on = torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "mic_on")) == 1 ? true : false;
+        if (mic_on) {
+          if (!current_recording.is_recording) {
+            record_start(16000, call_n, call_c);
+          }
+        }
+      }
+    }
+
+    if (waiting) {
+      if (participants > 0 &&
+          t_peer.t_call[call_n].notification_id[call_c] < 0 &&
+          (owner != ENUM_OWNER_GROUP_PEER || (group_n > -1 && t_peer.mute[group_n] == 0)) &&
+          t_peer.mute[call_n] == 0) {
+        // participants determines that this is an inbound call
+        t_peer.t_call[call_n].notification_id[call_c] = Random().nextInt(99999999) + 10000; // minimum 10,000 to not conflict with n values
+        Noti.showBigTextNotification(
+            id: t_peer.t_call[call_n].notification_id[call_c],
+            title: text.incoming_call,
+            body: getter_string(call_n, INT_MIN, -1, offsetof("peer", "peernick")),
+            payload: "call $call_n $call_c",
+            flnp: flutterLocalNotificationsPlugin);
+        ring_start();
+      }
+    }
+
+    if (!waiting && t_peer.t_call[call_n].notification_id[call_c] > -1) {
+      ring_stop();
+      if (t_peer.t_call[call_n].notification_id[call_c] > -1) {
+        Noti.cancel(t_peer.t_call[call_n].notification_id[call_c], flutterLocalNotificationsPlugin);
+        t_peer.t_call[call_n].notification_id[call_c] = -1;
+      }
+    }
+    changeNotifierCallUpdate.callback(integer: call_n);
+  }
+
+  void audio_cache_add_cb_ui(int participant_n) {
+    printf("Checkpoint audio_cache_add_cb_ui");
+    audio_cache_play(participant_n);
+  }
+
   void stream_cb_ui(int n, int p_iter, Pointer<Utf8> data, int data_len) {
     if (verbose) printf("Checkpoint stream_cb_ui n=$n p_iter=$p_iter");
     if (data == nullptr || data_len == 0 || n < 0 || p_iter < 0) {
@@ -497,77 +556,6 @@ class Callbacks {
         }
         torx.torx_free_simple(checksum);
         checksum = nullptr;
-      }
-    } else if (data_len >= 8 &&
-        (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE ||
-            protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN ||
-            protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE ||
-            protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE)) {
-      Uint8List typecast_times_only = (data as Pointer<Uint8>).asTypedList(8);
-      int time = be32toh(typecast_times_only); // this is for the CALL, not MESSAGE
-      int nstime = be32toh(typecast_times_only.sublist(4)); // this is for the CALL, not MESSAGE
-      printf("Checkpoint received host: $time $nstime");
-      int call_n = n;
-      int call_c = -1;
-      int group_n = -1; // WARNING: ensure initialization
-      for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
-        if (t_peer.t_call[call_n].start_time[c] == time && t_peer.t_call[call_n].start_nstime[c] == nstime) call_c = c;
-      }
-      if (call_c == -1 && owner == ENUM_OWNER_GROUP_PEER) {
-        // Try group_n instead
-        int g = torx.set_g(n, nullptr);
-        group_n = torx.getter_group_int(g, offsetof("group", "n"));
-        call_n = group_n;
-        for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
-          if (t_peer.t_call[call_n].start_time[c] == time && t_peer.t_call[call_n].start_nstime[c] == nstime) call_c = c;
-        }
-      }
-      if (call_c == -1 && (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN || protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE)) {
-        // Received offer to join a new call
-        if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE) call_n = n;
-        call_c = set_c(call_n, time, nstime); // reserve
-        t_peer.t_call[call_n].waiting[call_c] = true;
-        call_peer_joining(call_n, call_c, n);
-        if ((owner != ENUM_OWNER_GROUP_PEER || t_peer.mute[group_n] == 0) && t_peer.mute[call_n] == 0) {
-          t_peer.t_call[call_n].notification_id[call_c] = Random().nextInt(99999999) + 10000; // minimum 10,000 to not conflict with n values
-          Noti.showBigTextNotification(
-              id: t_peer.t_call[call_n].notification_id[call_c],
-              title: text.incoming_call,
-              body: getter_string(call_n, INT_MIN, -1, offsetof("peer", "peernick")),
-              payload: "call $call_n $call_c",
-              flnp: flutterLocalNotificationsPlugin);
-          ring_start();
-        }
-      } else if (call_c > -1) {
-        if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE) {
-          int iter = 0;
-
-          for (; iter < t_peer.t_call[call_n].participating[call_c].length; iter++) {
-            if (t_peer.t_call[call_n].participating[call_c][iter] == n) break;
-          }
-          if (iter == t_peer.t_call[call_n].participating[call_c].length) {
-            // Sanity check. Might be fatal.
-            error(0,
-                "Serious error in stream_idle caused by race condition, or more likely by a peer mistakenly sending AUDIO before joining or after leaving a call. Coding error. Report this.");
-          } else if (t_peer.t_call[call_n].speaker_on[call_c] && t_peer.t_call[call_n].participant_speaker[call_c][iter]) {
-            printf("Checkpoint cache_add some audio\n"); // TODO PLAY IT
-            Uint8List typecast_full = (data as Pointer<Uint8>)
-                .asTypedList(data_len + 8); // NOTE: this is intentionally reading outside data_len because that is where *message* date/time is stored by library
-            int audio_time = be32toh(typecast_full.sublist(data_len));
-            int audio_nstime = be32toh(typecast_full.sublist(data_len + 4));
-            cache_add(n, audio_time, audio_nstime, typecast_full.sublist(8, data_len)); // data_len as END is CORRECT here, which makes size data_len - 8.
-            cache_play(n);
-          } else {
-            printf("Checkpoint Disgarding streaming audio because speaker is off");
-          }
-        } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE) {
-          call_peer_leaving(call_n, call_c, n);
-        } else // if(protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN || protocol == ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE)
-        {
-          call_peer_joining(call_n, call_c, n);
-        }
-      } else {
-        error(0, "Received a audio stream related message for an unknown call: $time $nstime"); // If DATA, consider sending _LEAVE once. Otherwise it is _LEAVE, so ignore.
       }
     } else {
       error(0, "Unknown stream data received: protocol=$protocol data_len=$data_len");

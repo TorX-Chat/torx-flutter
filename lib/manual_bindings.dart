@@ -129,11 +129,7 @@ const int ENUM_PROTOCOL_STICKER_DATA_GIF = 46093;
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG = 43474; // uint32_t duration (milliseconds, big endian) + data
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE = 29304; // uint32_t duration (milliseconds, big endian) + data
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED = 47904; // uint32_t duration (milliseconds, big endian) + data
-const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN = 65303; // Start Time + nstime // This is also offer
-const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE = 33037; // Start Time + nstime // This is also offer
-const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_PEERS = 16343; // Start Time + nstime + 56*participating
-const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE = 23602; // Start Time + nstime
-const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE = 54254; // Start Time + nstime + data + date
+
 /*
 const int ENUM_PROTOCOL_AUDIO_WAV = 14433;
   const int ENUM_PROTOCOL_AUDIO_WAV_DATE_SIGNED = 5392;
@@ -170,9 +166,14 @@ const int ENUM_PROTOCOL_GROUP_PRIVATE_ENTRY_REQUEST = 13196;
 const int ENUM_PROTOCOL_GROUP_REQUEST_PEERLIST = 62797;
 const int ENUM_PROTOCOL_GROUP_PEERLIST = 39970;
 const int ENUM_PROTOCOL_PIPE_AUTH = 25078;
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN = 65303; // Start Time + nstime // This is also offer
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE = 33037; // Start Time + nstime // This is also offer
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_PEERS = 16343; // Start Time + nstime + 56*participating
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE = 23602; // Start Time + nstime
+const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE = 54254; // Start Time + nstime + data
 
 typedef Size_t = Size;
-typedef Time_t = Long; // GOAT WARNING: *should* be ok? TODO
+typedef Time_t = Long; // GOAT WARNING: *should* be ok? Could use Size?? TODO
 int INT_MIN = -(1 << 31); // -2147483648;
 
 const int MAX_PEERS = 4096; // GOAT this isnt ideal because library has no such limitation. this is just laziness. TODO
@@ -284,6 +285,18 @@ typedef FnDARTcleanup_cb = void Function(int);
 typedef FnCstream_cb = Void Function(Int, Int, Pointer<Utf8>, Uint32);
 typedef FnDARTstream_cb = void Function(int, int, Pointer<Utf8>, int);
 
+typedef FnCinitialize_peer_call_cb = Void Function(Int, Int);
+typedef FnDARTinitialize_peer_call_cb = void Function(int, int);
+
+typedef FnCexpand_call_struc_cb = Void Function(Int, Int);
+typedef FnDARTexpand_call_struc_cb = void Function(int, int);
+
+typedef FnCcall_update_cb = Void Function(Int, Int);
+typedef FnDARTcall_update_cb = void Function(int, int);
+
+typedef FnCaudio_cache_add_cb = Void Function(Int);
+typedef FnDARTaudio_cache_add_cb = void Function(int);
+
 /* NOTE FOR THE FOLLOWING SETTERS: pointer must be the same across both */
 typedef FnCinitialize_n_setter = Void Function(Pointer<NativeFunction<FnCinitialize_n_cb>>);
 typedef FnDARTinitialize_n_setter = void Function(Pointer<NativeFunction<FnCinitialize_n_cb>>);
@@ -374,6 +387,18 @@ typedef FnDARTcleanup_setter = void Function(Pointer<NativeFunction<FnCcleanup_c
 
 typedef FnCstream_setter = Void Function(Pointer<NativeFunction<FnCstream_cb>>);
 typedef FnDARTstream_setter = void Function(Pointer<NativeFunction<FnCstream_cb>>);
+
+typedef FnCinitialize_peer_call_setter = Void Function(Pointer<NativeFunction<FnCinitialize_peer_call_cb>>);
+typedef FnDARTinitialize_peer_call_setter = void Function(Pointer<NativeFunction<FnCinitialize_peer_call_cb>>);
+
+typedef FnCexpand_call_struc_setter = Void Function(Pointer<NativeFunction<FnCexpand_call_struc_cb>>);
+typedef FnDARTexpand_call_struc_setter = void Function(Pointer<NativeFunction<FnCexpand_call_struc_cb>>);
+
+typedef FnCcall_update_setter = Void Function(Pointer<NativeFunction<FnCcall_update_cb>>);
+typedef FnDARTcall_update_setter = void Function(Pointer<NativeFunction<FnCcall_update_cb>>);
+
+typedef FnCaudio_cache_add_setter = Void Function(Pointer<NativeFunction<FnCaudio_cache_add_cb>>);
+typedef FnDARTaudio_cache_add_setter = void Function(Pointer<NativeFunction<FnCaudio_cache_add_cb>>);
 
 /* End of setter block */
 typedef FnCpthread_rwlock_rdlock = Int Function(Pointer<NativeType>);
@@ -574,15 +599,6 @@ typedef FnDARTtorx_free = void Function(Pointer<Pointer<NativeType>>);
 typedef FnCtorx_secure_malloc = Pointer<Void> Function(Size_t);
 typedef FnDARTtorx_secure_malloc = Pointer<Void> Function(int);
 
-typedef FnCmessage_insert = Int Function(Int, Int, Int);
-typedef FnDARTmessage_insert = int Function(int, int, int);
-
-typedef FnCmessage_remove = Void Function(Int, Int, Int);
-typedef FnDARTmessage_remove = void Function(int, int, int);
-
-typedef FnCmessage_sort = Void Function(Int);
-typedef FnDARTmessage_sort = void Function(int);
-
 typedef FnCmessage_load_more = Int Function(Int);
 typedef FnDARTmessage_load_more = int Function(int);
 
@@ -595,17 +611,8 @@ typedef FnDARTmessage_time_string = Pointer<Utf8> Function(int, int);
 typedef FnCfile_progress_string = Pointer<Utf8> Function(Int, Int);
 typedef FnDARTfile_progress_string = Pointer<Utf8> Function(int, int);
 
-typedef FnCtransfer_progress = Void Function(Int, Int);
-typedef FnDARTtransfer_progress = void Function(int, int);
-
-typedef FnCmessage_sign = Pointer<Utf8> Function(Pointer<Uint32>, Pointer<Uint8>, Time_t, Time_t, Int, Pointer<Utf8>, Uint32);
-typedef FnDARTmessage_sign = Pointer<Utf8> Function(Pointer<Uint32>, Pointer<Uint8>, int, int, int, Pointer<Utf8>, int);
-
 typedef FnCcalculate_transferred = Uint64 Function(Int, Int);
 typedef FnDARTcalculate_transferred = int Function(int, int);
-
-typedef FnCcalculate_section_start = Uint64 Function(Pointer<Uint64>, Uint64, Uint8, Int16);
-typedef FnDARTcalculate_section_start = int Function(Pointer<Uint64>, int, int, int);
 
 typedef FnCvptoi = Int Function(Pointer<NativeType>);
 typedef FnDARTvptoi = int Function(Pointer<NativeType>);
@@ -637,12 +644,6 @@ typedef FnDARTset_r = int Function(int, int, int);
 typedef FnCrandom_string = Void Function(Pointer<Utf8>, Size_t);
 typedef FnDARTrandom_string = void Function(Pointer<Utf8>, int);
 
-typedef FnCed25519_pk_from_onion = Void Function(Pointer<Uint8>, Pointer<Utf8>);
-typedef FnDARTed25519_pk_from_onion = void Function(Pointer<Uint8>, Pointer<Utf8>);
-
-typedef FnConion_from_ed25519_pk = Pointer<Utf8> Function(Pointer<Uint8>);
-typedef FnDARTonion_from_ed25519_pk = Pointer<Utf8> Function(Pointer<Uint8>);
-
 typedef FnCtorrc_verify = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnDARTtorrc_verify = Pointer<Utf8> Function(Pointer<Utf8>);
 
@@ -655,23 +656,8 @@ typedef FnDARTwhich = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnCtorx_realloc = Pointer<Void> Function(Pointer<NativeType>, Size_t);
 typedef FnDARTtorx_realloc = Pointer<Void> Function(Pointer<NativeType>, int);
 
-typedef FnCzero_n = Void Function(Int);
-typedef FnDARTzero_n = void Function(int);
-
-typedef FnCzero_i = Void Function(Int, Int);
-typedef FnDARTzero_i = void Function(int, int);
-
-typedef FnCzero_g = Void Function(Int);
-typedef FnDARTzero_g = void Function(int);
-
-typedef FnCmit_strcasestr = Pointer<Utf8> Function(Pointer<Utf8>, Pointer<Utf8>);
-typedef FnDARTmit_strcasestr = Pointer<Utf8> Function(Pointer<Utf8>, Pointer<Utf8>);
-
 typedef FnCrefined_list = Pointer<Int> Function(Pointer<Int>, Uint8, Int, Pointer<Utf8>); // free required
 typedef FnDARTrefined_list = Pointer<Int> Function(Pointer<Int>, int, int, Pointer<Utf8>);
-
-typedef FnCstripbuffer = Size_t Function(Pointer<Utf8>);
-typedef FnDARTstripbuffer = int Function(Pointer<Utf8>);
 
 typedef FnCrandport = Uint16 Function(Uint16);
 typedef FnDARTrandport = int Function(int);
@@ -694,9 +680,6 @@ typedef FnDARTinitial_keyed = void Function();
 typedef FnCre_expand_callbacks = Void Function();
 typedef FnDARTre_expand_callbacks = void Function();
 
-typedef FnCexpand_message_struc = Void Function(Int, Int);
-typedef FnDARTexpand_message_struc = void Function(int, int);
-
 typedef FnCset_last_message = Int Function(Pointer<Int>, Int, Int);
 typedef FnDARTset_last_message = int Function(Pointer<Int>, int, int);
 
@@ -705,12 +688,6 @@ typedef FnDARTgroup_online = int Function(int);
 
 typedef FnCgroup_check_sig = Int Function(Int, Pointer<Utf8>, Uint32, Uint16, Pointer<Uint8>, Pointer<Utf8>);
 typedef FnDARTgroup_check_sig = int Function(int, Pointer<Utf8>, int, int, Pointer<Uint8>, Pointer<Utf8>);
-
-typedef FnCgroup_add_peer = Int Function(Int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>, Pointer<Uint8>);
-typedef FnDARTgroup_add_peer = int Function(int, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>, Pointer<Uint8>);
-
-typedef FnCbroadcast_add = Void Function(Int, Pointer<Uint8>);
-typedef FnDARTbroadcast_add = void Function(int, Pointer<Uint8>);
 
 typedef FnCbroadcast_prep = Void Function(Pointer<Uint8>, Int);
 typedef FnDARTbroadcast_prep = void Function(Pointer<Uint8>, int);
@@ -736,12 +713,6 @@ typedef FnDARTlogin_start = void Function(Pointer<Utf8>);
 typedef FnCcleanup_lib = Void Function(Int);
 typedef FnDARTcleanup_lib = void Function(int);
 
-typedef FnCxstrupr = Void Function(Pointer<Utf8>);
-typedef FnDARTxstrupr = void Function(Pointer<Utf8>);
-
-typedef FnCxstrlwr = Void Function(Pointer<Utf8>);
-typedef FnDARTxstrlwr = void Function(Pointer<Utf8>);
-
 typedef FnCtor_call = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnDARTtor_call = Pointer<Utf8> Function(Pointer<Utf8>);
 
@@ -760,9 +731,6 @@ typedef FnDARTonion_from_torxid = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnCcustom_input = Int Function(Uint8, Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTcustom_input = int Function(int, Pointer<Utf8>, Pointer<Utf8>);
 
-typedef FnCload_onion = Void Function(Int);
-typedef FnDARTload_onion = void Function(int);
-
 typedef FnCdelete_log = Void Function(Int);
 typedef FnDARTdelete_log = void Function(int);
 
@@ -775,38 +743,14 @@ typedef FnDARTsql_exec = int Function(Pointer<Pointer<NativeType>>, Pointer<Utf8
 typedef FnCsql_setting = Int Function(Int, Int, Pointer<Utf8>, Pointer<Utf8>, Size_t);
 typedef FnDARTsql_setting = int Function(int, int, Pointer<Utf8>, Pointer<Utf8>, int);
 
-typedef FnCsql_insert_message = Int Function(Int, Int);
-typedef FnDARTsql_insert_message = int Function(int, int);
-
-typedef FnCsql_update_message = Int Function(Int, Int);
-typedef FnDARTsql_update_message = int Function(int, int);
-
-typedef FnCsql_update_peer = Int Function(Int);
-typedef FnDARTsql_update_peer = int Function(int);
-
-typedef FnCsql_populate_message = Int Function(Int, Uint32, Uint32, Time_t);
-typedef FnDARTsql_populate_message = int Function(int, int, int, int);
-
-typedef FnCsql_populate_peer = Int Function();
-typedef FnDARTsql_populate_peer = int Function();
-
 typedef FnCsql_retrieve = Pointer<Uint8> Function(Pointer<Size_t>, Int, Pointer<Utf8>);
 typedef FnDARTsql_retrieve = Pointer<Uint8> Function(Pointer<Size_t>, int, Pointer<Utf8>);
 
 typedef FnCsql_populate_setting = Void Function(Int);
 typedef FnDARTsql_populate_setting = void Function(int);
 
-typedef FnCsql_delete_message = Int Function(Int, Time_t, Time_t);
-typedef FnDARTsql_delete_message = int Function(int, int, int);
-
-typedef FnCsql_delete_history = Int Function(Int);
-typedef FnDARTsql_delete_history = int Function(int);
-
 typedef FnCsql_delete_setting = Int Function(Int, Int, Pointer<Utf8>);
 typedef FnDARTsql_delete_setting = int Function(int, int, Pointer<Utf8>);
-
-typedef FnCsql_delete_peer = Int Function(Int);
-typedef FnDARTsql_delete_peer = int Function(int);
 
 typedef FnCfile_is_active = Int Function(Int, Int);
 typedef FnDARTfile_is_active = int Function(int, int);
@@ -835,14 +779,8 @@ typedef FnDARTget_file_size = int Function(Pointer<Utf8>);
 typedef FnCdestroy_file = Void Function(Pointer<Utf8>);
 typedef FnDARTdestroy_file = void Function(Pointer<Utf8>);
 
-typedef FnCinitialize_split_info = Int Function(Int, Int);
-typedef FnDARTinitialize_split_info = int Function(int, int);
-
 typedef FnCsplit_update = Void Function(Int, Int, Int16);
 typedef FnDARTsplit_update = void Function(int, int, int);
-
-typedef FnCsection_update = Void Function(Int, Int, Uint64, Size_t, Int8, Int16, Uint64, Int);
-typedef FnDARTsection_update = void Function(int, int, int, int, int, int, int, int);
 
 typedef FnCb3sum_bin = Size_t Function(Pointer<Uint8>, Pointer<Utf8>, Pointer<Uint8>, Uint64, Uint64);
 typedef FnDARTb3sum_bin = int Function(Pointer<Uint8>, Pointer<Utf8>, Pointer<Uint8>, int, int);
@@ -855,9 +793,6 @@ typedef FnDARTtakedown_onion = void Function(int, int);
 
 typedef FnCblock_peer = Void Function(Int);
 typedef FnDARTblock_peer = void Function(int);
-
-typedef FnCsection_unclaim = Int Function(Int, Int, Int, Int8);
-typedef FnDARTsection_unclaim = int Function(int, int, int, int);
 
 typedef FnCmessage_resend = Int Function(Int, Int);
 typedef FnDARTmessage_resend = int Function(int, int);
@@ -874,9 +809,6 @@ typedef FnDARTmessage_extra = void Function(int, int, Pointer<NativeType>, int);
 typedef FnCkill_code = Void Function(Int, Pointer<Utf8>);
 typedef FnDARTkill_code = void Function(int, Pointer<Utf8>);
 
-typedef FnCfile_request_internal = Void Function(Int, Int, Int8);
-typedef FnDARTfile_request_internal = void Function(int, int, int);
-
 typedef FnCfile_set_path = Void Function(Int, Int, Pointer<Utf8>);
 typedef FnDARTfile_set_path = void Function(int, int, Pointer<Utf8>);
 
@@ -889,9 +821,6 @@ typedef FnDARTfile_cancel = void Function(int, int);
 typedef FnCfile_send = Int Function(Int, Pointer<Utf8>);
 typedef FnDARTfile_send = int Function(int, Pointer<Utf8>);
 
-typedef FnCsend_prep = Int Function(Int, Int, Int, Int, Int8);
-typedef FnDARTsend_prep = int Function(int, int, int, int, int);
-
 typedef FnCtorx_events = Pointer<Void> Function(Pointer<NativeType>);
 typedef FnDARTtorx_events = Pointer<Void> Function(Pointer<NativeType>);
 
@@ -900,9 +829,6 @@ typedef FnDARTgenerate_onion = int Function(int, Pointer<Utf8>, Pointer<Utf8>);
 
 typedef FnCcpucount = Int Function();
 typedef FnDARTcpucount = int Function();
-
-typedef FnCsha3_hash = Void Function(Pointer<Uint8>, Uint64, Pointer<Uint8>);
-typedef FnDARTsha3_hash = void Function(Pointer<Uint8>, int, Pointer<Uint8>);
 
 typedef FnCutf8_valid = Uint8 Function(Pointer<NativeType>, Size_t);
 typedef FnDARTutf8_valid = int Function(Pointer<NativeType>, int);
@@ -924,6 +850,94 @@ typedef FnDARTreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<Nativ
 
 typedef FnCwrite_bytes = Size_t Function(Pointer<Utf8>, Pointer<NativeType>, Size_t);
 typedef FnDARTwrite_bytes = int Function(Pointer<Utf8>, Pointer<NativeType>, int);
+/*
+typedef FnCgetter_call_union = types Function(Int, Int, Int, Size_t, Size_t);
+typedef FnDARTgetter_call_union = types Function(int, int, int, int, int);
+
+final class types extends Union {
+  @Int()
+  external int Int;
+
+  @Time_t()
+  external int time;
+
+  @Size()
+  external int size;
+
+  @Uint8()
+  external int uint8;
+
+  @Uint16()
+  external int uint16;
+
+  @Uint32()
+  external int uint32;
+
+  @Uint64()
+  external int uint64;
+
+  @Int8()
+  external int int8;
+
+  @Int16()
+  external int int16;
+
+  @Int32()
+  external int int32;
+
+  @Int64()
+  external int int64;
+}
+  static final getter_call_union = dynamicLibrary.lookupFunction<FnCgetter_call_union, FnDARTgetter_call_union>('getter_call_union');
+*/
+
+typedef FnCgetter_call_uint8 = Uint8 Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_call_uint8 = int Function(int, int, int, int);
+
+typedef FnCgetter_call_time = Time_t Function(Int, Int, Int, Size);
+typedef FnDARTgetter_call_time = int Function(int, int, int, int);
+
+typedef FnCcall_recipient_list = Pointer<Int> Function(Pointer<Uint32>, Int, Int);
+typedef FnDARTcall_recipient_list = Pointer<Int> Function(Pointer<Uint32>, int, int);
+
+typedef FnCcall_participant_list = Pointer<Int> Function(Pointer<Uint32>, Int, Int);
+typedef FnDARTcall_participant_list = Pointer<Int> Function(Pointer<Uint32>, int, int);
+
+typedef FnCcall_participant_count = Int Function(Int, Int);
+typedef FnDARTcall_participant_count = int Function(int, int);
+
+typedef FnCcall_start = Int Function(Int);
+typedef FnDARTcall_start = int Function(int);
+
+typedef FnCcall_toggle_mic = Void Function(Int, Int, Int);
+typedef FnDARTcall_toggle_mic = void Function(int, int, int);
+
+typedef FnCcall_toggle_speaker = Void Function(Int, Int, Int);
+typedef FnDARTcall_toggle_speaker = void Function(int, int, int);
+
+typedef FnCcall_join = Void Function(Int, Int);
+typedef FnDARTcall_join = void Function(int, int);
+
+typedef FnCcall_ignore = Void Function(Int, Int);
+typedef FnDARTcall_ignore = void Function(int, int);
+
+typedef FnCcall_leave = Void Function(Int, Int);
+typedef FnDARTcall_leave = void Function(int, int);
+
+typedef FnCcall_leave_all_except = Void Function(Int, Int);
+typedef FnDARTcall_leave_all_except = void Function(int, int);
+
+typedef FnCcall_mute_all_except = Void Function(Int, Int);
+typedef FnDARTcall_mute_all_except = void Function(int, int);
+
+typedef FnCaudio_cache_retrieve = Pointer<Uint8> Function(Pointer<Time_t>, Pointer<Time_t>, Pointer<Uint32>, Int);
+typedef FnDARTaudio_cache_retrieve = Pointer<Uint8> Function(Pointer<Time_t>, Pointer<Time_t>, Pointer<Uint32>, int);
+
+typedef FnCrecord_cache_clear = Int Function(Int);
+typedef FnDARTrecord_cache_clear = int Function(int);
+
+typedef FnCrecord_cache_add = Int Function(Int, Int, Uint32, Uint32, Pointer<Uint8>, Uint32);
+typedef FnDARTrecord_cache_add = int Function(int, int, int, int, Pointer<Uint8>, int);
 
 void register_callbacks() {
   // WARNING: DO NOT USE ERROR MESSAGES HERE. Only print/printf.
@@ -962,6 +976,10 @@ void register_callbacks() {
   torx.peer_loaded_setter(NativeCallable<FnCpeer_loaded_cb>.listener(Callbacks().peer_loaded_cb_ui).nativeFunction);
   torx.cleanup_setter(NativeCallable<FnCcleanup_cb>.listener(Callbacks().cleanup_cb_ui).nativeFunction);
   torx.stream_setter(NativeCallable<FnCstream_cb>.listener(Callbacks().stream_cb_ui).nativeFunction);
+  torx.initialize_peer_call_setter(NativeCallable<FnCinitialize_peer_call_cb>.listener(Callbacks().initialize_peer_call_cb_ui).nativeFunction);
+  torx.expand_call_struc_setter(NativeCallable<FnCexpand_call_struc_cb>.listener(Callbacks().expand_call_struc_cb_ui).nativeFunction);
+  torx.call_update_setter(NativeCallable<FnCcall_update_cb>.listener(Callbacks().call_update_cb_ui).nativeFunction);
+  torx.audio_cache_add_setter(NativeCallable<FnCaudio_cache_add_cb>.listener(Callbacks().audio_cache_add_cb_ui).nativeFunction);
 }
 
 String getPath() {
@@ -1010,7 +1028,7 @@ Uint8List getter_array(int size, int n, int i, int f, int offset) {
   Pointer<Uint8> array = torx.torx_secure_malloc(size) as Pointer<Uint8>; // free'd by torx_free
   torx.getter_array(array, size, n, i, f, offset);
   Uint8List list = Uint8List(size);
-  list.setAll(0, array.asTypedList(size));
+  list.setAll(0, array.asTypedList(size)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
   torx.torx_free_simple(array);
   array = nullptr;
   return list;
@@ -1021,7 +1039,7 @@ Uint8List getter_bytes(int n, int i, int f, int offset) {
   Pointer<Uint8> pointer = torx.getter_string(len_p, n, i, f, offset) as Pointer<Uint8>; // free'd by torx_free
   Uint8List list = Uint8List(len_p.value);
   if (pointer != nullptr) {
-    list.setAll(0, pointer.asTypedList(len_p.value));
+    list.setAll(0, pointer.asTypedList(len_p.value)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
     torx.torx_free_simple(pointer);
     pointer = nullptr;
   }
@@ -1063,6 +1081,52 @@ List<int> refined_list(int owner, int peer_status, String search) {
   }
   torx.torx_free_simple(arrayN);
   arrayN = nullptr;
+  return list;
+}
+
+List<int> call_recipient_list(int call_n, int call_c) {
+  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
+  Pointer<Int> pointer = torx.call_recipient_list(len_p, call_n, call_c);
+  List<int> list = [];
+  if (pointer != nullptr) {
+    for (int iter = 0; iter < len_p.value; iter++) {
+      list.add(pointer[iter]);
+    }
+    torx.torx_free_simple(pointer);
+    pointer = nullptr;
+  }
+  torx.torx_free_simple(len_p);
+  len_p = nullptr;
+  return list;
+}
+
+List<int> call_participant_list(int call_n, int call_c) {
+  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
+  Pointer<Int> pointer = torx.call_participant_list(len_p, call_n, call_c);
+  List<int> list = [];
+  if (pointer != nullptr) {
+    for (int iter = 0; iter < len_p.value; iter++) {
+      list.add(pointer[iter]);
+    }
+    torx.torx_free_simple(pointer);
+    pointer = nullptr;
+  }
+  torx.torx_free_simple(len_p);
+  len_p = nullptr;
+  return list;
+}
+
+Uint8List audio_cache_retrieve(int participant_n) {
+  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
+  Pointer<Uint8> pointer = torx.audio_cache_retrieve(nullptr, nullptr, len_p, participant_n);
+  Uint8List list = Uint8List(len_p.value);
+  if (pointer != nullptr) {
+    list.setAll(0, pointer.asTypedList(len_p.value)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
+    torx.torx_free_simple(pointer);
+    pointer = nullptr;
+  }
+  torx.torx_free_simple(len_p);
+  len_p = nullptr;
   return list;
 }
 
@@ -1208,6 +1272,14 @@ class torx {
 
   static final stream_setter = dynamicLibrary.lookupFunction<FnCstream_setter, FnDARTstream_setter>('stream_setter');
 
+  static final initialize_peer_call_setter = dynamicLibrary.lookupFunction<FnCinitialize_peer_call_setter, FnDARTinitialize_peer_call_setter>('initialize_peer_call_setter');
+
+  static final expand_call_struc_setter = dynamicLibrary.lookupFunction<FnCexpand_call_struc_setter, FnDARTexpand_call_struc_setter>('expand_call_struc_setter');
+
+  static final call_update_setter = dynamicLibrary.lookupFunction<FnCcall_update_setter, FnDARTcall_update_setter>('call_update_setter');
+
+  static final audio_cache_add_setter = dynamicLibrary.lookupFunction<FnCaudio_cache_add_setter, FnDARTaudio_cache_add_setter>('audio_cache_add_setter');
+
   static final pthread_rwlock_rdlock = dynamicLibrary.lookupFunction<FnCpthread_rwlock_rdlock, FnDARTpthread_rwlock_rdlock>('pthread_rwlock_rdlock');
 
   static final pthread_rwlock_wrlock = dynamicLibrary.lookupFunction<FnCpthread_rwlock_wrlock, FnDARTpthread_rwlock_wrlock>('pthread_rwlock_wrlock');
@@ -1340,12 +1412,6 @@ class torx {
 
   static final torx_secure_malloc = dynamicLibrary.lookupFunction<FnCtorx_secure_malloc, FnDARTtorx_secure_malloc>('torx_secure_malloc');
 
-  static final message_insert = dynamicLibrary.lookupFunction<FnCmessage_insert, FnDARTmessage_insert>('message_insert');
-
-  static final message_remove = dynamicLibrary.lookupFunction<FnCmessage_remove, FnDARTmessage_remove>('message_remove');
-
-  static final message_sort = dynamicLibrary.lookupFunction<FnCmessage_sort, FnDARTmessage_sort>('message_sort');
-
   static final message_load_more = dynamicLibrary.lookupFunction<FnCmessage_load_more, FnDARTmessage_load_more>('message_load_more');
 
   static final set_time = dynamicLibrary.lookupFunction<FnCset_time, FnDARTset_time>('set_time');
@@ -1354,13 +1420,7 @@ class torx {
 
   static final file_progress_string = dynamicLibrary.lookupFunction<FnCfile_progress_string, FnDARTfile_progress_string>('file_progress_string');
 
-  static final transfer_progress = dynamicLibrary.lookupFunction<FnCtransfer_progress, FnDARTtransfer_progress>('transfer_progress');
-
-  static final message_sign = dynamicLibrary.lookupFunction<FnCmessage_sign, FnDARTmessage_sign>('message_sign');
-
   static final calculate_transferred = dynamicLibrary.lookupFunction<FnCcalculate_transferred, FnDARTcalculate_transferred>('calculate_transferred');
-
-  static final calculate_section_start = dynamicLibrary.lookupFunction<FnCcalculate_section_start, FnDARTcalculate_section_start>('calculate_section_start');
 
   static final vptoi = dynamicLibrary.lookupFunction<FnCvptoi, FnDARTvptoi>('vptoi');
 
@@ -1382,10 +1442,6 @@ class torx {
 
   static final random_string = dynamicLibrary.lookupFunction<FnCrandom_string, FnDARTrandom_string>('random_string');
 
-  static final ed25519_pk_from_onion = dynamicLibrary.lookupFunction<FnCed25519_pk_from_onion, FnDARTed25519_pk_from_onion>('ed25519_pk_from_onion');
-
-  static final onion_from_ed25519_pk = dynamicLibrary.lookupFunction<FnConion_from_ed25519_pk, FnDARTonion_from_ed25519_pk>('onion_from_ed25519_pk');
-
   static final torrc_verify = dynamicLibrary.lookupFunction<FnCtorrc_verify, FnDARTtorrc_verify>('torrc_verify');
 
   static final torrc_save = dynamicLibrary.lookupFunction<FnCtorrc_save, FnDARTtorrc_save>('torrc_save');
@@ -1394,17 +1450,7 @@ class torx {
 
   static final torx_realloc = dynamicLibrary.lookupFunction<FnCtorx_realloc, FnDARTtorx_realloc>('torx_realloc');
 
-  static final zero_n = dynamicLibrary.lookupFunction<FnCzero_n, FnDARTzero_n>('zero_n');
-
-  static final zero_i = dynamicLibrary.lookupFunction<FnCzero_i, FnDARTzero_i>('zero_i');
-
-  static final zero_g = dynamicLibrary.lookupFunction<FnCzero_g, FnDARTzero_g>('zero_g');
-
-  static final mit_strcasestr = dynamicLibrary.lookupFunction<FnCmit_strcasestr, FnDARTmit_strcasestr>('mit_strcasestr');
-
   static final refined_list = dynamicLibrary.lookupFunction<FnCrefined_list, FnDARTrefined_list>('refined_list');
-
-  static final stripbuffer = dynamicLibrary.lookupFunction<FnCstripbuffer, FnDARTstripbuffer>('stripbuffer');
 
   static final randport = dynamicLibrary.lookupFunction<FnCrandport, FnDARTrandport>('randport');
 
@@ -1420,17 +1466,11 @@ class torx {
 
   static final re_expand_callbacks = dynamicLibrary.lookupFunction<FnCre_expand_callbacks, FnDARTre_expand_callbacks>('re_expand_callbacks');
 
-  static final expand_message_struc = dynamicLibrary.lookupFunction<FnCexpand_message_struc, FnDARTexpand_message_struc>('expand_message_struc');
-
   static final set_last_message = dynamicLibrary.lookupFunction<FnCset_last_message, FnDARTset_last_message>('set_last_message');
 
   static final group_online = dynamicLibrary.lookupFunction<FnCgroup_online, FnDARTgroup_online>('group_online');
 
   static final group_check_sig = dynamicLibrary.lookupFunction<FnCgroup_check_sig, FnDARTgroup_check_sig>('group_check_sig');
-
-  static final group_add_peer = dynamicLibrary.lookupFunction<FnCgroup_add_peer, FnDARTgroup_add_peer>('group_add_peer');
-
-  static final broadcast_add = dynamicLibrary.lookupFunction<FnCbroadcast_add, FnDARTbroadcast_add>('broadcast_add');
 
   static final broadcast_prep = dynamicLibrary.lookupFunction<FnCbroadcast_prep, FnDARTbroadcast_prep>('broadcast_prep');
 
@@ -1448,10 +1488,6 @@ class torx {
 
   static final cleanup_lib = dynamicLibrary.lookupFunction<FnCcleanup_lib, FnDARTcleanup_lib>('cleanup_lib');
 
-  static final xstrupr = dynamicLibrary.lookupFunction<FnCxstrupr, FnDARTxstrupr>('xstrupr');
-
-  static final xstrlwr = dynamicLibrary.lookupFunction<FnCxstrlwr, FnDARTxstrlwr>('xstrlwr');
-
   static final tor_call = dynamicLibrary.lookupFunction<FnCtor_call, FnDARTtor_call>('tor_call');
 
   static final tor_call_async = dynamicLibrary.lookupFunction<FnCtor_call_async, FnDARTtor_call_async>('tor_call_async');
@@ -1464,8 +1500,6 @@ class torx {
 
   static final custom_input = dynamicLibrary.lookupFunction<FnCcustom_input, FnDARTcustom_input>('custom_input');
 
-  static final load_onion = dynamicLibrary.lookupFunction<FnCload_onion, FnDARTload_onion>('load_onion');
-
   static final delete_log = dynamicLibrary.lookupFunction<FnCdelete_log, FnDARTdelete_log>('delete_log');
 
   static final message_edit = dynamicLibrary.lookupFunction<FnCmessage_edit, FnDARTmessage_edit>('message_edit');
@@ -1474,27 +1508,11 @@ class torx {
 
   static final sql_setting = dynamicLibrary.lookupFunction<FnCsql_setting, FnDARTsql_setting>('sql_setting');
 
-  static final sql_insert_message = dynamicLibrary.lookupFunction<FnCsql_insert_message, FnDARTsql_insert_message>('sql_insert_message');
-
-  static final sql_update_message = dynamicLibrary.lookupFunction<FnCsql_update_message, FnDARTsql_update_message>('sql_update_message');
-
-  static final sql_update_peer = dynamicLibrary.lookupFunction<FnCsql_update_peer, FnDARTsql_update_peer>('sql_update_peer');
-
-  static final sql_populate_message = dynamicLibrary.lookupFunction<FnCsql_populate_message, FnDARTsql_populate_message>('sql_populate_message');
-
-  static final sql_populate_peer = dynamicLibrary.lookupFunction<FnCsql_populate_peer, FnDARTsql_populate_peer>('sql_populate_peer');
-
   static final sql_retrieve = dynamicLibrary.lookupFunction<FnCsql_retrieve, FnDARTsql_retrieve>('sql_retrieve');
 
   static final sql_populate_setting = dynamicLibrary.lookupFunction<FnCsql_populate_setting, FnDARTsql_populate_setting>('sql_populate_setting');
 
-  static final sql_delete_message = dynamicLibrary.lookupFunction<FnCsql_delete_message, FnDARTsql_delete_message>('sql_delete_message');
-
-  static final sql_delete_history = dynamicLibrary.lookupFunction<FnCsql_delete_history, FnDARTsql_delete_history>('sql_delete_history');
-
   static final sql_delete_setting = dynamicLibrary.lookupFunction<FnCsql_delete_setting, FnDARTsql_delete_setting>('sql_delete_setting');
-
-  static final sql_delete_peer = dynamicLibrary.lookupFunction<FnCsql_delete_peer, FnDARTsql_delete_peer>('sql_delete_peer');
 
   static final file_is_active = dynamicLibrary.lookupFunction<FnCfile_is_active, FnDARTfile_is_active>('file_is_active');
 
@@ -1514,11 +1532,7 @@ class torx {
 
   static final destroy_file = dynamicLibrary.lookupFunction<FnCdestroy_file, FnDARTdestroy_file>('destroy_file');
 
-  static final initialize_split_info = dynamicLibrary.lookupFunction<FnCinitialize_split_info, FnDARTinitialize_split_info>('initialize_split_info');
-
   static final split_update = dynamicLibrary.lookupFunction<FnCsplit_update, FnDARTsplit_update>('split_update');
-
-  static final section_update = dynamicLibrary.lookupFunction<FnCsection_update, FnDARTsection_update>('section_update');
 
   static final b3sum_bin = dynamicLibrary.lookupFunction<FnCb3sum_bin, FnDARTb3sum_bin>('b3sum_bin');
 
@@ -1527,8 +1541,6 @@ class torx {
   static final takedown_onion = dynamicLibrary.lookupFunction<FnCtakedown_onion, FnDARTtakedown_onion>('takedown_onion');
 
   static final block_peer = dynamicLibrary.lookupFunction<FnCblock_peer, FnDARTblock_peer>('block_peer');
-
-  static final section_unclaim = dynamicLibrary.lookupFunction<FnCsection_unclaim, FnDARTsection_unclaim>('section_unclaim');
 
   static final message_resend = dynamicLibrary.lookupFunction<FnCmessage_resend, FnDARTmessage_resend>('message_resend');
 
@@ -1540,8 +1552,6 @@ class torx {
 
   static final kill_code = dynamicLibrary.lookupFunction<FnCkill_code, FnDARTkill_code>('kill_code');
 
-  static final file_request_internal = dynamicLibrary.lookupFunction<FnCfile_request_internal, FnDARTfile_request_internal>('file_request_internal');
-
   static final file_set_path = dynamicLibrary.lookupFunction<FnCfile_set_path, FnDARTfile_set_path>('file_set_path');
 
   static final file_accept = dynamicLibrary.lookupFunction<FnCfile_accept, FnDARTfile_accept>('file_accept');
@@ -1550,15 +1560,11 @@ class torx {
 
   static final file_send = dynamicLibrary.lookupFunction<FnCfile_send, FnDARTfile_send>('file_send');
 
-  static final send_prep = dynamicLibrary.lookupFunction<FnCsend_prep, FnDARTsend_prep>('send_prep');
-
   static final torx_events = dynamicLibrary.lookupFunction<FnCtorx_events, FnDARTtorx_events>('torx_events');
 
   static final generate_onion = dynamicLibrary.lookupFunction<FnCgenerate_onion, FnDARTgenerate_onion>('generate_onion');
 
   static final cpucount = dynamicLibrary.lookupFunction<FnCcpucount, FnDARTcpucount>('cpucount');
-
-  static final sha3_hash = dynamicLibrary.lookupFunction<FnCsha3_hash, FnDARTsha3_hash>('sha3_hash');
 
   static final utf8_valid = dynamicLibrary.lookupFunction<FnCutf8_valid, FnDARTutf8_valid>('utf8_valid');
 
@@ -1573,6 +1579,38 @@ class torx {
   static final return_png = dynamicLibrary.lookupFunction<FnCreturn_png, FnDARTreturn_png>('return_png');
 
   static final write_bytes = dynamicLibrary.lookupFunction<FnCwrite_bytes, FnDARTwrite_bytes>('write_bytes');
+
+  static final getter_call_uint8 = dynamicLibrary.lookupFunction<FnCgetter_call_uint8, FnDARTgetter_call_uint8>('getter_call_uint8');
+
+  static final getter_call_time = dynamicLibrary.lookupFunction<FnCgetter_call_time, FnDARTgetter_call_time>('getter_call_time');
+
+  static final call_recipient_list = dynamicLibrary.lookupFunction<FnCcall_recipient_list, FnDARTcall_recipient_list>('call_recipient_list');
+
+  static final call_participant_list = dynamicLibrary.lookupFunction<FnCcall_participant_list, FnDARTcall_participant_list>('call_participant_list');
+
+  static final call_participant_count = dynamicLibrary.lookupFunction<FnCcall_participant_count, FnDARTcall_participant_count>('call_participant_count');
+
+  static final call_start = dynamicLibrary.lookupFunction<FnCcall_start, FnDARTcall_start>('call_start');
+
+  static final call_toggle_mic = dynamicLibrary.lookupFunction<FnCcall_toggle_mic, FnDARTcall_toggle_mic>('call_toggle_mic');
+
+  static final call_toggle_speaker = dynamicLibrary.lookupFunction<FnCcall_toggle_speaker, FnDARTcall_toggle_speaker>('call_toggle_speaker');
+
+  static final call_join = dynamicLibrary.lookupFunction<FnCcall_join, FnDARTcall_join>('call_join');
+
+  static final call_ignore = dynamicLibrary.lookupFunction<FnCcall_ignore, FnDARTcall_ignore>('call_ignore');
+
+  static final call_leave = dynamicLibrary.lookupFunction<FnCcall_leave, FnDARTcall_leave>('call_leave');
+
+  static final call_leave_all_except = dynamicLibrary.lookupFunction<FnCcall_leave_all_except, FnDARTcall_leave_all_except>('call_leave_all_except');
+
+  static final call_mute_all_except = dynamicLibrary.lookupFunction<FnCcall_mute_all_except, FnDARTcall_mute_all_except>('call_mute_all_except');
+
+  static final audio_cache_retrieve = dynamicLibrary.lookupFunction<FnCaudio_cache_retrieve, FnDARTaudio_cache_retrieve>('audio_cache_retrieve');
+
+  static final record_cache_clear = dynamicLibrary.lookupFunction<FnCrecord_cache_clear, FnDARTrecord_cache_clear>('record_cache_clear');
+
+  static final record_cache_add = dynamicLibrary.lookupFunction<FnCrecord_cache_add, FnDARTrecord_cache_add>('record_cache_add');
 
 /* Pointers */
   // These are ONLY FOR SETTING. and require mutex wrapper. For reading, use threadsafe_read_global_

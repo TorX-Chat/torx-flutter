@@ -96,6 +96,7 @@ List<sticker> stickers = [];
 
 Image? sticker_generator(int s) {
   if (stickers.isNotEmpty && s < stickers.length) {
+    // WARNING: If we crash after deleting image, it's because we use asTypedList directly here instead of copying with setAll
     Uint8List bytes = stickers[s].data.asTypedList(stickers[s].data_len);
     return Image.memory(height: sticker_size * 2, fit: BoxFit.contain, bytes);
   }

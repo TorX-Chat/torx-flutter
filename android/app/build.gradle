@@ -49,7 +49,7 @@ android {
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
 	ndk {
-		abiFilters 'arm64-v8a', 'x86_64'
+		abiFilters 'arm64-v8a' // , 'x86_64' the userbase of this would be 0, so disabling it, but it works (2025)
 	}
     }
     externalNativeBuild {

@@ -74,7 +74,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/intl.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -124,8 +123,14 @@ String? nativeLibraryDir;
 String? applicationDocumentsDir;
 bool initialized = false; // initialization_functions() only
 
-AudioRecorder current_recording = AudioRecorder();
-bool currently_recording = false;
+class current_recording {
+  static AudioRecorder pipeline = AudioRecorder();
+  static bool is_recording = false;
+  static int start_time = 0;
+  static List<Uint8List> recordedDataChunks = [];
+  static int call_n = -1;
+  static int call_c = -1;
+}
 
 const double size_large_icon = 50;
 const double size_medium_icon = 32;
@@ -156,17 +161,6 @@ class t_file_class {
   List<int> previously_completed = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; //11
 }
 
-class t_cache_info_class {
-  List<Uint8List> audio_cache = []; // Note: this is a list of lists
-  //	size_t *audio_cache_len; // unnecessary in Dart, use audio_cache[iter].length
-  List<int> audio_time = [];
-  List<int> audio_nstime = [];
-  int last_played_time = 0;
-  int last_played_nstime = 0;
-//		GstElement *stream_pipeline;
-  bool playing = false;
-}
-
 class t_message_class {
   // NOTE: if adding things, be sure to handle them in expand_message_struc_cb(), initialize_i_cb(), and shrinkage_cb_ui
   List<int> unheard = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 21
@@ -175,20 +169,9 @@ class t_message_class {
 
 class t_call_class {
   // NOTE: if adding things, be sure to handle them in set_c()
-  // NOTE: This is UI only, so we don't need to create it in blocks of 11
-  List<bool> joined = []; // Whether we accepted/joined it
-  List<bool> waiting = []; // Whether it is awaiting an acceptance/join or has been declined/ignored
-  List<bool> mic_on = [];
-  List<bool> speaker_on = [];
+  // NOTE: We do call struct allocation differently, so don't initialize blocks of 11 (except within t_peer)
   List<bool> speaker_phone = []; // TODO utilize
-  List<bool> audio_only = [];
-  List<int> start_time = [];
-  List<int> start_nstime = [];
-  List<List<int>> participating = [[]]; // Participating peers' n
-  List<List<bool>> participant_mic = [[]];
-  List<List<bool>> participant_speaker = [[]];
   List<int> notification_id = []; // Flutter specific, for killing notifications when call ends
-  // TODO buffer (unsure how to do... we need to store both raw data and its length(?), time, nstime)
 }
 
 class t_peer {
@@ -240,19 +223,7 @@ class t_peer {
     t_call_class(),
     t_call_class(),
   ]; // 11
-  static List<t_cache_info_class> t_cache_info = [
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-    t_cache_info_class(),
-  ]; // 11
+  static List<bool> playing = [false, false, false, false, false, false, false, false, false, false, false]; //11
 }
 
 AppLifecycleState globalAppLifecycleState = AppLifecycleState.resumed; // This is the appropriate default Enum values below
@@ -376,25 +347,6 @@ Uint8List htobe32(int value) {
 int be32toh(Uint8List bytes) {
   final byteData = ByteData.sublistView(bytes);
   return byteData.getUint32(0, Endian.big);
-}
-
-int set_c(int n, int time, int nstime) {
-  for (int c = 0; c < t_peer.t_call[n].joined.length; c++) {
-    if (t_peer.t_call[n].start_time[c] == time && t_peer.t_call[n].start_nstime[c] == nstime) return c;
-  }
-  t_peer.t_call[n].joined.add(false);
-  t_peer.t_call[n].waiting.add(false);
-  t_peer.t_call[n].mic_on.add(true);
-  t_peer.t_call[n].speaker_on.add(true);
-  t_peer.t_call[n].speaker_phone.add(false);
-  t_peer.t_call[n].audio_only.add(true);
-  t_peer.t_call[n].start_time.add(time);
-  t_peer.t_call[n].start_nstime.add(nstime);
-  t_peer.t_call[n].participating.add([]);
-  t_peer.t_call[n].participant_mic.add([]);
-  t_peer.t_call[n].participant_speaker.add([]);
-  t_peer.t_call[n].notification_id.add(-1);
-  return t_peer.t_call[n].joined.length - 1;
 }
 
 class TorX extends StatefulWidget {
@@ -547,6 +499,7 @@ Image generate_qr(String data) {
   Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free
   Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
   Pointer<Void> png = torx.return_png(size_p, qr_raw);
+  // WARNING: If we crash after deleting image, it's because we use asTypedList directly here instead of copying with setAll
   Image image = Image.memory(Pointer<Uint8>.fromAddress(png.address).asTypedList(size_p.value));
   torx.torx_free_simple(qr_raw);
   qr_raw = nullptr;
@@ -664,37 +617,6 @@ void toggleBlock(int n) {
   torx.block_peer(n);
   changeNotifierOnlineOffline.callback(integer: n);
   changeNotifierChatList.callback(integer: n);
-}
-
-void call_update(int call_n, int call_c) {
-  // TODO can probably do more here, like in GTK
-  if (t_peer.t_call[call_n].participating[call_c].isEmpty && t_peer.t_call[call_n].joined[call_c] && t_peer.t_call[call_n].mic_on[call_c] && currently_recording) {
-    record_stop(); // Must do this here instead of in UI
-  }
-  changeNotifierCallUpdate.callback(integer: call_n);
-}
-
-void call_start(int call_n) {
-  int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
-  int sendfd_connected = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "sendfd_connected"));
-  int recvfd_connected = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "recvfd_connected"));
-  int online = recvfd_connected + sendfd_connected;
-
-  if (owner == ENUM_OWNER_GROUP_CTRL || online > 0) {
-    Pointer<Time_t> time = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
-    Pointer<Time_t> nstime = torx.torx_secure_malloc(8) as Pointer<Time_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
-    time.value = 0; // must do this or set_time throws error
-    nstime.value = 0; // must do this or set_time throws error
-    torx.set_time(time, nstime);
-    printf(
-        "Checkpoint time=${time.value} nstime=${nstime.value} ${DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch((time.value) * 1000, isUtc: false))}");
-    int c = set_c(call_n, time.value, nstime.value); // TODO casting here might be bad
-    torx.torx_free_simple(time);
-    time = nullptr;
-    torx.torx_free_simple(nstime);
-    nstime = nullptr;
-    call_join(call_n, c);
-  }
 }
 
 List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingController? controllerMessage, int n, int i, int s) {
@@ -846,7 +768,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               leading: const Icon(Icons.call),
               title: Text(text.audio_call),
               onTap: () {
-                call_start(n);
+                torx.call_start(n);
                 Navigator.pop(context);
               })),
     if (message_owner == ENUM_OWNER_GROUP_PEER)
@@ -1067,321 +989,159 @@ void print_message(int n, int i, int scroll) {
   }
 }
 
-void call_join(int n, int c) {
-  if (t_peer.t_call[n].start_time[c] == 0 && t_peer.t_call[n].start_nstime[c] == 0) {
-    error(0, "Cannot join a call with zero time/nstime. Coding error. Report this.");
-    return;
-  }
-  call_leave_all_except(n, c);
-  if (t_peer.t_call[n].waiting[c]) {
-    ring_stop();
-    if (t_peer.t_call[n].notification_id[c] > -1) {
-      Noti.cancel(t_peer.t_call[n].notification_id[c], flutterLocalNotificationsPlugin);
-      t_peer.t_call[n].notification_id[c] = -1;
-    }
-  }
-  t_peer.t_call[n].waiting[c] = false;
-  t_peer.t_call[n].joined[c] = true;
-  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
-  int protocol;
-  if (owner == ENUM_OWNER_GROUP_PEER) {
-    protocol = ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE;
-  } else {
-    protocol = ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN;
-  }
-  int message_len = 8;
-  Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
-  message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_time[c]));
-  (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_nstime[c]));
-  printf("Checkpoint call_join to ${t_peer.t_call[n].participating[c].length} peers ${t_peer.t_call[n].start_time[c]}:${t_peer.t_call[n].start_time[c]}");
-  if (t_peer.t_call[n].participating[c].isNotEmpty) {
-    for (int iter = 0; iter < t_peer.t_call[n].participating[c].length; iter++) {
-      // Join Existing call
-      torx.message_send(t_peer.t_call[n].participating[c][iter], protocol, message, message_len);
-    }
-  } else {
-    // Start new call
-    torx.message_send(n, protocol, message, message_len);
-  }
-  torx.torx_free_simple(message);
-  message = nullptr;
-  call_update(n, c);
-}
-
-void call_ignore(int n, int c) {
-  if (!t_peer.t_call[n].joined[c] && !t_peer.t_call[n].waiting[c]) {
-    error(0, "Sanity check failed in call_ignore. Coding error. Report this.");
-    return;
-  }
-  if (t_peer.t_call[n].waiting[c]) {
-    ring_stop();
-    if (t_peer.t_call[n].notification_id[c] > -1) {
-      Noti.cancel(t_peer.t_call[n].notification_id[c], flutterLocalNotificationsPlugin);
-      t_peer.t_call[n].notification_id[c] = -1;
-    }
-  }
-  if (t_peer.t_call[n].joined[c] && t_peer.t_call[n].mic_on[c] && currently_recording) {
-    record_stop();
-  }
-  t_peer.t_call[n].waiting[c] = false;
-  t_peer.t_call[n].joined[c] = false;
-  call_update(n, c);
-}
-
-void call_leave(int n, int c) {
-  if (!t_peer.t_call[n].joined[c] && !t_peer.t_call[n].waiting[c]) {
-    error(0, "Sanity check failed in call_leave. Coding error. Report this.");
-    return;
-  }
-  int message_len = 8;
-  Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
-  message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_time[c]));
-  (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[n].start_nstime[c]));
-  printf("Checkpoint call_leave to ${t_peer.t_call[n].participating[c].length} peers ${t_peer.t_call[n].start_time[c]}:${t_peer.t_call[n].start_nstime[c]}");
-  printf("Checkpoint call_leave ${be32toh(message.asTypedList(4))} ${be32toh(message.asTypedList(8).sublist(4))}");
-  int send_count = 0;
-  if (t_peer.t_call[n].joined[c]) {
-    for (int iter = 0; iter < t_peer.t_call[n].participating[c].length; iter++) {
-      torx.message_send(t_peer.t_call[n].participating[c][iter], ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE, message, message_len);
-      send_count++;
-    }
-  }
-  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
-  if (send_count == 0 && (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_PEER)) {
-    torx.message_send(n, ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE, message, message_len);
-  }
-  torx.torx_free_simple(message);
-  message = nullptr;
-  call_ignore(n, c);
-}
-
-void call_leave_all_except(int except_n, int except_c) {
-  // Leave or reject all active calls, except one (or none if -1). To be called primarily when call_join is called, but may also be called for other purposes.
-  for (int call_n = 0; torx.getter_byte(call_n, INT_MIN, -1, offsetof("peer", "onion")) != 0; call_n++) {
-    int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
-    if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
-      for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
-        if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
-          if (call_n != except_n || c != except_c) call_leave(call_n, c);
-        }
-      }
-    }
-  }
-}
-
-void call_mute_all_except(int except_n, int except_c) {
-  // Leave or reject all active calls, except one (or none if -1). To be called primarily when call_join is called, but may also be called for other purposes.
-  for (int call_n = 0; torx.getter_byte(call_n, INT_MIN, -1, offsetof("peer", "onion")) != 0; call_n++) {
-    int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
-    if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL || owner == ENUM_OWNER_GROUP_PEER) {
-      for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
-        if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
-          if (call_n != except_n || c != except_c) {
-            if (t_peer.t_call[call_n].joined[c] && t_peer.t_call[call_n].mic_on[c] && currently_recording) {
-              // This isn't 100% certainty that the current_recording is for this call but it's a very good indication
-              record_stop();
-            }
-            t_peer.t_call[call_n].mic_on[c] = false;
-            t_peer.t_call[call_n].speaker_on[c] = false;
-          }
-        }
-      }
-    }
-  }
-}
-
-void call_peer_joining(int call_n, int c, int peer_n) {
-  for (int iter = 0; iter < t_peer.t_call[call_n].participating[c].length; iter++) {
-    if (peer_n == t_peer.t_call[call_n].participating[c][iter]) {
-      error(0, "Peer is already part of call. Possible coding error. Report this.");
-      return; // Peer is already in the call
-    }
-  }
-  call_peer_leaving_all_except(peer_n, call_n, c);
-  printf("Checkpoint call_peer_joining $call_n $c $peer_n");
-  if (t_peer.t_call[call_n].participating[c].isNotEmpty) {
-    // send a list of peer onions that are already in the call, excluding this peer, if any
-    int message_len = 8 + 56 * t_peer.t_call[call_n].participating[c].length;
-    Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
-    message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_time[c]));
-    (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_nstime[c]));
-    for (int iter = 0; iter < t_peer.t_call[call_n].participating[c].length; iter++) {
-      String peeronion = getter_string(t_peer.t_call[call_n].participating[c][iter], INT_MIN, -1, offsetof("peer", "peeronion"));
-      Pointer<Utf8> peeronion_p = peeronion.toNativeUtf8(); // free'd by calloc.free
-      torx.memcpy((message + 8 + iter * 56), peeronion_p, 56);
-      calloc.free(peeronion_p);
-    }
-    torx.message_send(peer_n, ENUM_PROTOCOL_AAC_AUDIO_STREAM_PEERS, message, message_len);
-    torx.torx_free_simple(message);
-    message = nullptr;
-  }
-  t_peer.t_call[call_n].participating[c].add(peer_n);
-  t_peer.t_call[call_n].participant_mic[c].add(true); // default, enabled
-  t_peer.t_call[call_n].participant_speaker[c].add(true); // default, enabled
-  call_update(call_n, c);
-}
-
-void call_peer_leaving(int n, int c, int peer_n) {
-  for (int iter = 0; iter < t_peer.t_call[n].participating[c].length; iter++) {
-    if (peer_n == t_peer.t_call[n].participating[c][iter]) {
-      t_peer.t_call[n].participating[c].removeAt(iter);
-      t_peer.t_call[n].participant_mic[c].removeAt(iter);
-      t_peer.t_call[n].participant_speaker[c].removeAt(iter);
-      break;
-    }
-  }
-  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
-  if ((t_peer.t_call[n].joined[c] || t_peer.t_call[n].waiting[c]) && (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_PEER)) {
-    // Ending the call if it is non-group
-    if (t_peer.t_call[n].waiting[c]) {
-      ring_stop();
-      if (t_peer.t_call[n].notification_id[c] > -1) {
-        Noti.cancel(t_peer.t_call[n].notification_id[c], flutterLocalNotificationsPlugin);
-        t_peer.t_call[n].notification_id[c] = -1;
-      }
-    }
-    t_peer.t_call[n].joined[c] = false;
-    t_peer.t_call[n].waiting[c] = false;
-  }
-  call_update(n, c);
-}
-
-void call_peer_leaving_all_except(int n, int except_n, int except_c) {
-  int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
-  if (owner == ENUM_OWNER_GROUP_PEER) {
-    int g = torx.set_g(n, nullptr);
-    int group_n = torx.getter_group_int(g, offsetof("group", "n"));
-    int call_n = group_n;
-    for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
-      if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
-        if (call_n != except_n || c != except_c) call_peer_leaving(call_n, c, n);
-      }
-    }
-  } // NOT ELSE
-  int call_n = n;
-  for (int c = 0; c < t_peer.t_call[call_n].joined.length; c++) {
-    if ((t_peer.t_call[call_n].joined[c] || t_peer.t_call[call_n].waiting[c]) && (t_peer.t_call[call_n].start_time[c] != 0 || t_peer.t_call[call_n].start_nstime[c] != 0)) {
-      if (call_n != except_n || c != except_c) call_peer_leaving(call_n, c, n);
-    }
-  }
-}
-
-Future<void> cache_play(int n) async {
-  if (!t_peer.t_cache_info[n].playing) {
+Future<void> audio_cache_play(int n) async {
+  if (n > -1 && !t_peer.playing[n]) {
+    t_peer.playing[n] = true;
     AudioPlayer player = AudioPlayer(); // TODO continually creating and destroying this may be expensive
-    t_peer.t_cache_info[n].playing = true;
-    while (t_peer.t_cache_info[n].playing && t_peer.t_cache_info[n].audio_cache.isNotEmpty) {
-      t_peer.t_cache_info[n].last_played_time = t_peer.t_cache_info[n].audio_time[0]; // Important
-      t_peer.t_cache_info[n].last_played_nstime = t_peer.t_cache_info[n].audio_nstime[0]; // Important
-      await player.play(BytesSource(t_peer.t_cache_info[n].audio_cache[0] /*, mimeType: "audio/L16"*/));
-      t_peer.t_cache_info[n].audio_cache.removeAt(0);
-      t_peer.t_cache_info[n].audio_time.removeAt(0);
-      t_peer.t_cache_info[n].audio_nstime.removeAt(0);
+    Pointer<Uint32> tmp_len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>;
+    Pointer<Uint8> data = nullptr;
+    int existing = 0;
+    for (Pointer<Uint8> tmp; (tmp = torx.audio_cache_retrieve(nullptr, nullptr, tmp_len_p, n)) != nullptr;) {
+      if (data == nullptr) {
+        data = tmp;
+      } else {
+        data = torx.torx_realloc(data, existing + tmp_len_p.value) as Pointer<Uint8>;
+        torx.memcpy(data + existing, tmp, tmp_len_p.value);
+      }
+      existing = tmp_len_p.value;
     }
-    t_peer.t_cache_info[n].playing = false;
+    if (existing > 0) {
+//    while ((data = torx.audio_cache_retrieve(nullptr, nullptr, data_len_p, n)) != nullptr) {
+      printf("Checkpoint audio_cache_play n=$n data_len=$existing");
+      Uint8List bytes = Uint8List(existing);
+      bytes.setAll(0, data.asTypedList(existing)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
+      await player.play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
+    }
+    t_peer.playing[n] = false;
+    torx.torx_free_simple(tmp_len_p);
+    tmp_len_p = nullptr;
     player.dispose();
   }
 }
 
-void cache_add(int n, int time, int nstime, Uint8List data) {
-  // Handles ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE data
-  if (time < t_peer.t_cache_info[n].last_played_time || (time == t_peer.t_cache_info[n].last_played_time && nstime < t_peer.t_cache_info[n].last_played_nstime)) {
-    error(0, "Received audio older than last played. Disgarding it. Carry on.");
-    return;
+void audio_ready(int call_n, int call_c, Uint8List data) {
+  // In Flutter, this is NOT used for audio messages, only for audio streams. Audio messages utilize recordedDataChunks
+  Pointer<Uint8> pointer = torx.torx_secure_malloc(data.length) as Pointer<Uint8>;
+  for (int iter = 0; iter < data.length; iter++) {
+    pointer[iter] = data[iter]; // Necessary for some reason
   }
-  int prior_count = t_peer.t_cache_info[n].audio_cache.length;
-  if (prior_count > 0 &&
-      (t_peer.t_cache_info[n].audio_time[prior_count - 1] > time ||
-          (t_peer.t_cache_info[n].audio_time[prior_count - 1] == time && t_peer.t_cache_info[n].audio_nstime[prior_count - 1] > nstime))) {
-    // Received audio is older than something we already have in our struct, so we need to re-order it.
-    List<Uint8List> audio_cache = []; // Note: this is a list of lists
-    List<int> audio_time = [];
-    List<int> audio_nstime = [];
-    bool already_placed_new_data = false; // must avoid placing more than once
-    for (int old = prior_count - 1; old > -1;) {
-      if (already_placed_new_data ||
-          t_peer.t_cache_info[n].audio_time[old] > time ||
-          (t_peer.t_cache_info[n].audio_time[old] == time && t_peer.t_cache_info[n].audio_nstime[old] > nstime)) {
-        // Existing is newer, place it (may occur many times)
-        audio_cache.add(t_peer.t_cache_info[n].audio_cache[old]);
-        audio_time.add(t_peer.t_cache_info[n].audio_time[old]);
-        audio_nstime.add(t_peer.t_cache_info[n].audio_nstime[old]);
-        old--; // only -- when utilizing old data
-      } else {
-        // Ours is newer, place it (must only occur once)
-        audio_cache.add(data);
-        audio_time.add(time);
-        audio_nstime.add(nstime);
-        already_placed_new_data = true;
+  if (torx.record_cache_add(call_n, call_c, AptitudeBuffer.cache_minimum_size, AptitudeBuffer.max_age_in_ms, pointer, data.length) < 1) {
+    record_stop(true);
+  }
+  torx.torx_free_simple(pointer);
+  pointer = nullptr;
+}
+
+class AptitudeBuffer {
+  // This is fine to be global and allow static access, doesn't ever need to be cleared either
+  static List<int> buffer = List.filled(256, 0); // Can be larger or smaller. Larger is better but slightly more CPU
+  static int sensitivity = 5; // This is the key. If value is > minValue + sensitivity, it gets utilized.
+  static int lowerLimit = -55; // a sanity check to eliminate bad values (common on startup)
+  static int maxSilent = 2; // Maximum number of silent packets to send after sound packets
+  static int minTriggerSilent = 3; // minimum number of good packets to send before triggering a silent (this is to avoid spikes)
+  static int cache_minimum_size = 3000; // Too low and we will pick up spikes and keypresses
+  static int max_age_in_ms = 300; // Too low and we will delete good data.
+
+  static int countSequential = 0;
+  static int countSilent = 0;
+  static int index = 0;
+  static int minValue = 0;
+  static int maxValue = 0;
+
+  static int add(int value) {
+    if (value < lowerLimit) {
+      printf("Checkpoint lower limit hit: $value");
+      return 0; // return a high value, do not send this
+    }
+    buffer[index] = value;
+    index = (index + 1) % buffer.length;
+    minValue = buffer[0];
+    maxValue = buffer[0];
+    for (var i = 1; i < buffer.length; i++) {
+      if (buffer[i] < minValue) {
+        minValue = buffer[i];
+      } else if (buffer[i] > maxValue) {
+        maxValue = buffer[i];
       }
     }
-    t_peer.t_cache_info[n].audio_cache = audio_cache;
-    t_peer.t_cache_info[n].audio_time = audio_time;
-    t_peer.t_cache_info[n].audio_nstime = audio_nstime;
-  } else {
-    // Add the new data at the end because it is newest
-    t_peer.t_cache_info[n].audio_cache.add(data);
-    t_peer.t_cache_info[n].audio_time.add(time);
-    t_peer.t_cache_info[n].audio_nstime.add(nstime);
-  }
-}
-
-void audio_ready(int call_n, int call_c, Uint8List data) {
-  Pointer<Int> recipient_list = torx.torx_insecure_malloc(t_peer.t_call[call_n].participating[call_c].length * 4) as Pointer<Int>;
-  int recipient_count = 0;
-  for (int iter = 0; iter < t_peer.t_call[call_n].participating[call_c].length; iter++) {
-    if (t_peer.t_call[call_n].participating[call_c][iter] > -1 && t_peer.t_call[call_n].participant_mic[call_c][iter]) {
-      recipient_list[recipient_count] = t_peer.t_call[call_n].participating[call_c][iter];
-      recipient_count++;
+//    printf("Checkpoint aptitude min=$minValue max=$maxValue current=$value");
+    if (minValue == maxValue) {
+      return -100; // bad, values are probably all 0, getAmplitude doesn't work on this platform, so all audio will be sent
+    } else {
+      return minValue; // success
     }
   }
-  if (recipient_count == 0) {
-    record_stop();
-    return;
-  }
-  int message_len = (8 + data.length);
-  Pointer<Uint8> message = torx.torx_secure_malloc(message_len) as Pointer<Uint8>; // free'd by torx_free
-  message.asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_time[call_c]));
-  (message + 4).asTypedList(4).setAll(0, htobe32(t_peer.t_call[call_n].start_nstime[call_c]));
-  (message + 8).asTypedList(data.length).setAll(0, data);
-  printf("Checkpoint audio_ready First: ${data[0]}.${data[1]} Last: ${data[data.length - 2]}.${data[data.length - 1]}");
-  torx.message_send_select(recipient_count, recipient_list, ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE, message, message_len);
-  torx.torx_free_simple(recipient_list);
-  recipient_list = nullptr;
-  torx.torx_free_simple(message);
-  message = nullptr;
 }
 
-Future<void> record_start(int call_n, int call_c) async {
+Future<void> record_start(int sample_rate, int call_n, int call_c) async {
   // This is ONLY for streams, not for voice messages. See other usage of startStream for voice messages.
-  if (t_peer.t_call[call_n].joined[call_c] && t_peer.t_call[call_n].mic_on[call_c] && !currently_recording && t_peer.t_call[call_n].participating[call_c].isNotEmpty) {
-    currently_recording = true;
-    final stream = await current_recording
-        .startStream(const RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: 16000, numChannels: 2 /* 2 is much louder than 1 */, noiseSuppress: true, echoCancel: true));
+  if (current_recording.is_recording) {
+    error(0, "Sanity check failed in record_start. Perhaps there is an existing recording?");
+    return;
+  }
+
+  if (await current_recording.pipeline.hasPermission()) {
+    current_recording.is_recording = true;
+    current_recording.start_time = DateTime.now().millisecondsSinceEpoch;
+    final stream = await current_recording.pipeline
+        .startStream(RecordConfig(encoder: AudioEncoder.aacLc, sampleRate: sample_rate, numChannels: 2 /* 2 is much louder than 1 */, noiseSuppress: true, echoCancel: true));
     stream.listen(
       (data) async {
-        final aptitude = await current_recording.getAmplitude();
-        if (aptitude.current > -10) {
-          // Aptitude check is to avoid sending silence during streams. For voice messages we permit silence.
-          audio_ready(call_n, call_c, data);
+        if (call_n > -1 && call_c > -1) {
+          // Audio call
+          final aptitude = await current_recording.pipeline.getAmplitude();
+          if (aptitude.current > AptitudeBuffer.add(aptitude.current.toInt()) + AptitudeBuffer.sensitivity) {
+            // Aptitude check is to avoid sending silence during streams. For voice messages we permit silence.
+            audio_ready(call_n, call_c, data); // send good sound
+            AptitudeBuffer.countSilent = 0;
+            AptitudeBuffer.countSequential++;
+          } else {
+            if (AptitudeBuffer.countSequential > 0 && AptitudeBuffer.countSequential >= AptitudeBuffer.minTriggerSilent && AptitudeBuffer.countSilent < AptitudeBuffer.maxSilent) {
+              audio_ready(call_n, call_c, data); // send a silent
+            } else if (AptitudeBuffer.countSilent == AptitudeBuffer.maxSilent) {
+              AptitudeBuffer.countSequential = 0;
+              int cleared = torx.record_cache_clear(call_n); // give up on whatever is in buffer
+              if (cleared > 0) printf("Checkpoint Silence occured after spike, cleared: $cleared"); // This cleans out sudden spikes that don't reach cache_minimum_size
+            }
+            AptitudeBuffer.countSilent++;
+          }
+        } else {
+          // Voice message
+          current_recording.recordedDataChunks.add(data);
         }
       },
       onDone: () {
-        currently_recording = false;
-        printf("Checkpoint ending call. Should call call_update?");
+        record_stop(false); // In most cases this won't do anything because we already called it
       },
       onError: (error) {
         error(0, "Recording error: $error");
       },
     );
+    if (call_n < 0 || call_c < 0) {
+      // Only for voice messages / non-stream
+      changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+    }
+  } else {
+    error(0, "No permission to record, or already recording (in a call?)");
   }
 }
 
-void record_stop() {
-  if (currently_recording) {
-    currently_recording = false;
-    changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
-    current_recording.stop(); // TODO consider using stop vs cancel
+void record_stop(bool delete) {
+  if (current_recording.is_recording) {
+    current_recording.is_recording = false;
+    if (current_recording.call_n < 0 || current_recording.call_c < 0) {
+      // Audio message. NOT a streaming call.
+      changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
+    }
+    if (delete) {
+      // Delete current data
+      current_recording.pipeline.cancel();
+      current_recording.recordedDataChunks.clear();
+      current_recording.start_time = 0;
+    } else {
+      // Process current data through audio_ready
+      current_recording.pipeline.stop();
+    }
   }
 }
 

@@ -69,7 +69,6 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
-import 'package:record/record.dart';
 import 'colors.dart';
 import 'main.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -131,11 +130,11 @@ void response(NotificationResponse notificationResponse) {
     int call_n = int.parse(parts[1]);
     int call_c = int.parse(parts[2]);
     if (response == "accept") {
-      call_join(call_n, call_c);
+      torx.call_join(call_n, call_c);
     } else if (response == "reject") {
-      call_leave(call_n, call_c);
+      torx.call_leave(call_n, call_c);
     } else if (response == "ignore") {
-      call_ignore(call_n, call_c);
+      torx.call_ignore(call_n, call_c);
     }
     changeNotifierDrag.callback(integer: -1);
   } else if (parts[0] == "friend_request" && notificationResponse.actionId != null) {
@@ -177,7 +176,9 @@ class Noti {
         android: androidInitialize,
         iOS: initializationSettingsDarwin,
       );
-      flnp.initialize(initializationSettings, onDidReceiveNotificationResponse: response, onDidReceiveBackgroundNotificationResponse: response);
+      flnp.initialize(initializationSettings,
+          onDidReceiveNotificationResponse:
+              response /*, onDidReceiveBackgroundNotificationResponse: response*/); // (disabled onDidReceiveBackgroundNotificationResponse, doesn't work and causes crashing until merge of https://github.com/MaikuB/flutter_local_notifications/pull/2481)
       flnp.cancelAll(); // perhaps this will kill any hangovers after a detach (doubt it)
     } else {
       printf("Noti already initialized. Not re-initializing.");
@@ -496,13 +497,14 @@ class _RoutePopoverParticipantListState extends State<RoutePopoverParticipantLis
         body: AnimatedBuilder(
             animation: changeNotifierPopoverList,
             builder: (BuildContext context, Widget? snapshot) {
+              List<int> participant_list = call_participant_list(widget.call_n, widget.call_c);
               return ListView.builder(
-                itemCount: t_peer.t_call[widget.call_n].participating[widget.call_c].length,
+                itemCount: participant_list.length,
                 prototypeItem: const ListTile(
                   title: Text("This is dummy text used to set height. Can be dropped."),
                 ),
                 itemBuilder: (context, index) {
-                  Color dotColor = ui_statusColor(t_peer.t_call[widget.call_n].participating[widget.call_c][index]);
+                  Color dotColor = ui_statusColor(participant_list[index]);
                   Icon dot = Icon(Icons.circle, color: dotColor, size: 20);
                   return GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -514,10 +516,7 @@ class _RoutePopoverParticipantListState extends State<RoutePopoverParticipantLis
                         printf("Not doing anything here.");
                       },
                       onLongPress: () {
-                        showMenu(
-                            context: context,
-                            position: getPosition(context),
-                            items: generate_message_menu(context, controllerMessage, t_peer.t_call[widget.call_n].participating[widget.call_c][index], INT_MIN, -1));
+                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, participant_list[index], INT_MIN, -1));
                       },
                       child: ListTile(
                         leading: Badge(
@@ -525,41 +524,28 @@ class _RoutePopoverParticipantListState extends State<RoutePopoverParticipantLis
                           child: dot,
                         ),
                         title: Text(
-                          getter_string(t_peer.t_call[widget.call_n].participating[widget.call_c][index], INT_MIN, -1, offsetof("peer", "peernick")),
+                          getter_string(participant_list[index], INT_MIN, -1, offsetof("peer", "peernick")),
                           style: TextStyle(color: color.group_or_user_name, fontWeight: FontWeight.bold),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min, // Makes the row wrap tightly around the children
                           children: [
                             IconButton(
-                              icon: t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index]
+                              icon: torx.getter_call_uint8(widget.call_n, widget.call_c, participant_list[index], offsetof("call", "participant_mic")) == 1
                                   ? Icon(Icons.mic_off, color: color.torch_off)
                                   : Icon(Icons.mic, color: color.torch_off),
                               onPressed: () {
-                                // toggle_mic
-                                if (t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index]) {
-                                  t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index] = false;
-                                  record_stop();
-                                } else {
-                                  t_peer.t_call[widget.call_n].participant_mic[widget.call_c][index] = true;
-                                }
+                                torx.call_toggle_mic(widget.call_n, widget.call_c, participant_list[index]);
                                 changeNotifierPopoverList.callback(integer: -1);
-                                // TODO consider whether to call_update?
                               },
                             ),
                             IconButton(
-                              icon: t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index]
+                              icon: torx.getter_call_uint8(widget.call_n, widget.call_c, participant_list[index], offsetof("call", "participant_speaker")) == 1
                                   ? Icon(Icons.volume_off, color: color.torch_off)
                                   : Icon(Icons.volume_up, color: color.torch_off),
                               onPressed: () {
-                                // toggle_speaker
-                                if (t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index]) {
-                                  t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index] = false;
-                                } else {
-                                  t_peer.t_call[widget.call_n].participant_speaker[widget.call_c][index] = true;
-                                }
+                                torx.call_toggle_speaker(widget.call_n, widget.call_c, participant_list[index]);
                                 changeNotifierPopoverList.callback(integer: -1);
-                                // TODO consider whether to call_update?
                               },
                             ),
                           ],
@@ -1156,9 +1142,9 @@ class _RouteChatState extends State<RouteChat> {
 
     void onDragEnd(int call_n, int call_c) {
       if (dragPosition >= dragThresholdAccept) {
-        call_join(call_n, call_c);
+        torx.call_join(call_n, call_c);
       } else if (dragPosition <= dragThresholdDecline) {
-        call_leave(call_n, call_c);
+        torx.call_leave(call_n, call_c);
       }
       dragPosition = dragCenter;
       changeNotifierDrag.callback(integer: -1);
@@ -1209,40 +1195,31 @@ class _RouteChatState extends State<RouteChat> {
 
   Widget CallAccepted(int call_n, int call_c) {
     int call_n_owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
+    int participants = torx.call_participant_count(call_n, call_c);
     return Row(
       spacing: size_medium_icon,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty)
+        if (participants > 0)
           IconButton(
-            icon: t_peer.t_call[call_n].mic_on[call_c] ? Icon(Icons.mic_off, color: color.torch_off) : Icon(Icons.mic, color: color.torch_off),
+            icon:
+                torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "mic_on")) == 0 ? Icon(Icons.mic_off, color: color.torch_off) : Icon(Icons.mic, color: color.torch_off),
             iconSize: size_medium_icon,
             onPressed: () {
-              // toggle_mic
-              if (t_peer.t_call[call_n].mic_on[call_c]) {
-                t_peer.t_call[call_n].mic_on[call_c] = false;
-                record_stop();
-              } else {
-                t_peer.t_call[call_n].mic_on[call_c] = true;
-              }
-              call_update(call_n, call_c);
+              torx.call_toggle_mic(call_n, call_c, -1);
             },
           ),
-        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty)
+        if (participants > 0)
           IconButton(
-            icon: t_peer.t_call[call_n].speaker_on[call_c] ? Icon(Icons.volume_off, color: color.torch_off) : Icon(Icons.volume_up, color: color.torch_off),
+            icon: torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "speaker_on")) == 0
+                ? Icon(Icons.volume_off, color: color.torch_off)
+                : Icon(Icons.volume_up, color: color.torch_off),
             iconSize: size_medium_icon,
             onPressed: () {
-              // toggle_speaker
-              if (t_peer.t_call[call_n].speaker_on[call_c]) {
-                t_peer.t_call[call_n].speaker_on[call_c] = false;
-              } else {
-                t_peer.t_call[call_n].speaker_on[call_c] = true;
-              }
-              call_update(call_n, call_c);
+              torx.call_toggle_speaker(call_n, call_c, -1);
             },
           ),
-        if (t_peer.t_call[call_n].participating[call_c].isNotEmpty && call_n_owner == ENUM_OWNER_GROUP_CTRL) // must be call_n_owner
+        if (participants > 0 && call_n_owner == ENUM_OWNER_GROUP_CTRL) // must be call_n_owner
           IconButton(
             icon: Icon(Icons.group, color: color.torch_off),
             iconSize: size_large_icon,
@@ -1257,7 +1234,7 @@ class _RouteChatState extends State<RouteChat> {
           icon: Icon(Icons.call_end, color: color.torch_off),
           iconSize: size_medium_icon,
           onPressed: () {
-            call_leave(call_n, call_c);
+            torx.call_leave(call_n, call_c);
           },
         ),
       ],
@@ -1265,10 +1242,12 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   Widget? CallColumn(int call_n, int call_c) {
+    bool joined = torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "joined")) == 1 ? true : false;
+    bool waiting = torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "waiting")) == 1 ? true : false;
     Widget? row;
-    if (t_peer.t_call[call_n].waiting[call_c]) {
+    if (waiting) {
       row = CallWaiting(call_n, call_c);
-    } else if (t_peer.t_call[call_n].joined[call_c]) {
+    } else if (joined) {
       row = CallAccepted(call_n, call_c);
     }
     if (row != null) {
@@ -1288,15 +1267,14 @@ class _RouteChatState extends State<RouteChat> {
     }
   }
 
-  Uint8List bytes = Uint8List(0);
   bool show_keyboard = true;
 //  AudioRecorder record = AudioRecorder();
   int former_text_len = t_peer.unsent[global_n].length;
-  int start_time = 0;
 
   @override
   void dispose() {
     //  record.dispose(); // says we have to do this
+    player.dispose();
     super.dispose();
   }
 
@@ -1442,7 +1420,7 @@ class _RouteChatState extends State<RouteChat> {
                         } else {
                           call_n = global_n;
                         }
-                        call_start(call_n);
+                        torx.call_start(call_n);
                         Navigator.pop(context); // Alternative: utilize changeNotifierSettingChange
                       },
                     ),
@@ -1614,10 +1592,9 @@ class _RouteChatState extends State<RouteChat> {
                   animation: changeNotifierCallUpdate,
                   builder: (BuildContext context, Widget? snapshot) {
                     List<Widget> call_rows = [];
-                    for (int c = 0; c < t_peer.t_call[widget.n].joined.length; c++) {
+                    for (int c = 0; c < t_peer.t_call[widget.n].speaker_phone.length; c++) {
                       Widget? column = CallColumn(widget.n, c);
                       if (column != null) call_rows.add(column);
-                      record_start(widget.n, c);
                     }
                     if (owner == ENUM_OWNER_GROUP_CTRL) {
                       // Iterate through all group peers and add their rows too
@@ -1625,10 +1602,9 @@ class _RouteChatState extends State<RouteChat> {
                       List<int> list = refined_list(ENUM_OWNER_GROUP_PEER, g, "");
                       for (int nn = 0; nn < list.length; nn++) {
                         int peer_n = list[nn];
-                        for (int c = 0; c < t_peer.t_call[peer_n].joined.length; c++) {
+                        for (int c = 0; c < t_peer.t_call[peer_n].speaker_phone.length; c++) {
                           Widget? column = CallColumn(peer_n, c);
                           if (column != null) call_rows.add(column);
-                          record_start(peer_n, c);
                         }
                       }
                     }
@@ -1704,75 +1680,30 @@ class _RouteChatState extends State<RouteChat> {
                                           child: GestureDetector(
                                               behavior: HitTestBehavior.opaque,
                                               onLongPressDown: (yes) async {
-                                                if (await current_recording.hasPermission()) {
-                                                  printf("Checkpoint starting recording");
-                                                  if (currently_recording) {
-                                                    record_stop();
-                                                    call_mute_all_except(-1, -1);
-                                                  }
-
-                                                  currently_recording = true;
-                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
-                                                  start_time = DateTime.now().millisecondsSinceEpoch;
-
-                                                  /*  DEPRECIATED now that streaming works:
-                                                  String path = "$temporaryDir/myFile.m4a";
-                                                  File(path).writeAsBytesSync([]);
-                                                   record.start(
-                                                      const RecordConfig(encoder: AudioEncoder.aacEld, sampleRate: 16000, numChannels: 1, noiseSuppress: true, echoCancel: true),
-                                                      path: path); */
-
-                                                  final List<Uint8List> recordedDataChunks = [];
-                                                  final stream = await current_recording.startStream(const RecordConfig(
-                                                      encoder: AudioEncoder.aacLc,
-                                                      sampleRate: 16000,
-                                                      numChannels: 2 /* 2 is much louder than 1 */,
-                                                      noiseSuppress: true,
-                                                      echoCancel: true));
-                                                  stream.listen(
-                                                    (data) {
-                                                      recordedDataChunks.add(data);
-                                                    },
-                                                    onDone: () {
-                                                      bytes = Uint8List.fromList(recordedDataChunks.expand((x) => x).toList()); // chatgpt says this is simple concat
-                                                    },
-                                                    onError: (error) {
-                                                      error(0, "Recording error: $error");
-                                                    },
-                                                  );
-                                                } else {
-                                                  error(0, "No permission to record, or already recording (in a call?)");
+                                                if (current_recording.is_recording) {
+                                                  torx.call_mute_all_except(-1, -1);
+                                                  record_stop(true);
                                                 }
+                                                record_start(16000, -1, -1);
                                               },
                                               onLongPressCancel: () async {
-                                                if (currently_recording) {
-                                                  printf("Cancel recording. Too short.");
-                                                  currently_recording = false;
-                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
-                                                  await current_recording.cancel();
-                                                }
+                                                printf("Cancel recording. Too short.");
+                                                record_stop(true);
                                               },
                                               onLongPressMoveUpdate: (det) async {
-                                                if (currently_recording && det.localOffsetFromOrigin.distance > 100) {
+                                                if (det.localOffsetFromOrigin.distance > 100) {
                                                   printf("Cancel via drag");
-                                                  currently_recording = false;
-                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
-                                                  await current_recording.cancel();
+                                                  record_stop(true);
                                                 }
                                               },
                                               onLongPressUp: () async {
-                                                if (currently_recording) {
-                                                  currently_recording = false;
-                                                  changeNotifierTextOrAudio.callback(integer: 1); // arbitrary value
-                                                  int duration = DateTime.now().millisecondsSinceEpoch - start_time;
+                                                if (current_recording.is_recording) {
+                                                  record_stop(false);
+                                                  int duration = DateTime.now().millisecondsSinceEpoch - current_recording.start_time;
                                                   //  printf("Checkpoint duration: ${DateTime.now().millisecondsSinceEpoch} - $start_time = $duration milliseconds");
-                                                  final path = await current_recording
-                                                      .stop(); // NOTE: Path usage is depreciated, but it is not harmful to leave this check and functionality
-                                                  if (path != null || bytes.isNotEmpty) {
-                                                    if (path != null && bytes.isEmpty) {
-                                                      bytes = await File(path).readAsBytes();
-                                                      destroy_file(path);
-                                                    }
+                                                  Uint8List bytes =
+                                                      Uint8List.fromList(current_recording.recordedDataChunks.expand((x) => x).toList()); // chatgpt says this is simple concat
+                                                  if (bytes.isNotEmpty) {
                                                     final Pointer<Uint8> ptr = malloc(4 + bytes.length);
                                                     ptr.asTypedList(4).setAll(0, htobe32(duration));
                                                     (ptr + 4).asTypedList(bytes.length).setAll(0, bytes);
@@ -1804,7 +1735,7 @@ class _RouteChatState extends State<RouteChat> {
                                               child: MaterialButton(
                                                   onPressed: () {},
                                                   elevation: 5,
-                                                  color: currently_recording ? color.auth_error : color.auth_button_hover,
+                                                  color: current_recording.is_recording ? color.auth_error : color.auth_button_hover,
                                                   child: Text(
                                                     text.hold_to_talk,
                                                     style: TextStyle(color: color.auth_button_text),
