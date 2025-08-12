@@ -224,6 +224,19 @@ class t_peer {
     t_call_class(),
   ]; // 11
   static List<bool> playing = [false, false, false, false, false, false, false, false, false, false, false]; //11
+  static List<AudioPlayer> player = [
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+    AudioPlayer(),
+  ]; // 11, used for audio_cache_play
 }
 
 AppLifecycleState globalAppLifecycleState = AppLifecycleState.resumed; // This is the appropriate default Enum values below
@@ -987,7 +1000,7 @@ void print_message(int n, int i, int scroll) {
 Future<void> audio_cache_play(int n) async {
   if (n > -1 && !t_peer.playing[n]) {
     t_peer.playing[n] = true;
-    AudioPlayer player = AudioPlayer(); // TODO continually creating and destroying this may be expensive
+//    AudioPlayer player = AudioPlayer(); // TODO continually creating and destroying this may be expensive
     Pointer<Uint32> tmp_len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>;
     Pointer<Uint8> data = nullptr;
     int existing = 0;
@@ -1005,12 +1018,12 @@ Future<void> audio_cache_play(int n) async {
       printf("Checkpoint audio_cache_play n=$n data_len=$existing");
       Uint8List bytes = Uint8List(existing);
       bytes.setAll(0, data.asTypedList(existing)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
-      await player.play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
+      await t_peer.player[n].play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
     }
     t_peer.playing[n] = false;
     torx.torx_free_simple(tmp_len_p);
     tmp_len_p = nullptr;
-    player.dispose();
+    //  player.dispose();
   }
 }
 

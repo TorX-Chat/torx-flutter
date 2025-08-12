@@ -64,6 +64,7 @@ severable if found in contradiction with the License or applicable law.
 import 'dart:ffi';
 import 'dart:math';
 import 'package:app_badge_plus/app_badge_plus.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:ffi/ffi.dart';
 import 'change_notifiers.dart';
 import 'colors.dart';
@@ -110,6 +111,8 @@ class Callbacks {
     t_peer.stickers_requested[n] = [];
     t_peer.t_call[n] = t_call_class();
     t_peer.playing[n] = false;
+//  t_peer.player[n].dispose();
+//  t_peer.player[n] = AudioPlayer();
   }
 
   void initialize_i_cb_ui(int n, int i) {
@@ -188,6 +191,7 @@ class Callbacks {
       t_peer.stickers_requested.add([]);
       t_peer.t_call.add(t_call_class());
       t_peer.playing.add(false);
+      t_peer.player.add(AudioPlayer());
     }
   }
 
