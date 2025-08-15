@@ -67,7 +67,6 @@ import 'dart:io';
 import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:chat/callbacks.dart';
-import 'package:chat/stickers.dart';
 import 'package:ffi/ffi.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -98,7 +97,6 @@ final dynamicLibrary = DynamicLibrary.open(getPath());
 String language = ""; // 2 or 5 characters, ex: en / en_US
 int theme = -1; // DO NOT set a default here. Setting it at 0 allows everything to initialized properly after the system theme is checked.
 int bottom_index = 1; // default is add/generate page
-int notificationCount = 0;
 bool keyboard_privacy = true; // disable IME by default
 bool log_unread = true;
 bool autoFocusKeyboard = true; // GOAT If there are segfaults on pop, this being TRUE is probably why. Other chats we tested don't use it anyway (but it would be nice)
@@ -316,12 +314,6 @@ void initialization_functions(BuildContext? context) {
   });
   error(0, "Working dir: $applicationDocumentsDir");
 
-  protocol_registration(ENUM_PROTOCOL_STICKER_HASH, "Sticker", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, "Sticker Date Signed", "", 0, 1, 1, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_STICKER_HASH_PRIVATE, "Sticker Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_STICKER_REQUEST, "Sticker Request", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_STICKER_DATA_GIF, "Sticker data", "", 0, 0, 0, 0, 0, 0, 0, ENUM_EXCLUSIVE_NONE, 0, 1, ENUM_STREAM_NON_DISCARDABLE);
-
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG, "AAC Audio Message", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, "AAC Audio Message Date Signed", "", 0, 1, 1, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
   protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, "AAC Audio Message Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
@@ -357,6 +349,33 @@ int be32toh(Uint8List bytes) {
   return byteData.getUint32(0, Endian.big);
 }
 
+base class surviveDestructionModel extends Struct {
+  @Int()
+  external int _current_index;
+
+  @Int()
+  external int _global_n;
+
+  @Int()
+  external int _generated_n;
+
+  @Int()
+  external int _last_played_n;
+
+  @Int()
+  external int _last_played_i;
+
+  @Int()
+  external int _bottom_index;
+
+  external Pointer<Utf8> _torLogBuffer;
+
+  external Pointer<Utf8> _torxLogBuffer;
+
+//  @Array(8)
+//  external Array<Uint8> bytes;
+}
+
 class TorX extends StatefulWidget {
   const TorX({super.key});
 
@@ -381,6 +400,22 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
     }
   }
 
+  void _clear_ui_data() {
+    if (torx.ui_data[0] != nullptr) {
+      Pointer<surviveDestructionModel> surviveDestruction = torx.ui_data[0] as Pointer<surviveDestructionModel>;
+      if (surviveDestruction.ref._torLogBuffer != nullptr) {
+        calloc.free(surviveDestruction.ref._torLogBuffer); // NOTE: calloc.free
+        surviveDestruction.ref._torLogBuffer = nullptr;
+      }
+      if (surviveDestruction.ref._torxLogBuffer != nullptr) {
+        calloc.free(surviveDestruction.ref._torxLogBuffer); // NOTE: calloc.free
+        surviveDestruction.ref._torxLogBuffer = nullptr;
+      }
+      calloc.free(torx.ui_data[0]); // NOTE: calloc.free
+      torx.ui_data[0] = nullptr;
+    }
+  }
+
   @override
   String get restorationId => 'app_state';
   @override
@@ -401,9 +436,22 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
   @override
   void restoreState(RestorationBucket? oldBucket, bool initialRestore) {
     error(0, "Checkpoint restoreState");
+
     resumptionTasks(); // THIS IS HIGHLY NECESSARY, DO NOT REMOVE. Necessary to re-register callbacks and re-fetch settings from lib.
-    if (threadsafe_read_global_Uint8("keyed") != 0) {
-      setBottomIndex(); // choose landing page
+//    if (threadsafe_read_global_Uint8("keyed") != 0) {
+    //    setBottomIndex(); // choose landing page
+    //  }
+    if (torx.ui_data[0] != nullptr) {
+      Pointer<surviveDestructionModel> surviveDestruction = torx.ui_data[0] as Pointer<surviveDestructionModel>;
+      current_index = surviveDestruction.ref._current_index;
+      global_n = surviveDestruction.ref._global_n;
+      generated_n = surviveDestruction.ref._generated_n;
+      last_played_n = surviveDestruction.ref._last_played_n;
+      last_played_i = surviveDestruction.ref._last_played_i;
+      if (surviveDestruction.ref._torLogBuffer != nullptr) torLogBuffer = surviveDestruction.ref._torLogBuffer.toDartString();
+      if (surviveDestruction.ref._torxLogBuffer != nullptr) torxLogBuffer = surviveDestruction.ref._torxLogBuffer.toDartString();
+      bottom_index = surviveDestruction.ref._bottom_index;
+      _clear_ui_data();
     }
   }
 
@@ -421,6 +469,18 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       case AppLifecycleState.paused:
         error(0, "Checkpoint AppLifecycleState.paused");
         await Noti.startForegroundService(flutterLocalNotificationsPlugin); // 2024/09/22 MUST AWAIT otherwise it won't happen. DO NOT REMOVE AWAIT.
+        torx.sticker_offload_saved();
+        _clear_ui_data();
+        Pointer<surviveDestructionModel> surviveDestruction = calloc<surviveDestructionModel>(); // NOTE: calloc.free
+        surviveDestruction.ref._current_index = current_index;
+        surviveDestruction.ref._global_n = global_n;
+        surviveDestruction.ref._generated_n = generated_n;
+        surviveDestruction.ref._last_played_n = last_played_n;
+        surviveDestruction.ref._last_played_i = last_played_i;
+        surviveDestruction.ref._torLogBuffer = torLogBuffer.toNativeUtf8(); // NOTE: calloc.free
+        surviveDestruction.ref._torxLogBuffer = torxLogBuffer.toNativeUtf8(); // NOTE: calloc.free
+        surviveDestruction.ref._bottom_index = bottom_index;
+        torx.ui_data[0] = surviveDestruction.cast<Void>();
         writeUnread();
         break;
       case AppLifecycleState.detached:
@@ -508,10 +568,13 @@ Image generate_qr(String data) {
   Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
   Pointer<Void> png = torx.return_png(size_p, qr_raw);
   // WARNING: If we crash after deleting image, it's because we use asTypedList directly here instead of copying with setAll
-  Image image = Image.memory(Pointer<Uint8>.fromAddress(png.address).asTypedList(size_p.value));
+  Uint8List bytes = Uint8List(size_p.value);
+  bytes.setAll(0, Pointer<Uint8>.fromAddress(png.address).asTypedList(size_p.value));
+  Image image = Image.memory(bytes);
   torx.torx_free_simple(qr_raw);
   qr_raw = nullptr;
-//  torx.torx_secure_free_simple(png); // GOAT TODO need to free png, but then the image is broke and our application crashes
+  torx.torx_free_simple(png);
+  png = nullptr;
   calloc.free(data_p);
   data_p = nullptr;
   torx.torx_free_simple(size_p);
@@ -689,13 +752,13 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
     setBlockIcon(n);
   }
   return <PopupMenuEntry>[
-    if (s > -1 && !stickers[s].saved)
+    if (s > -1 && torx.sticker_retrieve_saved(s) == 0)
       PopupMenuItem(
           child: ListTile(
               leading: const Icon(Icons.save),
               title: Text(text.save),
               onTap: () {
-                ui_sticker_save(s);
+                torx.sticker_save(s);
                 changeNotifierStickerReady.callback(integer: s);
                 Navigator.pop(context);
               })),
@@ -705,7 +768,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               leading: const Icon(Icons.delete),
               title: Text(text.delete),
               onTap: () {
-                ui_sticker_delete(s);
+                torx.sticker_delete(s);
                 changeNotifierStickerReady.callback(integer: s);
                 Navigator.pop(context);
               })),
@@ -865,71 +928,7 @@ void print_message(int n, int i, int scroll) {
     return; // message deleted
   }
   int stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
-  int protocol = protocol_int(p_iter, "protocol");
   if (stat == ENUM_MESSAGE_RECV && scroll == 1) {
-    int message_len = torx.getter_length(n, i, -1, offsetof("message", "message"));
-    if (message_len >= CHECKSUM_BIN_LEN &&
-        (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
-      Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message")); // free'd by torx_free
-      int s = ui_sticker_set(message as Pointer<Uint8>);
-      if (s < 0) {
-        int y = 0;
-        while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y], message, CHECKSUM_BIN_LEN) != 0) {
-          y++;
-        }
-        if (y == t_peer.stickers_requested[n].length) {
-          t_peer.stickers_requested[n].add(message as Pointer<Uint8>);
-          torx.message_send(n, ENUM_PROTOCOL_STICKER_REQUEST, message, CHECKSUM_BIN_LEN);
-        } else {
-          // Already requested this sticker
-          printf("Requested this sticker already. Not requesting again.");
-          torx.torx_free_simple(message); // We free it here, otherwise it gets freed after we remove it from t_peer.stickers_requested
-          message = nullptr;
-        }
-      } else {
-        torx.torx_free_simple(message);
-        message = nullptr;
-      }
-    } else if (message_len >= CHECKSUM_BIN_LEN && protocol == ENUM_PROTOCOL_STICKER_REQUEST && send_sticker_data) {
-      Pointer<Utf8> message = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message"));
-      int s = ui_sticker_set(message as Pointer<Uint8>);
-      if (s > -1) {
-        int relevant_n = n; // TODO for groups, this should be group_n
-        for (int cycle = 0; cycle < 2; cycle++) {
-          int iter = 0;
-          while (iter < stickers[s].peers.length && stickers[s].peers[iter] != relevant_n && stickers[s].peers[iter] > -1) {
-            iter++;
-          }
-          if (relevant_n != stickers[s].peers[iter]) {
-            //	printf("Checkpoint TRYING s=%d owner=%u\n",s,owner); // FINGERPRINTING
-            int owner = torx.getter_uint8(relevant_n, INT_MIN, -1, offsetof("peer", "owner"));
-            if (owner == ENUM_OWNER_GROUP_PEER) {
-              // if not on peer_n(pm), try group_n (public)
-              int g = torx.set_g(n, nullptr);
-              relevant_n = torx.getter_group_int(g, offsetof("group", "n"));
-              continue;
-              //  stream_cb_ui(n, p_iter, message, data_len); // recurse
-            } else {
-              error(0, "Peer requested a sticker they dont have access to (either they are buggy or malicious, or our MAX_PEERS is too small). Report this.");
-            }
-          } else if (s > -1) {
-            // Peer requested a sticker we have
-            Pointer<Uint8> sticker_checksum_and_data = torx.torx_secure_malloc(CHECKSUM_BIN_LEN + stickers[s].data_len) as Pointer<Uint8>; // free'd by torx_free
-            torx.memcpy(sticker_checksum_and_data, stickers[s].checksum, CHECKSUM_BIN_LEN);
-            torx.memcpy((sticker_checksum_and_data + CHECKSUM_BIN_LEN), stickers[s].data, stickers[s].data_len);
-            torx.message_send(n, ENUM_PROTOCOL_STICKER_DATA_GIF, sticker_checksum_and_data, CHECKSUM_BIN_LEN + stickers[s].data_len);
-            torx.torx_free_simple(sticker_checksum_and_data);
-            sticker_checksum_and_data = nullptr;
-          }
-          break;
-        }
-      } else {
-        error(0, "Peer requested sticker we do not have. Maybe we deleted it.");
-      }
-      torx.torx_free_simple(message);
-      message = nullptr;
-    }
-
     int notifiable = protocol_int(p_iter, "notifiable");
     if (notifiable == 0) {
       return;
@@ -1155,7 +1154,7 @@ void record_stop(bool delete) {
 
 void printf(String str) {
   if (kDebugMode) {
-    print(str);
+    debugPrint(str); // Do not use `print` because it gets truncated by console
   }
 }
 

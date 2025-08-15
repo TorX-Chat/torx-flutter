@@ -1,3 +1,5 @@
+// ignore_for_file: constant_identifier_names
+
 /*
 TorX: Metadata-safe Tor Chat Library
 Copyright (C) 2024 TorX
@@ -76,28 +78,22 @@ import 'colors.dart';
 import 'language.dart';
 import 'manual_bindings.dart';
 
-bool enable_spinners = false;
-bool save_all_stickers = false;
-bool send_sticker_data = true; // not really that useful because if we don't send stickers, people can't request stickers.
-double sticker_size = 80;
-double sticker_border_width = 3; // for sticker chooser
-
-class sticker {
-  Pointer<Uint8> checksum;
-  Pointer<Uint8> data;
-  int data_len;
-  bool saved; // is saved to disk
-  List<int> peers;
-
-  sticker({required this.checksum, required this.data, required this.data_len, required this.saved, List<int>? peers}) : peers = peers ?? [];
-}
-
-List<sticker> stickers = [];
+const bool enable_spinners = false;
+const double sticker_size = 80;
+const double sticker_border_width = 3; // for sticker chooser
 
 Image? sticker_generator(int s) {
-  if (stickers.isNotEmpty && s < stickers.length) {
+  int sticker_count = torx.sticker_retrieve_count();
+  if (sticker_count > 0 && s < sticker_count) {
     // WARNING: If we crash after deleting image, it's because we use asTypedList directly here instead of copying with setAll
-    Uint8List bytes = stickers[s].data.asTypedList(stickers[s].data_len);
+    Pointer<Size_t> len_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>;
+    Pointer<Uint8> data = torx.sticker_retrieve_data(len_p, s);
+    Uint8List bytes = Uint8List(len_p.value);
+    bytes.setAll(0, data.asTypedList(len_p.value));
+    torx.torx_free_simple(data);
+    torx.torx_free_simple(len_p);
+    len_p = nullptr;
+    data = nullptr;
     return Image.memory(height: sticker_size * 2, fit: BoxFit.contain, bytes);
   }
   return null;
@@ -114,95 +110,20 @@ void ui_sticker_send(int s) {
     g = torx.set_g(global_n, nullptr);
     g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
   }
+  Pointer<Uint8> checksum = torx.sticker_retrieve_checksum(s);
   int recipient_n = global_n;
   if (t_peer.pm_n[global_n] > -1) {
     recipient_n = t_peer.pm_n[global_n];
-    torx.message_send(recipient_n, ENUM_PROTOCOL_STICKER_HASH_PRIVATE, stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN);
+    torx.message_send(recipient_n, ENUM_PROTOCOL_STICKER_HASH_PRIVATE, checksum, CHECKSUM_BIN_LEN);
   } else if (owner == ENUM_OWNER_GROUP_CTRL && g_invite_required != 0) {
     // date && sign private group messages
-    torx.message_send(recipient_n, ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN);
+    torx.message_send(recipient_n, ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED, checksum, CHECKSUM_BIN_LEN);
   } else {
     // regular messages, private messages (in authenticated pipes), public messages in public groups (in authenticated pipes)
-    torx.message_send(recipient_n, ENUM_PROTOCOL_STICKER_HASH, stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN);
+    torx.message_send(recipient_n, ENUM_PROTOCOL_STICKER_HASH, checksum, CHECKSUM_BIN_LEN);
   }
-  // THE FOLLOWING IS IMPORTANT TO PREVENT FINGERPRINTING BY STICKER WALLET. XXX Note: this is in two places because reliability is better this way
-  int iter = 0;
-  while (iter < stickers[s].peers.length && stickers[s].peers[iter] != recipient_n && stickers[s].peers[iter] > -1) {
-    iter++;
-  }
-  if (stickers[s].peers[iter] < 0) {
-    // Register a new recipient of sticker so that they can request data
-    stickers[s].peers[iter] = recipient_n;
-  }
-}
-
-int ui_sticker_set(Pointer<Uint8> checksum) {
-  if (checksum == nullptr) {
-    error(0, "Null passed to set_sticker. Coding error. Report this.");
-    return -1;
-  }
-  int s = 0;
-  while (s < stickers.length && torx.memcmp(stickers[s].checksum as Pointer<Void>, checksum as Pointer<Void>, CHECKSUM_BIN_LEN) != 0) {
-    s++;
-  }
-  if (s == stickers.length) {
-    return -1; // sticker not found
-  }
-  return s;
-}
-
-void ui_sticker_save(int s) {
-  if (s < 0) {
-    error(0, "Cannot save sticker. No data. Coding error. Report this.");
-    return;
-  }
-  Pointer<Utf8> encoded_p = torx.b64_encode(stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN); // free'd by torx_free
-  String setting_name = "sticker-gif-${encoded_p.toDartString()}";
-  torx.torx_free_simple(encoded_p as Pointer<Void>);
-  encoded_p = nullptr;
-  Pointer<Utf8> setting_name_p = setting_name.toNativeUtf8(); // free'd by calloc.free
-  torx.sql_setting(0, -1, setting_name_p, stickers[s].data as Pointer<Utf8>, stickers[s].data_len);
-  calloc.free(setting_name_p);
-  setting_name_p = nullptr;
-  stickers[s].saved = true;
-}
-
-void ui_sticker_delete(int s) {
-  if (s < 0) {
-    return; // should not happen
-  }
-  Pointer<Utf8> encoded_p = torx.b64_encode(stickers[s].checksum as Pointer<Void>, CHECKSUM_BIN_LEN); // free'd by torx_free
-  String setting_name = "sticker-gif-${encoded_p.toDartString()}";
-  torx.torx_free_simple(encoded_p as Pointer<Void>);
-  encoded_p = nullptr;
-  Pointer<Utf8> setting_name_p = setting_name.toNativeUtf8(); // free'd by calloc.free
-  torx.sql_delete_setting(0, -1, setting_name_p);
-  calloc.free(setting_name_p);
-  setting_name_p = nullptr;
-  torx.torx_free_simple(stickers[s].checksum as Pointer<Void>);
-  stickers[s].checksum = nullptr;
-  torx.torx_free_simple(stickers[s].data as Pointer<Void>);
-  stickers[s].data = nullptr;
-  stickers.removeAt(s);
-}
-
-int ui_sticker_register(Pointer<Uint8> data, int data_len) {
-  Pointer<Uint8> checksum = torx.torx_secure_malloc(CHECKSUM_BIN_LEN) as Pointer<Uint8>; // DO NOT FREE, goes to sticker.add
-  torx.b3sum_bin(checksum, nullptr, data, 0, data_len);
-  int s = ui_sticker_set(checksum);
-  if (s < 0) {
-    Pointer<Uint8> allocated = torx.torx_secure_malloc(data_len) as Pointer<Uint8>;
-    torx.memcpy(allocated as Pointer<Void>, data as Pointer<Void>, data_len);
-    stickers.add(sticker(checksum: checksum, data: allocated, data_len: data_len, saved: false));
-    s = ui_sticker_set(checksum);
-    for (int iter = MAX_PEERS - 1; iter > -1; iter--) {
-      stickers[s].peers.add(-1);
-    }
-  } else {
-    torx.torx_free_simple(checksum as Pointer<Void>);
-    checksum = nullptr;
-  }
-  return s;
+  torx.torx_free_simple(checksum);
+  checksum = nullptr;
 }
 
 class RouteStickers extends StatefulWidget {
@@ -228,10 +149,11 @@ class _RouteStickersState extends State<RouteStickers> {
             child: AnimatedBuilder(
                 animation: changeNotifierStickerReady,
                 builder: (BuildContext context, Widget? snapshot) {
+                  int sticker_count = torx.sticker_retrieve_count();
                   return GridView.extent(
                     maxCrossAxisExtent: 180,
-                    children: List.generate(stickers.length + 1, (index) {
-                      if (index == stickers.length) {
+                    children: List.generate(sticker_count + 1, (s) {
+                      if (s == sticker_count) {
                         return GridTile(
                             child: InkWell(
                                 onTap: () async {
@@ -247,14 +169,14 @@ class _RouteStickersState extends State<RouteStickers> {
                                         Pointer<Utf8> path_p = files[file_iter].path.toNativeUtf8(); // free'd by calloc.free
                                         Pointer<Size_t> len_p = malloc(8); // free'd by calloc.free
                                         Pointer<Uint8> bytes = torx.read_bytes(len_p, path_p); // free'd by torx_free
-                                        s = ui_sticker_register(bytes, len_p.value);
+                                        s = torx.sticker_register(bytes, len_p.value);
                                         torx.torx_free_simple(bytes as Pointer<Void>);
                                         bytes = nullptr;
                                         calloc.free(path_p);
                                         path_p = nullptr;
                                         calloc.free(len_p);
                                         len_p = nullptr;
-                                        ui_sticker_save(s);
+                                        torx.sticker_save(s);
                                       } else {
                                         error(0, "Rejected attempt to use non-gif sticker");
                                       }
@@ -265,23 +187,24 @@ class _RouteStickersState extends State<RouteStickers> {
                                 },
                                 child: Icon(Icons.add, color: color.torch_off, size: sticker_size)));
                       } else {
+                        bool saved = torx.sticker_retrieve_saved(s) == 1 ? true : false;
                         return GridTile(
                             child: InkWell(
                                 onTap: () {
-                                  ui_sticker_send(index);
+                                  ui_sticker_send(s);
                                   Navigator.pop(context);
                                 },
                                 onLongPress: () {
-                                  showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, null, -1, INT_MIN, index));
+                                  showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, null, -1, INT_MIN, s));
                                 },
                                 child: Container(
                                     decoration: BoxDecoration(
-                                        color: stickers[index].saved ? Colors.transparent : color.unsaved_sticker, // color.unsaved_sticker,
+                                        color: saved ? Colors.transparent : color.unsaved_sticker, // color.unsaved_sticker,
                                         border: Border.all(
-                                          color: stickers[index].saved ? Colors.transparent : color.unsaved_sticker, // Border color
+                                          color: saved ? Colors.transparent : color.unsaved_sticker, // Border color
                                           width: sticker_border_width, // Border width
                                         )),
-                                    child: sticker_generator(index))));
+                                    child: sticker_generator(s))));
                       }
                     }),
                   );

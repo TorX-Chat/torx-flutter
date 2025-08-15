@@ -1005,7 +1005,7 @@ class _RouteChatState extends State<RouteChat> {
           builder: (BuildContext context, Widget? snapshot) {
             if (s < 0) {
               Pointer<Utf8> message_local = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message")); // free'd by torx_free
-              s = ui_sticker_set(message_local as Pointer<Uint8>);
+              s = torx.set_s(message_local as Pointer<Uint8>);
               torx.torx_free_simple(message_local);
               message_local = nullptr;
             }
@@ -3685,11 +3685,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                                       value: _selectedAutoResumeInbound,
                                       activeColor: const Color(0xFF6200EE),
                                       onChanged: (value) {
-                                        if (value == false) {
-                                          auto_resume_inbound = 0;
-                                        } else if (value == true) {
-                                          auto_resume_inbound = 1;
-                                        }
+                                        auto_resume_inbound = value ? 1 : 0;
                                         torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
                                         torx.auto_resume_inbound.value = auto_resume_inbound;
                                         torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
@@ -3710,15 +3706,13 @@ class _RouteSettingsState extends State<RouteSettings> {
                                   ),
                                   Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                                     Switch(
-                                      value: save_all_stickers,
+                                      value: threadsafe_read_global_Uint8("stickers_save_all") == 1 ? true : false,
                                       activeColor: const Color(0xFF6200EE),
                                       onChanged: (value) {
-                                        if (value == false) {
-                                          set_setting_string(0, -1, "save_all_stickers", "0");
-                                        } else if (value == true) {
-                                          set_setting_string(0, -1, "save_all_stickers", "1");
-                                        }
-                                        save_all_stickers = value;
+                                        set_setting_string(0, -1, "stickers_save_all", value ? "1" : "0");
+                                        torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
+                                        torx.stickers_save_all.value = value ? 1 : 0;
+                                        torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                                         changeNotifierSettingChange.callback(integer: -1);
                                       },
                                     ),
@@ -3737,11 +3731,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                                       value: keyboard_privacy,
                                       activeColor: const Color(0xFF6200EE),
                                       onChanged: (value) {
-                                        if (value == false) {
-                                          set_setting_string(0, -1, "keyboard_privacy", "0");
-                                        } else if (value == true) {
-                                          set_setting_string(0, -1, "keyboard_privacy", "1");
-                                        }
+                                        set_setting_string(0, -1, "keyboard_privacy", value ? "1" : "0");
                                         keyboard_privacy = value;
                                         changeNotifierSettingChange.callback(integer: -1);
                                       },

@@ -121,11 +121,6 @@ const int ENUM_FILE_INACTIVE_CANCELLED = 5;
 const int ENUM_FILE_INACTIVE_COMPLETE = 6;
 
 // UI Protocols
-const int ENUM_PROTOCOL_STICKER_HASH = 29812;
-const int ENUM_PROTOCOL_STICKER_HASH_PRIVATE = 40505;
-const int ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED = 1891;
-const int ENUM_PROTOCOL_STICKER_REQUEST = 24931;
-const int ENUM_PROTOCOL_STICKER_DATA_GIF = 46093;
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG = 43474; // uint32_t duration (milliseconds, big endian) + data
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE = 29304; // uint32_t duration (milliseconds, big endian) + data
 const int ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED = 47904; // uint32_t duration (milliseconds, big endian) + data
@@ -171,12 +166,15 @@ const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_JOIN_PRIVATE = 33037; // Start Time + n
 const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_PEERS = 16343; // Start Time + nstime + 56*participating
 const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_LEAVE = 23602; // Start Time + nstime
 const int ENUM_PROTOCOL_AAC_AUDIO_STREAM_DATA_DATE = 54254; // Start Time + nstime + data
+const int ENUM_PROTOCOL_STICKER_HASH = 29812;
+const int ENUM_PROTOCOL_STICKER_HASH_PRIVATE = 40505;
+const int ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED = 1891;
+const int ENUM_PROTOCOL_STICKER_REQUEST = 24931;
+const int ENUM_PROTOCOL_STICKER_DATA_GIF = 46093;
 
 typedef Size_t = Size;
 typedef Time_t = Long; // GOAT WARNING: *should* be ok? Could use Size?? TODO
 int INT_MIN = -(1 << 31); // -2147483648;
-
-const int MAX_PEERS = 4096; // GOAT this isnt ideal because library has no such limitation. this is just laziness. TODO
 
 const int crypto_box_SEEDBYTES = 32;
 const int crypto_sign_BYTES = 64;
@@ -653,6 +651,9 @@ typedef FnDARTtorrc_save = void Function(Pointer<Utf8>);
 typedef FnCwhich = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnDARTwhich = Pointer<Utf8> Function(Pointer<Utf8>);
 
+typedef FnCtorx_allocation_len = Uint32 Function(Pointer<NativeType>);
+typedef FnDARTtorx_allocation_len = int Function(Pointer<NativeType>);
+
 typedef FnCtorx_realloc = Pointer<Void> Function(Pointer<NativeType>, Size_t);
 typedef FnDARTtorx_realloc = Pointer<Void> Function(Pointer<NativeType>, int);
 
@@ -939,6 +940,36 @@ typedef FnDARTrecord_cache_clear = int Function(int);
 typedef FnCrecord_cache_add = Int Function(Int, Int, Uint32, Uint32, Pointer<Uint8>, Uint32);
 typedef FnDARTrecord_cache_add = int Function(int, int, int, int, Pointer<Uint8>, int);
 
+typedef FnCset_s = Int Function(Pointer<Uint8>);
+typedef FnDARTset_s = int Function(Pointer<Uint8>);
+
+typedef FnCsticker_save = Void Function(Int);
+typedef FnDARTsticker_save = void Function(int);
+
+typedef FnCsticker_delete = Void Function(Int);
+typedef FnDARTsticker_delete = void Function(int);
+
+typedef FnCsticker_register = Int Function(Pointer<Uint8>, Size);
+typedef FnDARTsticker_register = int Function(Pointer<Uint8>, int);
+
+typedef FnCsticker_retrieve_saved = Uint8 Function(Int);
+typedef FnDARTsticker_retrieve_saved = int Function(int);
+
+typedef FnCsticker_retrieve_checksum = Pointer<Uint8> Function(Int);
+typedef FnDARTsticker_retrieve_checksum = Pointer<Uint8> Function(int);
+
+typedef FnCsticker_retrieve_data = Pointer<Uint8> Function(Pointer<Size>, Int);
+typedef FnDARTsticker_retrieve_data = Pointer<Uint8> Function(Pointer<Size>, int);
+
+typedef FnCsticker_retrieve_count = Uint32 Function();
+typedef FnDARTsticker_retrieve_count = int Function();
+
+typedef FnCsticker_offload = Void Function(Int);
+typedef FnDARTsticker_offload = void Function(int);
+
+typedef FnCsticker_offload_saved = Void Function();
+typedef FnDARTsticker_offload_saved = void Function();
+
 void register_callbacks() {
   // WARNING: DO NOT USE ERROR MESSAGES HERE. Only print/printf.
   if (callbacks_registered) {
@@ -1143,9 +1174,14 @@ String protocol_string(int p_iter, int offset) {
     error(0, "Negative p_iter passed to protocol_string. Coding error. Report to UI devs.");
     return "";
   }
+  String ret;
   torx.pthread_rwlock_rdlock(torx.mutex_protocols); // 🟧
   Pointer<Utf8> pointer = torx.protocol_access(p_iter, offset) as Pointer<Utf8>; // DO NOT FREE
-  String ret = pointer.toDartString();
+  if (pointer != nullptr) {
+    ret = pointer.toDartString();
+  } else {
+    ret = "";
+  }
   torx.pthread_rwlock_unlock(torx.mutex_protocols); // 🟩
   return ret;
 }
@@ -1448,6 +1484,8 @@ class torx {
 
   static final which = dynamicLibrary.lookupFunction<FnCwhich, FnDARTwhich>('which');
 
+  static final torx_allocation_len = dynamicLibrary.lookupFunction<FnCtorx_allocation_len, FnDARTtorx_allocation_len>('torx_allocation_len');
+
   static final torx_realloc = dynamicLibrary.lookupFunction<FnCtorx_realloc, FnDARTtorx_realloc>('torx_realloc');
 
   static final refined_list = dynamicLibrary.lookupFunction<FnCrefined_list, FnDARTrefined_list>('refined_list');
@@ -1612,6 +1650,26 @@ class torx {
 
   static final record_cache_add = dynamicLibrary.lookupFunction<FnCrecord_cache_add, FnDARTrecord_cache_add>('record_cache_add');
 
+  static final set_s = dynamicLibrary.lookupFunction<FnCset_s, FnDARTset_s>('set_s');
+
+  static final sticker_save = dynamicLibrary.lookupFunction<FnCsticker_save, FnDARTsticker_save>('sticker_save');
+
+  static final sticker_delete = dynamicLibrary.lookupFunction<FnCsticker_delete, FnDARTsticker_delete>('sticker_delete');
+
+  static final sticker_register = dynamicLibrary.lookupFunction<FnCsticker_register, FnDARTsticker_register>('sticker_register');
+
+  static final sticker_retrieve_saved = dynamicLibrary.lookupFunction<FnCsticker_retrieve_saved, FnDARTsticker_retrieve_saved>('sticker_retrieve_saved');
+
+  static final sticker_retrieve_checksum = dynamicLibrary.lookupFunction<FnCsticker_retrieve_checksum, FnDARTsticker_retrieve_checksum>('sticker_retrieve_checksum');
+
+  static final sticker_retrieve_data = dynamicLibrary.lookupFunction<FnCsticker_retrieve_data, FnDARTsticker_retrieve_data>('sticker_retrieve_data');
+
+  static final sticker_retrieve_count = dynamicLibrary.lookupFunction<FnCsticker_retrieve_count, FnDARTsticker_retrieve_count>('sticker_retrieve_count');
+
+  static final sticker_offload = dynamicLibrary.lookupFunction<FnCsticker_offload, FnDARTsticker_offload>('sticker_offload');
+
+  static final sticker_offload_saved = dynamicLibrary.lookupFunction<FnCsticker_offload_saved, FnDARTsticker_offload_saved>('sticker_offload_saved');
+
 /* Pointers */
   // These are ONLY FOR SETTING. and require mutex wrapper. For reading, use threadsafe_read_global_
   static Pointer<Pointer<Utf8>> download_dir = dynamicLibrary.lookup('download_dir'); // utilized
@@ -1625,6 +1683,8 @@ class torx {
 
   /* Arrays */
   // These are ONLY FOR SETTING. and require mutex wrapper. For reading, use threadsafe_read_global_
+
+  static Pointer<Uint8> stickers_save_all = dynamicLibrary.lookup('stickers_save_all'); // utilized
   static Pointer<Uint8> reduced_memory = dynamicLibrary.lookup('reduced_memory'); // utilized
   static Pointer<Uint8> global_log_messages = dynamicLibrary.lookup('global_log_messages'); // utilized
   static Pointer<Uint8> auto_resume_inbound = dynamicLibrary.lookup('auto_resume_inbound'); // utilized
@@ -1641,6 +1701,9 @@ class torx {
   // Confirmed to work. Pass directly to torx.pthread_rwlock_rdlock(mutex);
   static Pointer<Void> mutex_global_variable = dynamicLibrary.lookup('mutex_global_variable'); // utilized
   static Pointer<Void> mutex_protocols = dynamicLibrary.lookup('mutex_protocols'); // utilized
+
+  // Store any data here and access it without mutex locks
+  static Pointer<Pointer<Void>> ui_data = dynamicLibrary.lookup('ui_data');
 }
 
 /* // The following work (mutex confirmed working by not unlocking), do not delete, even if not using. Good examples. */

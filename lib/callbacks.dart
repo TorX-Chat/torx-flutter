@@ -72,7 +72,6 @@ import 'language.dart';
 import 'main.dart';
 import 'manual_bindings.dart';
 import 'routes.dart';
-import 'stickers.dart';
 import 'package:media_scanner/media_scanner.dart';
 
 /*
@@ -336,8 +335,9 @@ class Callbacks {
       return;
     }
     if (verbose) printf("Checkpoint tor_log_cb_ui: $message");
-    torLogBuffer = torLogBuffer + message.toDartString();
-    changeNotifierTorLog.callback(string: message.toDartString());
+    String message_string = message.toDartString();
+    torLogBuffer = torLogBuffer + message_string;
+    changeNotifierTorLog.callback(string: message_string);
     if (scrollcontroller_log_tor.hasClients &&
         scrollcontroller_log_tor.positions.isNotEmpty &&
         scrollcontroller_log_tor.position.pixels == scrollcontroller_log_tor.position.maxScrollExtent) {
@@ -353,8 +353,8 @@ class Callbacks {
     }
     if (verbose) printf("Checkpoint error_cb_ui: $error_message");
     String message_string = error_message.toDartString();
-    printf(message_string);
     torxLogBuffer = torxLogBuffer + message_string;
+    printf(message_string);
     changeNotifierError.callback(string: message_string);
     if (scrollcontroller_log_torx.hasClients &&
         scrollcontroller_log_torx.positions.isNotEmpty &&
@@ -403,17 +403,9 @@ class Callbacks {
         } else {
           error(0, "Bad keyboard_privacy setting read from storage. Coding error. Report this.");
         }
-      } else if (name == "save_all_stickers") {
-        if (int.parse(setting_value.toDartString()) == 0) {
-          save_all_stickers = false;
-        } else if (int.parse(setting_value.toDartString()) == 1) {
-          save_all_stickers = true;
-        } else {
-          error(0, "Bad save_all_stickers setting read from storage. Coding error. Report this.");
-        }
       } else if (name.startsWith("sticker-gif-")) {
-        int s = ui_sticker_register(setting_value as Pointer<Uint8>, setting_value_len);
-        stickers[s].saved = true;
+        int s = torx.sticker_register(setting_value as Pointer<Uint8>, setting_value_len);
+        torx.sticker_save(s);
       } else {
         error(0, "Unrecognized encrypted config setting: $name");
       }
@@ -529,41 +521,7 @@ class Callbacks {
       return;
     }
     printf("Checkpoint stream_cb_ui protocol: $protocol size: $data_len");
-    if (data_len >= CHECKSUM_BIN_LEN && protocol == ENUM_PROTOCOL_STICKER_DATA_GIF) {
-      int s_check = ui_sticker_set(data as Pointer<Uint8>);
-      if (s_check > -1) {
-        // Old sticker data, do not print or register (such as re-opening peer route)
-        error(0, "We already have this sticker data, do not register or print again.");
-      } else {
-        Pointer<Uint8> checksum = torx.torx_secure_malloc(CHECKSUM_BIN_LEN) as Pointer<Uint8>; // free'd by torx_free
-        if (torx.b3sum_bin(checksum, nullptr, data as Pointer<Uint8>, CHECKSUM_BIN_LEN, data_len - CHECKSUM_BIN_LEN) != data_len - CHECKSUM_BIN_LEN ||
-            torx.memcmp(checksum, data, CHECKSUM_BIN_LEN) != 0) {
-          error(0, "Received bunk sticker data from peer. Checksum failed. Disgarding sticker.");
-        } else {
-          // Fresh sticker data. Save it and print it
-          Pointer<Uint8> data_unsigned = data as Pointer<Uint8>;
-          int s = ui_sticker_register(data_unsigned + CHECKSUM_BIN_LEN, data_len - CHECKSUM_BIN_LEN); // this is pointer arithmetic
-          if (save_all_stickers) {
-            ui_sticker_save(s);
-          }
-          changeNotifierStickerReady.callback(integer: s);
-        }
-        int y = 0;
-        while (y < t_peer.stickers_requested[n].length && torx.memcmp(t_peer.stickers_requested[n][y], checksum, CHECKSUM_BIN_LEN) != 0) {
-          y++;
-        }
-        if (y < t_peer.stickers_requested[n].length) {
-          // Remove the sticker request
-          torx.torx_free_simple(t_peer.stickers_requested[n][y]);
-          t_peer.stickers_requested[n][y] = nullptr;
-          t_peer.stickers_requested[n].removeAt(y);
-        }
-        torx.torx_free_simple(checksum);
-        checksum = nullptr;
-      }
-    } else {
-      error(0, "Unknown stream data received: protocol=$protocol data_len=$data_len");
-    }
+    error(0, "Unknown stream data received: protocol=$protocol data_len=$data_len");
     torx.torx_free_simple(data);
     data = nullptr;
   }
