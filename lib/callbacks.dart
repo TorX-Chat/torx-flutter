@@ -253,7 +253,8 @@ class Callbacks {
 
   void onion_deleted_cb_ui(int owner, int n) {
     if (verbose) printf("Checkpoint onion_deleted_cb_ui owner=$owner n=$n");
-    initialize_n_cb_ui(n);
+    ui_unread_clear(n); // must be BEFORE initialize_n_cb_ui
+    initialize_n_cb_ui(n); // must be AFTER ui_unread_clear
     changeNotifierDataTables.callback(integer: owner);
     // GOAT check if ctrl before updating chatlist
     changeNotifierChatList.callback(integer: owner);

@@ -259,6 +259,7 @@ void resumptionTasks() {
       torx.sql_populate_setting(0); // re-load settings to get UI settings and stickers, etc
     }
     if (totalUnreadPeer > 0 || totalUnreadGroup > 0) {
+      ui_unread_clear(global_n);
       changeNotifierTotalUnread.callback(integer: -5);
       changeNotifierChatList.callback(integer: 0);
     }
@@ -452,6 +453,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       if (surviveDestruction.ref._torxLogBuffer != nullptr) torxLogBuffer = surviveDestruction.ref._torxLogBuffer.toDartString();
       bottom_index = surviveDestruction.ref._bottom_index;
       _clear_ui_data();
+      ui_unread_clear(global_n); // redundant with resumptionTasks because it may not have global_n
     }
   }
 
@@ -901,8 +903,9 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
   ];
 }
 
-void reset_unread(int n) {
-  if (t_peer.unread[n] > 0) {
+void ui_unread_clear(int n) {
+  if (n > -1 && t_peer.unread[n] > 0) {
+    // MUST check n > -1, and not treat -1 as global
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_GROUP_CTRL) {
       totalUnreadGroup -= t_peer.unread[n];
@@ -987,7 +990,7 @@ void print_message(int n, int i, int scroll) {
       nn = torx.getter_group_int(g, offsetof("group", "n"));
       owner = ENUM_OWNER_GROUP_CTRL;
     }
-    reset_unread(nn);
+    ui_unread_clear(nn);
   }
   changeNotifierMessage.callback(n: n, i: i, scroll: scroll);
   int max_i = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "max_i"));

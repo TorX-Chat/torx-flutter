@@ -1298,7 +1298,6 @@ class _RouteChatState extends State<RouteChat> {
     }
     return PopScope(
         onPopInvoked: (didPop) {
-          reset_unread(widget.n);
           scrollController.dispose();
           global_n = -1; // DO NOT PUT ONLY AT onPressed (otherwise it could get skipped)
           changeNotifierChatList.callback(integer: widget.n);
@@ -1951,7 +1950,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
           onTap: () {
             global_n = list[index];
             Noti.cancel(list[index], flutterLocalNotificationsPlugin);
-            reset_unread(list[index]);
+            ui_unread_clear(list[index]);
             //    printf("Checkpoint RouteChat n=${arrayFriends[index]}");
             Navigator.push(context, MaterialPageRoute(builder: (context) => RouteChat(list[index])));
           },
