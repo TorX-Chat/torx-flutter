@@ -32,34 +32,30 @@ dependencies:
   flutter:
     sdk: flutter
 
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.6
-  ffi: ^2.1.0
-  flutter_svg: ^2.0.10+1
-  toggle_switch: ^2.0.1
-  share_plus: ^7.2.2
-  mobile_scanner: ^5.2.3
-  file_picker: ^8.1.2 # this is better than image_picker, less bloated and more useful
-  intl: ^0.19.0
+  ffi: ^2.1.4
+  flutter_svg: ^2.2.1
+  toggle_switch: ^2.3.0
+  share_plus: ^12.0.1
+  mobile_scanner: ^7.1.2
+  file_picker: ^10.3.3 # this is better than image_picker, less bloated and more useful
+  intl: ^0.20.2
   flutter_ringtone_player: ^4.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications or audioplayers
-  vibration: ^2.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications
-  flutter_local_notifications: ^17.1.2 # TODO Crashes due to unmerged https://github.com/MaikuB/flutter_local_notifications/issues/2479 https://github.com/MaikuB/flutter_local_notifications/pull/2481
-  permission_handler: ^11.3.1
-  percent_indicator: ^4.2.2
-  screen_protector: ^1.1.5
-  path_provider: ^2.1.2
+  vibration: ^3.1.4 # TODO can probably eliminate using primitives from flutter_local_notifications
+  flutter_local_notifications: ^19.5.0 # Requires startType: AndroidServiceStartType.startNotSticky otherwise crashes due to unmerged https://github.com/MaikuB/flutter_local_notifications/issues/2479 https://github.com/MaikuB/flutter_local_notifications/pull/2481 https://github.com/MaikuB/flutter_local_notifications/pull/2475
+  permission_handler: ^12.0.1
+  percent_indicator: ^4.2.5
+  screen_protector: ^1.4.4
+  path_provider: ^2.1.5
   photo_view: ^0.15.0
-  open_filex: ^4.5.0
-  app_badge_plus: ^1.1.5
-  record: ^6.0.0
-  record_android: ^1.3.2
+  open_filex: ^4.7.0
+  app_badge_plus: ^1.2.3
+  record: ^6.1.2
+  record_android: ^1.4.4
 #  media_scanner:
 #    git:
 #      url: https://github.com/TruongAnim/media_scanner.git # alt: https://github.com/wukgdu/media_scanner.git
 #      ref: 773ec684e1130cb12e6287c0aa13cee6de694c9e # alt: master
-  audioplayers: ^6.1.0
+  audioplayers: ^6.5.1
   media_scanner: ^2.2.0
 
 dev_dependencies:
@@ -71,7 +67,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -84,14 +80,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
   assets:
-#    - lib/other/tor.x86_64 # TODO binary files must be specified explicitly? perhaps because we haven't yet included them in our code. 
-#    - lib/other/tor.x86
-#    - lib/other/tor.armeabi-v7a
-#    - lib/other/tor.arm64-v8a
-#    - lib/other/
-#    - lib/other/svg/
      - assets/svg/
      - assets/beep.wav
 

@@ -258,7 +258,8 @@ class Noti {
       );
       AndroidFlutterLocalNotificationsPlugin? platformSpecific = flnp.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (platformSpecific != null) {
-        await platformSpecific.startForegroundService(1, text.title, "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x');
+        await platformSpecific.startForegroundService(1, text.title, "",
+            notificationDetails: androidPlatformChannelSpecifics, payload: 'item x', startType: AndroidServiceStartType.startNotSticky);
       }
     } else {
       printf("Noti not yet initialized. Initializing.2");
