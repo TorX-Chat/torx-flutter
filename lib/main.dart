@@ -1020,23 +1020,24 @@ Future<void> audio_cache_play(int n) async {
       printf("Checkpoint audio_cache_play n=$n data_len=$existing");
       Uint8List bytes = Uint8List(existing);
       bytes.setAll(0, data.asTypedList(existing)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
-      await t_peer.player[n].play(BytesSource(bytes /*, mimeType: "audio/L16"*/));
+      await t_peer.player[n].setSource(BytesSource(bytes));
+      await t_peer.player[n].resume();
     }
     t_peer.playing[n] = false;
     torx.torx_free_simple(tmp_len_p);
     tmp_len_p = nullptr;
-    //  player.dispose();
+    //  t_peer.player[n].dispose();
   }
 }
 
-void audio_ready(int call_n, int call_c, Uint8List data) {
+Future<void> audio_ready(int call_n, int call_c, Uint8List data) async {
   // In Flutter, this is NOT used for audio messages, only for audio streams. Audio messages utilize recordedDataChunks
   Pointer<Uint8> pointer = torx.torx_secure_malloc(data.length) as Pointer<Uint8>;
   for (int iter = 0; iter < data.length; iter++) {
     pointer[iter] = data[iter]; // Necessary for some reason
   }
   if (torx.record_cache_add(call_n, call_c, AptitudeBuffer.cache_minimum_size, AptitudeBuffer.max_age_in_ms, pointer, data.length) < 1) {
-    record_stop(true);
+    await record_stop(true); // probably need to await
   }
   torx.torx_free_simple(pointer);
   pointer = nullptr;
@@ -1100,6 +1101,7 @@ Future<void> record_start(int sample_rate, int call_n, int call_c) async {
         if (call_n > -1 && call_c > -1) {
           // Audio call
           final aptitude = await current_recording.pipeline.getAmplitude();
+          printf("Audio stream occuring");
           if (aptitude.current > AptitudeBuffer.add(aptitude.current.toInt()) + AptitudeBuffer.sensitivity) {
             // Aptitude check is to avoid sending silence during streams. For voice messages we permit silence.
             audio_ready(call_n, call_c, data); // send good sound
@@ -1120,9 +1122,7 @@ Future<void> record_start(int sample_rate, int call_n, int call_c) async {
           current_recording.recordedDataChunks.add(data);
         }
       },
-      onDone: () {
-        record_stop(false); // In most cases this won't do anything because we already called it
-      },
+      onDone: () {},
       onError: (error) {
         error(0, "Recording error: $error");
       },
@@ -1136,7 +1136,21 @@ Future<void> record_start(int sample_rate, int call_n, int call_c) async {
   }
 }
 
-void record_stop(bool delete) {
+Future<void> record_delete() async {
+  // Do not use without calling record_stop first (untested to do so)
+  if (current_recording.is_recording) {
+    printf("record_delete called while recording. Coding error. Report this to UI devs.");
+    return;
+  }
+  current_recording.is_recording = false;
+  await current_recording.pipeline.cancel();
+  current_recording.recordedDataChunks.clear();
+  current_recording.start_time = 0;
+}
+
+Future<void> record_stop(bool delete) async {
+  // WARNING: Must follow call with record_delete if delete==false
+  printf("Checkpoint record_stop is_recording: ${current_recording.is_recording} delete: $delete");
   if (current_recording.is_recording) {
     current_recording.is_recording = false;
     if (current_recording.call_n < 0 || current_recording.call_c < 0) {
@@ -1145,12 +1159,10 @@ void record_stop(bool delete) {
     }
     if (delete) {
       // Delete current data
-      current_recording.pipeline.cancel();
-      current_recording.recordedDataChunks.clear();
-      current_recording.start_time = 0;
+      await record_delete();
     } else {
       // Process current data through audio_ready
-      current_recording.pipeline.stop();
+      await current_recording.pipeline.stop();
     }
   }
 }

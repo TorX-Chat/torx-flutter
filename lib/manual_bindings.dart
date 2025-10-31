@@ -780,12 +780,6 @@ typedef FnDARTget_file_size = int Function(Pointer<Utf8>);
 typedef FnCdestroy_file = Void Function(Pointer<Utf8>);
 typedef FnDARTdestroy_file = void Function(Pointer<Utf8>);
 
-typedef FnCsplit_update = Void Function(Int, Int, Int16);
-typedef FnDARTsplit_update = void Function(int, int, int);
-
-typedef FnCb3sum_bin = Size_t Function(Pointer<Uint8>, Pointer<Utf8>, Pointer<Uint8>, Uint64, Uint64);
-typedef FnDARTb3sum_bin = int Function(Pointer<Uint8>, Pointer<Utf8>, Pointer<Uint8>, int, int);
-
 typedef FnCcustom_input_file = Pointer<Utf8> Function(Pointer<Utf8>);
 typedef FnDARTcustom_input_file = Pointer<Utf8> Function(Pointer<Utf8>);
 
@@ -1569,10 +1563,6 @@ class torx {
   static final get_file_size = dynamicLibrary.lookupFunction<FnCget_file_size, FnDARTget_file_size>('get_file_size');
 
   static final destroy_file = dynamicLibrary.lookupFunction<FnCdestroy_file, FnDARTdestroy_file>('destroy_file');
-
-  static final split_update = dynamicLibrary.lookupFunction<FnCsplit_update, FnDARTsplit_update>('split_update');
-
-  static final b3sum_bin = dynamicLibrary.lookupFunction<FnCb3sum_bin, FnDARTb3sum_bin>('b3sum_bin');
 
   static final custom_input_file = dynamicLibrary.lookupFunction<FnCcustom_input_file, FnDARTcustom_input_file>('custom_input_file');
 

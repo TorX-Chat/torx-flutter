@@ -1052,7 +1052,8 @@ class _RouteChatState extends State<RouteChat> {
                 last_played_n = n;
                 last_played_i = i;
                 Uint8List bytes = getter_bytes(n, i, -1, offsetof("message", "message"));
-                await player.play(BytesSource(bytes.sublist(4) /*, mimeType: "audio/L16"*/));
+                await player.setSource(BytesSource(bytes.sublist(4)));
+                await player.resume();
                 if (t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1 && torx.getter_uint8(n, i, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
                   t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 0;
                   Pointer<Uint8> val = torx.torx_insecure_malloc(1) as Pointer<Uint8>; // free'd by torx_free
@@ -1682,27 +1683,28 @@ class _RouteChatState extends State<RouteChat> {
                                               onLongPressDown: (yes) async {
                                                 if (current_recording.is_recording) {
                                                   torx.call_mute_all_except(-1, -1);
-                                                  record_stop(true);
+                                                  record_stop(true); // no need to await because discarding
                                                 }
                                                 record_start(16000, -1, -1);
                                               },
                                               onLongPressCancel: () async {
                                                 printf("Cancel recording. Too short.");
-                                                record_stop(true);
+                                                record_stop(true); // no need to await because discarding
                                               },
                                               onLongPressMoveUpdate: (det) async {
                                                 if (det.localOffsetFromOrigin.distance > 100) {
                                                   printf("Cancel via drag");
-                                                  record_stop(true);
+                                                  record_stop(true); // no need to await because discarding
                                                 }
                                               },
                                               onLongPressUp: () async {
                                                 if (current_recording.is_recording) {
-                                                  record_stop(false);
+                                                  await record_stop(false); // MUST AWAIT otherwise current_recording.recordedDataChunks will be effected
                                                   int duration = DateTime.now().millisecondsSinceEpoch - current_recording.start_time;
                                                   //  printf("Checkpoint duration: ${DateTime.now().millisecondsSinceEpoch} - $start_time = $duration milliseconds");
                                                   Uint8List bytes =
                                                       Uint8List.fromList(current_recording.recordedDataChunks.expand((x) => x).toList()); // chatgpt says this is simple concat
+                                                  record_delete(); // NECESSARY
                                                   if (bytes.isNotEmpty) {
                                                     final Pointer<Uint8> ptr = malloc(4 + bytes.length);
                                                     ptr.asTypedList(4).setAll(0, htobe32(duration));
