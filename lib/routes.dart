@@ -1005,7 +1005,7 @@ class _RouteChatState extends State<RouteChat> {
           animation: changeNotifierStickerReady,
           builder: (BuildContext context, Widget? snapshot) {
             if (s < 0) {
-              Pointer<Utf8> message_local = torx.getter_string(nullptr, n, i, -1, offsetof("message", "message")); // free'd by torx_free
+              Pointer<Utf8> message_local = torx.getter_string(n, i, -1, offsetof("message", "message")); // free'd by torx_free
               s = torx.set_s(message_local as Pointer<Uint8>);
               torx.torx_free_simple(message_local);
               message_local = nullptr;
@@ -1051,8 +1051,8 @@ class _RouteChatState extends State<RouteChat> {
                 }
                 last_played_n = n;
                 last_played_i = i;
-                Uint8List bytes = getter_bytes(n, i, -1, offsetof("message", "message"));
-                await player.setSource(BytesSource(bytes.sublist(4)));
+                Uint8List bytes = getter_audio(n, i);
+                await player.setSource(BytesSource(bytes));
                 await player.resume();
                 if (t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1 && torx.getter_uint8(n, i, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
                   t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 0;

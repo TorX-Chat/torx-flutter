@@ -85,11 +85,9 @@ const double sticker_border_width = 3; // for sticker chooser
 Image? sticker_generator(int s) {
   int sticker_count = torx.sticker_retrieve_count();
   if (sticker_count > 0 && s < sticker_count) {
-    // WARNING: If we crash after deleting image, it's because we use asTypedList directly here instead of copying with setAll
     Pointer<Size_t> len_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>;
     Pointer<Uint8> data = torx.sticker_retrieve_data(len_p, s);
-    Uint8List bytes = Uint8List(len_p.value);
-    bytes.setAll(0, data.asTypedList(len_p.value));
+    Uint8List bytes = data.asTypedList(len_p.value).sublist(0);
     torx.torx_free_simple(data);
     torx.torx_free_simple(len_p);
     len_p = nullptr;

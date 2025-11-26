@@ -432,8 +432,8 @@ typedef FnDARTerror_simple = void Function(int, Pointer<Utf8>);
 typedef FnCgetter_length = Uint32 Function(Int, Int, Int, Size_t);
 typedef FnDARTgetter_length = int Function(int, int, int, int);
 
-typedef FnCgetter_string = Pointer<Utf8> Function(Pointer<Uint32>, Int, Int, Int, Size_t);
-typedef FnDARTgetter_string = Pointer<Utf8> Function(Pointer<Uint32>, int, int, int, int);
+typedef FnCgetter_string = Pointer<Utf8> Function(Int, Int, Int, Size_t);
+typedef FnDARTgetter_string = Pointer<Utf8> Function(int, int, int, int);
 
 typedef FnCgetter_group_id = Pointer<Uint8> Function(Int);
 typedef FnDARTgetter_group_id = Pointer<Uint8> Function(int);
@@ -738,14 +738,8 @@ typedef FnDARTdelete_log = void Function(int);
 typedef FnCmessage_edit = Int Function(Int, Int, Pointer<Utf8>);
 typedef FnDARTmessage_edit = int Function(int, int, Pointer<Utf8>);
 
-typedef FnCsql_exec = Int Function(Pointer<Pointer<NativeType>>, Pointer<Utf8>, Pointer<Utf8>, Size_t);
-typedef FnDARTsql_exec = int Function(Pointer<Pointer<NativeType>>, Pointer<Utf8>, Pointer<Utf8>, int);
-
 typedef FnCsql_setting = Int Function(Int, Int, Pointer<Utf8>, Pointer<Utf8>, Size_t);
 typedef FnDARTsql_setting = int Function(int, int, Pointer<Utf8>, Pointer<Utf8>, int);
-
-typedef FnCsql_retrieve = Pointer<Uint8> Function(Pointer<Size_t>, Int, Pointer<Utf8>);
-typedef FnDARTsql_retrieve = Pointer<Uint8> Function(Pointer<Size_t>, int, Pointer<Utf8>);
 
 typedef FnCsql_populate_setting = Void Function(Int);
 typedef FnDARTsql_populate_setting = void Function(int);
@@ -1052,39 +1046,50 @@ Uint8List getter_array(int size, int n, int i, int f, int offset) {
   // WARNING: This function lacks safety checks
   Pointer<Uint8> array = torx.torx_secure_malloc(size) as Pointer<Uint8>; // free'd by torx_free
   torx.getter_array(array, size, n, i, f, offset);
-  Uint8List list = Uint8List(size);
-  list.setAll(0, array.asTypedList(size)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
+  Uint8List list = array.asTypedList(size).sublist(0);
   torx.torx_free_simple(array);
   array = nullptr;
   return list;
 }
 
 Uint8List getter_bytes(int n, int i, int f, int offset) {
-  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
-  Pointer<Uint8> pointer = torx.getter_string(len_p, n, i, f, offset) as Pointer<Uint8>; // free'd by torx_free
-  Uint8List list = Uint8List(len_p.value);
+  Pointer<Uint8> pointer = torx.getter_string(n, i, f, offset) as Pointer<Uint8>; // free'd by torx_free
+  int len = torx.torx_allocation_len(pointer);
   if (pointer != nullptr) {
-    list.setAll(0, pointer.asTypedList(len_p.value)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
+    Uint8List list = pointer.asTypedList(len).sublist(0);
     torx.torx_free_simple(pointer);
     pointer = nullptr;
+    return list;
   }
-  torx.torx_free_simple(len_p);
-  len_p = nullptr;
-  return list;
+  return Uint8List(0);
+}
+
+Uint8List getter_audio(int n, int i) {
+  int p_iter = torx.getter_int(n, i, -1, offsetof("message", "p_iter"));
+  if (p_iter < 0) return Uint8List(0);
+  Pointer<Uint8> pointer = torx.getter_string(n, i, -1, offsetof("message", "message")) as Pointer<Uint8>; // free'd by torx_free
+  if (pointer != nullptr) {
+    int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
+    int date_len = protocol_int(p_iter, "date_len");
+    int signature_len = protocol_int(p_iter, "signature_len");
+    int audio_len = torx.torx_allocation_len(pointer) - 4 - (null_terminated_len + date_len + signature_len);
+    Uint8List list = pointer.asTypedList(4 + audio_len).sublist(4, audio_len + 4);
+    torx.torx_free_simple(pointer);
+    pointer = nullptr;
+    return list;
+  }
+  return Uint8List(0);
 }
 
 String getter_string(int n, int i, int f, int offset) {
   String ret = "";
-  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
 //  printf("Getter_string: $n $i $f $offset");
-  Pointer<Utf8> pointer = torx.getter_string(len_p, n, i, f, offset); // free'd by torx_free
+  Pointer<Utf8> pointer = torx.getter_string(n, i, f, offset); // free'd by torx_free
   if (pointer != nullptr) {
     ret = pointer.toDartString();
     torx.torx_free_simple(pointer);
     pointer = nullptr;
   }
-  torx.torx_free_simple(len_p);
-  len_p = nullptr;
   return ret;
 }
 
@@ -1144,15 +1149,16 @@ List<int> call_participant_list(int call_n, int call_c) {
 Uint8List audio_cache_retrieve(int participant_n) {
   Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
   Pointer<Uint8> pointer = torx.audio_cache_retrieve(nullptr, nullptr, len_p, participant_n);
-  Uint8List list = Uint8List(len_p.value);
-  if (pointer != nullptr) {
-    list.setAll(0, pointer.asTypedList(len_p.value)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
-    torx.torx_free_simple(pointer);
-    pointer = nullptr;
-  }
+  int len = len_p.value;
   torx.torx_free_simple(len_p);
   len_p = nullptr;
-  return list;
+  if (pointer != nullptr) {
+    Uint8List list = pointer.asTypedList(len).sublist(0);
+    torx.torx_free_simple(pointer);
+    pointer = nullptr;
+    return list;
+  }
+  return Uint8List(0);
 }
 
 int get_file_size(String file_path) {
@@ -1536,11 +1542,7 @@ class torx {
 
   static final message_edit = dynamicLibrary.lookupFunction<FnCmessage_edit, FnDARTmessage_edit>('message_edit');
 
-  static final sql_exec = dynamicLibrary.lookupFunction<FnCsql_exec, FnDARTsql_exec>('sql_exec');
-
   static final sql_setting = dynamicLibrary.lookupFunction<FnCsql_setting, FnDARTsql_setting>('sql_setting');
-
-  static final sql_retrieve = dynamicLibrary.lookupFunction<FnCsql_retrieve, FnDARTsql_retrieve>('sql_retrieve');
 
   static final sql_populate_setting = dynamicLibrary.lookupFunction<FnCsql_populate_setting, FnDARTsql_populate_setting>('sql_populate_setting');
 

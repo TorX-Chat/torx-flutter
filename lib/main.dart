@@ -569,9 +569,7 @@ Image generate_qr(String data) {
   Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free
   Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
   Pointer<Void> png = torx.return_png(size_p, qr_raw);
-  // WARNING: If we crash after deleting image, it's because we use asTypedList directly here instead of copying with setAll
-  Uint8List bytes = Uint8List(size_p.value);
-  bytes.setAll(0, Pointer<Uint8>.fromAddress(png.address).asTypedList(size_p.value));
+  Uint8List bytes = Pointer<Uint8>.fromAddress(png.address).asTypedList(size_p.value).sublist(0);
   Image image = Image.memory(bytes);
   torx.torx_free_simple(qr_raw);
   qr_raw = nullptr;
@@ -1018,8 +1016,7 @@ Future<void> audio_cache_play(int n) async {
     if (existing > 0) {
 //    while ((data = torx.audio_cache_retrieve(nullptr, nullptr, data_len_p, n)) != nullptr) {
       printf("Checkpoint audio_cache_play n=$n data_len=$existing");
-      Uint8List bytes = Uint8List(existing);
-      bytes.setAll(0, data.asTypedList(existing)); // NOTE: Must copy, *Cannot* return value of asTypedList or utilize async
+      Uint8List bytes = data.asTypedList(existing).sublist(0);
       await t_peer.player[n].setSource(BytesSource(bytes));
       await t_peer.player[n].resume();
     }
