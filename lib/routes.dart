@@ -1778,8 +1778,9 @@ class _RouteChatState extends State<RouteChat> {
                                   List<File> files = result.paths.map((path) => File(path!)).toList();
                                   int file_iter = 0;
                                   while (file_iter < files.length) {
-                                    //        printf("Checkpoint send_file ${files[file_iter].path}"); // GOAT file_picker caches. we don't want caching. https://github.com/miguelpruivo/flutter_file_picker/issues/40 https://github.com/miguelpruivo/flutter_file_picker/issues/1093
                                     Pointer<Utf8> file_path = files[file_iter].absolute.path.toNativeUtf8(); // free'd by calloc.free
+                                    printf(
+                                        "Checkpoint send_file ${files[file_iter].path}"); // file_picker caches. we don't want caching but it's unavoidable because Android/IOS are both poorly designed. https://developer.android.com/training/data-storage/shared/documents-files https://developer.android.com/training/data-storage/manage-all-files https://github.com/miguelpruivo/flutter_file_picker/issues/40 https://github.com/miguelpruivo/flutter_file_picker/issues/1093
                                     if (t_peer.pm_n[widget.n] > -1) {
                                       torx.file_send(t_peer.pm_n[widget.n], file_path);
                                     } else {

@@ -151,7 +151,7 @@ ExternalProject_Add(
 	torx
 	GIT_REPOSITORY ${REPO_TORX} ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 	GIT_TAG ${TAG_REPO}
-	CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=${BUILD_TORX_DEPS} -D BUILD_SHARED_LIBS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
+	CMAKE_ARGS ${CMAKE_ARGS} -D BUILD_TORX_DEPS=${BUILD_TORX_DEPS} -D BUILD_SHARED_LIBS=1 -D NO_ASYNC_CALLBACKS=1 -D LAN_REPO=$ENV{LAN_REPO} ${CUSTOM_ARGS_FLUTTER} # -D CMAKE_SYSROOT=$ENV{ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/
 	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp -t ${JNILIBS_DIR} libtorx.so ${JNILIBS_LIST}
 ) # TODO get zlib, currently not able to remove sonames.
 # NOTE: regarding libpng, the copy is a response to a bug they introduced where they dropped the prefix. Introduced in one of the first two commits of feb 2023
