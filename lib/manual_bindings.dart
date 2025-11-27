@@ -561,8 +561,8 @@ typedef FnDARTprotocol_lookup = int Function(int);
 typedef FnCprotocol_registration = Int Function(Int16, Pointer<Utf8>, Pointer<Utf8>, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8);
 typedef FnDARTprotocol_registration = int Function(int, Pointer<Utf8>, Pointer<Utf8>, int, int, int, int, int, int, int, int, int, int, int);
 
-typedef FnCread_bytes = Pointer<Uint8> Function(Pointer<Size_t>, Pointer<Utf8>);
-typedef FnDARTread_bytes = Pointer<Uint8> Function(Pointer<Size_t>, Pointer<Utf8>);
+typedef FnCread_bytes = Pointer<Uint8> Function(Pointer<Utf8>);
+typedef FnDARTread_bytes = Pointer<Uint8> Function(Pointer<Utf8>);
 
 typedef FnCzero_pthread = Void Function(Pointer<NativeType>);
 typedef FnDARTzero_pthread = void Function(Pointer<NativeType>);
@@ -834,8 +834,8 @@ typedef FnDARTqr_bool = Pointer<Void> Function(Pointer<Utf8>, int); // returns s
 typedef FnCqr_utf8 = Pointer<Utf8> Function(Pointer<NativeType>);
 typedef FnDARTqr_utf8 = Pointer<Utf8> Function(Pointer<NativeType>);
 
-typedef FnCreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<NativeType>);
-typedef FnDARTreturn_png = Pointer<Void> Function(Pointer<Size_t>, Pointer<NativeType>);
+typedef FnCreturn_png = Pointer<Void> Function(Pointer<NativeType>);
+typedef FnDARTreturn_png = Pointer<Void> Function(Pointer<NativeType>);
 
 typedef FnCwrite_bytes = Size_t Function(Pointer<Utf8>, Pointer<NativeType>, Size_t);
 typedef FnDARTwrite_bytes = int Function(Pointer<Utf8>, Pointer<NativeType>, int);
@@ -919,8 +919,8 @@ typedef FnDARTcall_leave_all_except = void Function(int, int);
 typedef FnCcall_mute_all_except = Void Function(Int, Int);
 typedef FnDARTcall_mute_all_except = void Function(int, int);
 
-typedef FnCaudio_cache_retrieve = Pointer<Uint8> Function(Pointer<Time_t>, Pointer<Time_t>, Pointer<Uint32>, Int);
-typedef FnDARTaudio_cache_retrieve = Pointer<Uint8> Function(Pointer<Time_t>, Pointer<Time_t>, Pointer<Uint32>, int);
+typedef FnCaudio_cache_retrieve = Pointer<Uint8> Function(Pointer<Time_t>, Pointer<Time_t>, Int);
+typedef FnDARTaudio_cache_retrieve = Pointer<Uint8> Function(Pointer<Time_t>, Pointer<Time_t>, int);
 
 typedef FnCrecord_cache_clear = Int Function(Int);
 typedef FnDARTrecord_cache_clear = int Function(int);
@@ -946,8 +946,8 @@ typedef FnDARTsticker_retrieve_saved = int Function(int);
 typedef FnCsticker_retrieve_checksum = Pointer<Uint8> Function(Int);
 typedef FnDARTsticker_retrieve_checksum = Pointer<Uint8> Function(int);
 
-typedef FnCsticker_retrieve_data = Pointer<Uint8> Function(Pointer<Size>, Int);
-typedef FnDARTsticker_retrieve_data = Pointer<Uint8> Function(Pointer<Size>, int);
+typedef FnCsticker_retrieve_data = Pointer<Uint8> Function(Int);
+typedef FnDARTsticker_retrieve_data = Pointer<Uint8> Function(int);
 
 typedef FnCsticker_retrieve_count = Uint32 Function();
 typedef FnDARTsticker_retrieve_count = int Function();
@@ -1147,12 +1147,9 @@ List<int> call_participant_list(int call_n, int call_c) {
 }
 
 Uint8List audio_cache_retrieve(int participant_n) {
-  Pointer<Uint32> len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
-  Pointer<Uint8> pointer = torx.audio_cache_retrieve(nullptr, nullptr, len_p, participant_n);
-  int len = len_p.value;
-  torx.torx_free_simple(len_p);
-  len_p = nullptr;
+  Pointer<Uint8> pointer = torx.audio_cache_retrieve(nullptr, nullptr, participant_n);
   if (pointer != nullptr) {
+    int len = torx.torx_allocation_len(pointer);
     Uint8List list = pointer.asTypedList(len).sublist(0);
     torx.torx_free_simple(pointer);
     pointer = nullptr;
