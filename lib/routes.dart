@@ -916,7 +916,7 @@ class _RouteChatState extends State<RouteChat> {
                       crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
                       children: [
                         finished_image
-                            ? Image.file(File(file_path), height: sticker_size * 2, fit: BoxFit.contain)
+                            ? Image.file(File(file_path), height: sticker_size * 2, fit: BoxFit.contain, gaplessPlayback: true)
                             : Row(
                                 // NOTE: this is file message
                                 mainAxisSize: MainAxisSize.min,

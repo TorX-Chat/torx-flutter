@@ -508,28 +508,33 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
         restorationScopeId: 'app',
         title: text.title,
         theme: ThemeData(
+          pageTransitionsTheme: PageTransitionsTheme(
+            builders: {
+              // neccessary to prevent white flashes when push/pop
+              TargetPlatform.android: const FadeForwardsPageTransitionsBuilder(backgroundColor: Colors.transparent),
+            },
+          ),
           primarySwatch: Colors.pink,
+          scaffoldBackgroundColor: Colors.green,
         ),
+        color: Colors.orange,
         home: threadsafe_read_global_Uint8("keyed") == 0 ? const RouteLogin() : const RouteBottom());
   }
 }
 
 void shareQr(String generated) async {
   String path = '$temporaryDir/qr.png';
-  Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
   Pointer<Utf8> generated_p = generated.toNativeUtf8(); // free'd by calloc.free
   Pointer<Void> qr_raw = torx.qr_bool(generated_p, 8); // free'd by torx_free
   calloc.free(generated_p);
   generated_p = nullptr;
-  Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
+  Pointer<Void> png = torx.return_png(qr_raw); // free'd by torx_free
   Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
-  torx.write_bytes(destination, png, size_p.value);
+  torx.write_bytes(destination, png, torx.torx_allocation_len(png));
   torx.torx_free_simple(qr_raw);
   qr_raw = nullptr;
   torx.torx_free_simple(png);
   png = nullptr;
-  torx.torx_free_simple(size_p);
-  size_p = nullptr;
   calloc.free(destination);
   destination = nullptr;
   await Share.shareXFiles(
@@ -544,12 +549,11 @@ void saveQr(String data) async {
     //  printf("Selected dir: $selectedDirectory");
     int datetime = (DateTime.now()).millisecondsSinceEpoch; // seconds since epoch is safe because it has no timezone attached
     Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
-    Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
     Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
-    Pointer<Void> png = torx.return_png(size_p, qr_raw); // free'd by torx_free
+    Pointer<Void> png = torx.return_png(qr_raw); // free'd by torx_free
     String path = "$selectedDirectory/qr$datetime.png";
     Pointer<Utf8> destination = path.toNativeUtf8(); // free'd by calloc.free
-    torx.write_bytes(destination, png, size_p.value);
+    torx.write_bytes(destination, png, torx.torx_allocation_len(png));
     MediaScanner.loadMedia(path: path);
     torx.torx_free_simple(qr_raw);
     qr_raw = nullptr;
@@ -557,8 +561,6 @@ void saveQr(String data) async {
     png = nullptr;
     calloc.free(data_p);
     data_p = nullptr;
-    torx.torx_free_simple(size_p);
-    size_p = nullptr;
     calloc.free(destination);
     destination = nullptr;
   }
@@ -566,19 +568,16 @@ void saveQr(String data) async {
 
 Image generate_qr(String data) {
   Pointer<Utf8> data_p = data.toNativeUtf8(); // free'd by calloc.free
-  Pointer<Size_t> size_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>; // free'd by torx_free
   Pointer<Void> qr_raw = torx.qr_bool(data_p, 8); // free'd by torx_free
-  Pointer<Void> png = torx.return_png(size_p, qr_raw);
-  Uint8List bytes = Pointer<Uint8>.fromAddress(png.address).asTypedList(size_p.value).sublist(0);
-  Image image = Image.memory(bytes);
+  Pointer<Void> png = torx.return_png(qr_raw);
+  Uint8List bytes = Pointer<Uint8>.fromAddress(png.address).asTypedList(torx.torx_allocation_len(png)).sublist(0);
+  Image image = Image.memory(bytes, gaplessPlayback: false);
   torx.torx_free_simple(qr_raw);
   qr_raw = nullptr;
   torx.torx_free_simple(png);
   png = nullptr;
   calloc.free(data_p);
   data_p = nullptr;
-  torx.torx_free_simple(size_p);
-  size_p = nullptr;
   return image;
 }
 
@@ -1001,17 +1000,17 @@ Future<void> audio_cache_play(int n) async {
   if (n > -1 && !t_peer.playing[n]) {
     t_peer.playing[n] = true;
 //    AudioPlayer player = AudioPlayer(); // TODO continually creating and destroying this may be expensive
-    Pointer<Uint32> tmp_len_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>;
     Pointer<Uint8> data = nullptr;
     int existing = 0;
-    for (Pointer<Uint8> tmp; (tmp = torx.audio_cache_retrieve(nullptr, nullptr, tmp_len_p, n)) != nullptr;) {
+    for (Pointer<Uint8> tmp; (tmp = torx.audio_cache_retrieve(nullptr, nullptr, n)) != nullptr;) {
+      int tmp_len = torx.torx_allocation_len(tmp);
       if (data == nullptr) {
         data = tmp;
       } else {
-        data = torx.torx_realloc(data, existing + tmp_len_p.value) as Pointer<Uint8>;
-        torx.memcpy(data + existing, tmp, tmp_len_p.value);
+        data = torx.torx_realloc(data, existing + tmp_len) as Pointer<Uint8>;
+        torx.memcpy(data + existing, tmp, tmp_len);
       }
-      existing = tmp_len_p.value;
+      existing = tmp_len;
     }
     if (existing > 0) {
 //    while ((data = torx.audio_cache_retrieve(nullptr, nullptr, data_len_p, n)) != nullptr) {
@@ -1021,8 +1020,6 @@ Future<void> audio_cache_play(int n) async {
       await t_peer.player[n].resume();
     }
     t_peer.playing[n] = false;
-    torx.torx_free_simple(tmp_len_p);
-    tmp_len_p = nullptr;
     //  t_peer.player[n].dispose();
   }
 }

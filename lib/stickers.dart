@@ -85,14 +85,11 @@ const double sticker_border_width = 3; // for sticker chooser
 Image? sticker_generator(int s) {
   int sticker_count = torx.sticker_retrieve_count();
   if (sticker_count > 0 && s < sticker_count) {
-    Pointer<Size_t> len_p = torx.torx_insecure_malloc(8) as Pointer<Size_t>;
-    Pointer<Uint8> data = torx.sticker_retrieve_data(len_p, s);
-    Uint8List bytes = data.asTypedList(len_p.value).sublist(0);
+    Pointer<Uint8> data = torx.sticker_retrieve_data(s);
+    Uint8List bytes = data.asTypedList(torx.torx_allocation_len(data)).sublist(0);
     torx.torx_free_simple(data);
-    torx.torx_free_simple(len_p);
-    len_p = nullptr;
     data = nullptr;
-    return Image.memory(height: sticker_size * 2, fit: BoxFit.contain, bytes);
+    return Image.memory(height: sticker_size * 2, fit: BoxFit.contain, bytes, gaplessPlayback: true);
   }
   return null;
 }
@@ -165,15 +162,12 @@ class _RouteStickersState extends State<RouteStickers> {
                                         error(0,
                                             "Checkpoint new sticker: ${files[file_iter].path}"); // GOAT file_picker caches. we don't want caching. https://github.com/miguelpruivo/flutter_file_picker/issues/40 https://github.com/miguelpruivo/flutter_file_picker/issues/1093
                                         Pointer<Utf8> path_p = files[file_iter].path.toNativeUtf8(); // free'd by calloc.free
-                                        Pointer<Size_t> len_p = malloc(8); // free'd by calloc.free
-                                        Pointer<Uint8> bytes = torx.read_bytes(len_p, path_p); // free'd by torx_free
-                                        s = torx.sticker_register(bytes, len_p.value);
+                                        Pointer<Uint8> bytes = torx.read_bytes(path_p); // free'd by torx_free
+                                        s = torx.sticker_register(bytes, torx.torx_allocation_len(bytes));
                                         torx.torx_free_simple(bytes as Pointer<Void>);
                                         bytes = nullptr;
                                         calloc.free(path_p);
                                         path_p = nullptr;
-                                        calloc.free(len_p);
-                                        len_p = nullptr;
                                         torx.sticker_save(s);
                                       } else {
                                         error(0, "Rejected attempt to use non-gif sticker");
