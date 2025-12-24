@@ -377,6 +377,19 @@ base class surviveDestructionModel extends Struct {
 //  external Array<Uint8> bytes;
 }
 
+class NoTransitionsBuilder extends PageTransitionsBuilder {
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child; // no animation, which was causing slowdown, flashes, etc
+  }
+}
+
 class TorX extends StatefulWidget {
   const TorX({super.key});
 
@@ -510,12 +523,15 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
         theme: ThemeData(
           pageTransitionsTheme: PageTransitionsTheme(
             builders: {
-              // neccessary to prevent white flashes when push/pop
-              TargetPlatform.android: const FadeForwardsPageTransitionsBuilder(backgroundColor: Colors.transparent),
+              TargetPlatform.android: NoTransitionsBuilder(),
+              TargetPlatform.iOS: NoTransitionsBuilder(),
+              TargetPlatform.linux: NoTransitionsBuilder(),
+              TargetPlatform.macOS: NoTransitionsBuilder(),
+              TargetPlatform.windows: NoTransitionsBuilder(),
             },
           ),
           primarySwatch: Colors.pink,
-          scaffoldBackgroundColor: Colors.green,
+          scaffoldBackgroundColor: Colors.transparent,
         ),
         color: Colors.orange,
         home: threadsafe_read_global_Uint8("keyed") == 0 ? const RouteLogin() : const RouteBottom());
