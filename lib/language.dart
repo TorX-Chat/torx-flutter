@@ -116,8 +116,6 @@ class text {
   static String generate_torxid = "";
   static String disable = "";
   static String enable = "";
-  static String no = "";
-  static String yes = "";
   static String leave_after = "";
   static String delete_after = "";
   static String select = "";
@@ -308,8 +306,6 @@ void initialize_language() {
     text.generate_torxid = "Generate TorX-ID";
     text.disable = "Disable";
     text.enable = "Enable";
-    text.no = "No";
-    text.yes = "Yes";
     text.leave_after = "Leave After";
     text.delete_after = "Delete After";
     text.select = "Select";
@@ -490,8 +486,6 @@ void initialize_language() {
     text.generate_torxid = "生成TorX-ID";
     text.disable = "禁用";
     text.enable = "启用";
-    text.no = "否";
-    text.yes = "是";
     text.leave_after = "离开时间";
     text.delete_after = "删除时间";
     text.select = "选择";
