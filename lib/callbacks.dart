@@ -382,19 +382,22 @@ class Callbacks {
         t_peer.mute[n] = int.parse(setting_value.toDartString());
       } else if (name == "unread") {
         if (log_unread) {
-          int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
-          t_peer.unread[n] = int.parse(setting_value.toDartString());
-          if (t_peer.unread[n] > 0) {
-            if (owner == ENUM_OWNER_GROUP_CTRL) {
-              totalUnreadGroup += t_peer.unread[n];
-            } else {
-              totalUnreadPeer += t_peer.unread[n];
+          int log_messages = torx.getter_int8(n, INT_MIN, -1, offsetof("peer", "log_messages"));
+          if (log_messages == 1 || (log_messages == 0 && threadsafe_read_global_Uint8("global_log_messages") > 0)) {
+            int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+            t_peer.unread[n] = int.parse(setting_value.toDartString());
+            if (t_peer.unread[n] > 0) {
+              if (owner == ENUM_OWNER_GROUP_CTRL) {
+                totalUnreadGroup += t_peer.unread[n];
+              } else {
+                totalUnreadPeer += t_peer.unread[n];
+              }
             }
+            if (launcherBadges) {
+              AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
+            }
+            changeNotifierTotalUnread.callback(integer: -3);
           }
-          if (launcherBadges) {
-            AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
-          }
-          changeNotifierTotalUnread.callback(integer: -3);
         }
       } else if (name == "keyboard_privacy") {
         if (int.parse(setting_value.toDartString()) == 0) {

@@ -1185,11 +1185,21 @@ void printf(String str) {
 
 void writeUnread() {
   if (log_unread) {
+    int global_log_messages_local = threadsafe_read_global_Uint8("global_log_messages");
     for (int n = 0; torx.getter_byte(n, INT_MIN, -1, offsetof("peer", "onion")) != 0; n++) {
       int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner")); // 0
       if (owner == ENUM_OWNER_CTRL || owner == ENUM_OWNER_GROUP_CTRL) {
         int peer_index = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "peer_index"));
-        set_setting_string(0, peer_index, "unread", t_peer.unread[n].toString());
+        int log_messages = torx.getter_int8(n, INT_MIN, -1, offsetof("peer", "log_messages"));
+        if (peer_index > -1 && (log_messages == 1 || (log_messages == 0 && global_log_messages_local > 0))) {
+          if (t_peer.unread[n] > 0) {
+            set_setting_string(0, peer_index, "unread", t_peer.unread[n].toString());
+          } else {
+            Pointer<Utf8> setting_name = "unread".toNativeUtf8(); // free'd by calloc.free
+            torx.sql_delete_setting(0, peer_index, setting_name);
+            calloc.free(setting_name);
+          }
+        }
       }
     }
   }

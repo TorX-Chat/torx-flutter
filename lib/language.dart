@@ -329,8 +329,8 @@ void initialize_language() {
     text.edit = "Edit";
     text.incoming = "Incoming Requests";
     text.outgoing = "Outgoing Requests";
-    text.active_mult = "Active Multi-Use IDs";
-    text.active_sing = "Active Single-Use IDs";
+    text.active_mult = "Multi-Use IDs";
+    text.active_sing = "Single-Use IDs";
     text.you = "You";
     text.accept = "Accept";
     text.reject = "Reject";
@@ -509,8 +509,8 @@ void initialize_language() {
     text.edit = "编辑";
     text.incoming = " 收到的请求";
     text.outgoing = " 发出的请求";
-    text.active_mult = "活跃多次IDs";
-    text.active_sing = "活跃一次性IDs";
+    text.active_mult = "多次IDs";
+    text.active_sing = "一次性IDs";
     text.you = "你";
     text.accept = "接受";
     text.reject = "拒绝";
