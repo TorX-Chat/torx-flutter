@@ -176,7 +176,8 @@ class Noti {
         android: androidInitialize,
         iOS: initializationSettingsDarwin,
       );
-      flnp.initialize(initializationSettings,
+      flnp.initialize(
+          settings: initializationSettings,
           onDidReceiveNotificationResponse:
               response /*, onDidReceiveBackgroundNotificationResponse: response*/); // (disabled onDidReceiveBackgroundNotificationResponse, doesn't work and causes crashing until merge of https://github.com/MaikuB/flutter_local_notifications/pull/2481)
       flnp.cancelAll(); // perhaps this will kill any hangovers after a detach (doubt it)
@@ -214,7 +215,12 @@ class Noti {
             if (parts[0] == "call" || parts[0] == "friend_request") AndroidNotificationAction('reject', text.reject, contextual: false, showsUserInterface: true, inputs: []),
             if (parts[0] == "call") AndroidNotificationAction('ignore', text.ignore, contextual: false, showsUserInterface: true, inputs: []),
           ]);
-      flnp.show(id, title, body, NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/), payload: payload);
+      flnp.show(
+          id: id,
+          title: title,
+          body: body,
+          notificationDetails: NotificationDetails(android: androidPlatformChannelSpecifics /*, iOS: IOSNotificationDetails()*/),
+          payload: payload);
     } else {
       printf("Noti not yet initialized. Initializing.1");
       Noti.initialize(flnp);
@@ -223,9 +229,9 @@ class Noti {
 
   static void cancel(int id, FlutterLocalNotificationsPlugin flnp, {String? tag}) {
     if (notificationsInitialized && tag != null) {
-      flnp.cancel(id, tag: tag);
+      flnp.cancel(id: id, tag: tag);
     } else if (notificationsInitialized) {
-      flnp.cancel(id);
+      flnp.cancel(id: id);
     }
   }
 
@@ -258,8 +264,8 @@ class Noti {
       );
       AndroidFlutterLocalNotificationsPlugin? platformSpecific = flnp.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
       if (platformSpecific != null) {
-        await platformSpecific.startForegroundService(1, text.title, "",
-            notificationDetails: androidPlatformChannelSpecifics, payload: 'item x', startType: AndroidServiceStartType.startNotSticky);
+        await platformSpecific.startForegroundService(
+            id: 1, title: text.title, body: "", notificationDetails: androidPlatformChannelSpecifics, payload: 'item x', startType: AndroidServiceStartType.startNotSticky);
       }
     } else {
       printf("Noti not yet initialized. Initializing.2");
@@ -882,7 +888,7 @@ class _RouteChatState extends State<RouteChat> {
                       Pointer<Utf8> download_dir = torx.download_dir[0];
                       torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
                       if ((filename == file_path || file_path == "") && download_dir == nullptr) {
-                        String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
+                        String? selectedDirectory = await FilePicker.getDirectoryPath(); // allows user to choose a directory
                         if (selectedDirectory != null && write_test(selectedDirectory)) {
                           String path = "$selectedDirectory/$filename";
                           Pointer<Utf8> file_path_p = path.toNativeUtf8(); // free'd by calloc.free
@@ -1773,7 +1779,7 @@ class _RouteChatState extends State<RouteChat> {
                             icon: controllerMessage.text.isEmpty ? Icon(Icons.attach_file, color: color.torch_off) : Icon(Icons.send, color: color.torch_off),
                             onPressed: () async {
                               if (controllerMessage.text.isEmpty) {
-                                FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
+                                FilePickerResult? result = await FilePicker.pickFiles(allowMultiple: true);
                                 if (result != null) {
                                   List<File> files = result.paths.map((path) => File(path!)).toList();
                                   int file_iter = 0;
@@ -3752,7 +3758,7 @@ class _RouteSettingsState extends State<RouteSettings> {
                                   Row(mainAxisAlignment: MainAxisAlignment.end, children: [
                                     MaterialButton(
                                       onPressed: () async {
-                                        String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
+                                        String? selectedDirectory = await FilePicker.getDirectoryPath(); // allows user to choose a directory
                                         Pointer<Utf8> name = "download_dir".toNativeUtf8(); // free'd by calloc.free
                                         if (selectedDirectory != null) {
                                           if (write_test(selectedDirectory) == false) {
@@ -4135,10 +4141,6 @@ class _RouteBottomState extends State<RouteBottom> {
     }
     return msg;
   }); */
-    if (color.logo == const Color.fromRGBO(255, 255, 255, 0)) {
-      // check theme initialization
-      initialize_theme(context);
-    }
 //    globalCurrentRouteChatN = -1; // BAD BAD DO NOT PUT HERE
     return AnimatedBuilder(
         animation: changeNotifierBottom,

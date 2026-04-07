@@ -120,6 +120,7 @@ String? temporaryDir; // WARNING: Use String? instead of Directory? because Dire
 String? nativeLibraryDir;
 String? applicationDocumentsDir;
 bool initialized = false; // initialization_functions() only
+bool initialized_theme = false; // DO NOT put in initialize_theme() because then we can't switch themes
 
 class current_recording {
   static AudioRecorder pipeline = AudioRecorder();
@@ -246,6 +247,7 @@ AppLifecycleState.paused; // background
 */
 
 void resumptionTasks() {
+  initialization_functions();
   // This is called on startup (by main), on .resume after .pause, and when resuming after .detach (by main, not .resume)
   // Any UI held values will be defaults if this has occured after .detach. This means things like .unread will be zero'd.
   // Find a way to set "resuming from detach" bool that can re-set or re-fetch certain things, like .unread counts and such
@@ -280,7 +282,7 @@ void requestPermissions() {
   //  await platform.invokeMethod('requestStoragePermission');
 }
 
-void initialization_functions(BuildContext? context) {
+void initialization_functions() {
   if (initialized) {
     printf("Already initialized. Bailing from initialization_functions."); // DO NOT USE ERROR
     return;
@@ -323,7 +325,6 @@ void initialization_functions(BuildContext? context) {
   printf("First run: $first_run");
 
   initialize_language();
-  initialize_theme(context);
   requestPermissions();
   initialized = true;
 }
@@ -515,7 +516,8 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
   Widget build(BuildContext context) {
     printf("BUILD TIMES -----> ${Callbacks().build_times}");
     Callbacks().build_times++;
-    initialization_functions(context);
+    initialization_functions();
+    if (initialized_theme == false) initialize_theme(context);
     return MaterialApp(
         navigatorKey: navigatorKey,
         restorationScopeId: 'app',
@@ -560,7 +562,7 @@ void shareQr(String generated) async {
 }
 
 void saveQr(String data) async {
-  String? selectedDirectory = await FilePicker.platform.getDirectoryPath(); // allows user to choose a directory
+  String? selectedDirectory = await FilePicker.getDirectoryPath(); // allows user to choose a directory
   if (selectedDirectory != null && write_test(selectedDirectory)) {
     //  printf("Selected dir: $selectedDirectory");
     int datetime = (DateTime.now()).millisecondsSinceEpoch; // seconds since epoch is safe because it has no timezone attached

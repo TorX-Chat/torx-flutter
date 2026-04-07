@@ -100,9 +100,6 @@ class _RouteLoginState extends State<RouteLogin> {
   bool obscureText = true;
   @override
   Widget build(BuildContext context) {
-    if (theme == 0) {
-      initialize_theme(context);
-    }
     return AnimatedBuilder(
         animation: changeNotifierLogin,
         builder: (BuildContext context, Widget? snapshot) {
@@ -110,15 +107,13 @@ class _RouteLoginState extends State<RouteLogin> {
             if (threadsafe_read_global_Uint8("keyed") < 1) {
               torx.initial_keyed();
             }
-            initialize_language(); // second time, in case it changed from keyed settings
-            initialize_theme(context);
             setBottomIndex();
             return const RouteBottom();
           } else {
             //  namedController.value = TextEditingValue(text: passwd);
             //  printf("Checkpoint:\n\n\n_RouteLoginState\n\n\n");
             if (!initialized) {
-              initialization_functions(context);
+              initialization_functions();
               if (threadsafe_read_global_Uint8("first_run") == 1) {
                 enter_password = text.enter_password_first_run;
               }

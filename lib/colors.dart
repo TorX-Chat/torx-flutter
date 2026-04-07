@@ -118,6 +118,7 @@ class color {
 }
 
 void initialize_theme(BuildContext? context) {
+  initialized_theme = true;
   if (theme == enum_theme.DARK_THEME.index) {
     color.logo = const Color.fromRGBO(0, 0, 0, 1);
     color.title = const Color.fromRGBO(255, 255, 255, 1);

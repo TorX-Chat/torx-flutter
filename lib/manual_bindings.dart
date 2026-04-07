@@ -1216,10 +1216,14 @@ int protocol_int(int p_iter, String member) {
 }
 
 void error(int level, String message) {
-  Pointer<Utf8> pointer = message.toNativeUtf8(); // free'd by calloc.free
-  torx.error_simple(level, pointer);
-  calloc.free(pointer);
-  pointer = nullptr;
+  if (initialized) {
+    Pointer<Utf8> pointer = message.toNativeUtf8(); // free'd by calloc.free
+    torx.error_simple(level, pointer);
+    calloc.free(pointer);
+    pointer = nullptr;
+  } else {
+    printf("UI ERROR: Called error before initialization. Mitigated. Error: $message");
+  }
 }
 
 int protocol_registration(int protocol, String name, String description, int null_terminate, int date, int signature, int logged, int notifiable, int file_checksum, int file_offer,

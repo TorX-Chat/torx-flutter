@@ -152,7 +152,7 @@ class _RouteStickersState extends State<RouteStickers> {
                         return GridTile(
                             child: InkWell(
                                 onTap: () async {
-                                  FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowMultiple: true, allowedExtensions: ['gif']);
+                                  FilePickerResult? result = await FilePicker.pickFiles(type: FileType.custom, allowMultiple: true, allowedExtensions: ['gif']);
                                   if (result != null) {
                                     List<File> files = result.paths.map((path) => File(path!)).toList();
                                     int file_iter = 0;

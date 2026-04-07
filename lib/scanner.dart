@@ -109,7 +109,7 @@ class RouteScan extends StatelessWidget {
               icon: Icon(Icons.image, color: color.torch_off),
               iconSize: size_medium_icon,
               onPressed: () async {
-                FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowMultiple: false, allowedExtensions: ["png", "jpg", "gif", "jpeg"]);
+                FilePickerResult? result = await FilePicker.pickFiles(type: FileType.custom, allowMultiple: false, allowedExtensions: ["png", "jpg", "gif", "jpeg"]);
                 if (result != null) {
                   String? image = result.paths.first;
                   if (image != null) {

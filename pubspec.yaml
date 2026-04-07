@@ -17,7 +17,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.40+299 # NEVER DECREASE BUILD NUMBER or upgrades will fail
+version: 2.0.40+300 # NEVER DECREASE BUILD NUMBER or upgrades will fail
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
@@ -37,11 +37,11 @@ dependencies:
   toggle_switch: ^2.3.0
   share_plus: ^12.0.1
   mobile_scanner: ^7.1.4
-  file_picker: ^10.3.8 # this is better than image_picker, less bloated and more useful
+  file_picker: ^11.0.2 # this is better than image_picker, less bloated and more useful
   intl: ^0.20.2
   flutter_ringtone_player: ^4.0.0 # TODO can probably eliminate using primitives from flutter_local_notifications or audioplayers
   vibration: ^3.1.5 # TODO can probably eliminate using primitives from flutter_local_notifications
-  flutter_local_notifications: ^19.5.0 # Requires startType: AndroidServiceStartType.startNotSticky otherwise crashes due to unmerged https://github.com/MaikuB/flutter_local_notifications/issues/2479 https://github.com/MaikuB/flutter_local_notifications/pull/2481 https://github.com/MaikuB/flutter_local_notifications/pull/2475
+  flutter_local_notifications: ^21.0.0 # Requires startType: AndroidServiceStartType.startNotSticky otherwise crashes due to unmerged https://github.com/MaikuB/flutter_local_notifications/issues/2479 https://github.com/MaikuB/flutter_local_notifications/pull/2481 https://github.com/MaikuB/flutter_local_notifications/pull/2475
   permission_handler: ^12.0.1
   percent_indicator: ^4.2.5
   screen_protector: ^1.4.13
@@ -60,8 +60,8 @@ dependencies:
 
 dev_dependencies:
 # TODO Unclear if the following two are necessary or beneficial
-  flutter_test:
-    sdk: flutter
+#  flutter_test:
+#    sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

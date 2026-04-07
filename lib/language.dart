@@ -620,6 +620,6 @@ void initialize_language() {
     text.override = "覆盖 / 忽略错误";
   } else {
     language = "en";
-    initialize_language();
+    initialize_language(); // recursive
   }
 }
