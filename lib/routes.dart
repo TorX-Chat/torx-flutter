@@ -1649,9 +1649,9 @@ class _RouteChatState extends State<RouteChat> {
                   //  const Icon(Icons.emoji_emotions_outlined), //  decide whether to implement a unicode emoji picker (homemade is cleaner/safer) or to rely on keyboards to offer
                   Flexible(
                     child: Container(
-                        constraints: const BoxConstraints(
+                        constraints: BoxConstraints(
                           maxHeight:
-                              381, // was 400. reduced by 19 because fat fingers  GOAT should be sizeof(keyboard)+sizeof(appbar)+ some space, ediaQuery.of(context).size.height - (Scaffold.of(context).appBarMaxHeight! + $keboard + 24)
+                              (MediaQuery.of(context).size.height - (kToolbarHeight + MediaQuery.of(context).padding.top) - MediaQuery.of(context).viewInsets.bottom - 24) * 0.8,
                         ),
                         margin: const EdgeInsets.only(left: 5.0, bottom: 15.0, top: 8.0), // fat fingers
                         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: color.write_message_background),
