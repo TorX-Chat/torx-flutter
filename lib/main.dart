@@ -514,8 +514,7 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
-    printf("BUILD TIMES -----> ${Callbacks().build_times}");
-    Callbacks().build_times++;
+    printf("BUILD TIMES -----> ${Callbacks().build_times++}");
     initialization_functions();
     if (initialized_theme == false) initialize_theme(context);
     return MaterialApp(

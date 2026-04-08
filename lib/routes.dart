@@ -607,68 +607,45 @@ class RouteChat extends StatefulWidget {
 class _RouteChatState extends State<RouteChat> {
   ScrollController scrollController = ScrollController();
   TextEditingController controllerNick = TextEditingController(text: global_n > -1 ? getter_string(global_n, INT_MIN, -1, offsetof("peer", "peernick")) : null);
-  Widget statusIcon = const Icon(Icons.lock_open); // TODO use lock_open_right
-  String statusText = "";
-  Widget loggingIcon = const Icon(Icons.article);
-  Widget muteIcon = const Icon(Icons.notifications_off);
-  Color loggingColor = color.torch_off;
-  Color blockColor = color.torch_off;
-  String loggingText = "";
-  String muteText = "";
-  String blockText = "";
   int owner = 0; // torx.getter_uint8(widget.n, INT_MIN, -1, -1, offsetof("peer", "owner"));
   int g = -1;
   int g_invite_required = 0;
   double msgBorderRadius = 10;
   AudioPlayer player = AudioPlayer();
 
-  void setStatusIcon(int n) {
-    if (g > -1) {
-      statusIcon = SvgPicture.asset(path_logo, color: color.logo, width: 40, height: 40);
-      return;
-    }
-    statusIcon = Icon(Icons.lock, color: ui_statusColor(n), size: 40);
-  }
-
-  void setMuteIcon(int n) {
-    if (t_peer.mute[n] == 0) {
-      muteIcon = Icon(Icons.notifications_active, color: color.torch_on);
-      muteText = text.mute_off;
-    } else if (t_peer.mute[n] == 1) {
-      muteIcon = Icon(Icons.notifications_off, color: color.torch_off);
-      muteText = text.mute_on;
-    }
-  }
-
-  void setBlockIcon(int n) {
-    if (torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status")) == ENUM_STATUS_BLOCKED) {
-      blockColor = Colors.red;
-      blockText = text.blocked;
-    } else {
-      blockColor = color.torch_off;
-      blockText = text.unblocked;
-    }
-  }
-
-  void setLoggingIcon(int n) {
-    int log_messages = torx.getter_int8(n, INT_MIN, -1, offsetof("peer", "log_messages"));
-    int global_log_messages = threadsafe_read_global_Uint8("global_log_messages");
+  Widget setLoggingIcon(int log_messages, int global_log_messages) {
     if (log_messages == -1) {
-      loggingText = text.log_never;
-      loggingIcon = Icon(Icons.article_outlined, color: color.torch_on);
-      loggingColor = color.torch_off;
+      return Icon(Icons.article_outlined, color: color.torch_on);
     } else if (log_messages == 0 && global_log_messages > 0) {
-      loggingText = text.log_global_on;
-      loggingIcon = Icon(Icons.language, color: color.torch_off);
-      loggingColor = color.torch_on;
+      return Icon(Icons.language, color: color.torch_off);
     } else if (log_messages == 0 && global_log_messages == 0) {
-      loggingText = text.log_global_off;
-      loggingIcon = Icon(Icons.language, color: color.torch_off);
-      loggingColor = color.torch_off;
-    } else if (log_messages == 1) {
-      loggingText = text.log_always;
-      loggingIcon = Icon(Icons.article, color: color.torch_on);
-      loggingColor = color.torch_on;
+      return Icon(Icons.language, color: color.torch_off);
+    } else /*if (log_messages == 1)*/ {
+      return Icon(Icons.article, color: color.torch_on);
+    }
+  }
+
+  Color setLoggingColor(int log_messages, int global_log_messages) {
+    if (log_messages == -1) {
+      return color.torch_off;
+    } else if (log_messages == 0 && global_log_messages > 0) {
+      return color.torch_on;
+    } else if (log_messages == 0 && global_log_messages == 0) {
+      return color.torch_off;
+    } else /*if (log_messages == 1)*/ {
+      return color.torch_on;
+    }
+  }
+
+  String setLoggingText(int log_messages, int global_log_messages) {
+    if (log_messages == -1) {
+      return text.log_never;
+    } else if (log_messages == 0 && global_log_messages > 0) {
+      return text.log_global_on;
+    } else if (log_messages == 0 && global_log_messages == 0) {
+      return text.log_global_off;
+    } else /*if (log_messages == 1)*/ {
+      return text.log_always;
     }
   }
 
@@ -701,27 +678,25 @@ class _RouteChatState extends State<RouteChat> {
     changeNotifierChatList.callback(integer: n);
   }
 
-  void setStatus(int n) {
+  String setStatus(int n) {
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_GROUP_CTRL) {
       int g = torx.set_g(n, nullptr);
       int g_peercount = torx.getter_group_uint32(g, offsetof("group", "peercount"));
-      statusText = "${text.status_online}: ${torx.group_online(g)} ${text.of} $g_peercount";
-      return;
+      return "${text.status_online}: ${torx.group_online(g)} ${text.of} $g_peercount";
     }
-
     int sendfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "sendfd_connected"));
     int recvfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "recvfd_connected"));
     if (sendfd_connected == 0 || recvfd_connected == 0) {
       int last_seen = torx.getter_time(n, INT_MIN, -1, offsetof("peer", "last_seen"));
       if (last_seen > 0) {
         // NOTE: integer size is time_t
-        statusText = "${text.status_last_seen}: ${DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(last_seen * 1000, isUtc: false))}";
+        return "${text.status_last_seen}: ${DateFormat('yyyy/MM/dd kk:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(last_seen * 1000, isUtc: false))}";
       } else {
-        statusText = "${text.status_last_seen}: ${text.status_never}";
+        return "${text.status_last_seen}: ${text.status_never}";
       }
     } else {
-      statusText = text.status_online;
+      return text.status_online;
     }
   }
 
@@ -1278,6 +1253,7 @@ class _RouteChatState extends State<RouteChat> {
   bool show_keyboard = true;
 //  AudioRecorder record = AudioRecorder();
   int former_text_len = t_peer.unsent[global_n].length;
+  SpellCheckConfiguration? ime_enabled_spellCheckConfiguration = const SpellCheckConfiguration.disabled();
 
   @override
   void dispose() {
@@ -1287,23 +1263,25 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
     owner = torx.getter_uint8(widget.n, INT_MIN, -1, offsetof("peer", "owner"));
     g = owner == ENUM_OWNER_GROUP_CTRL ? torx.set_g(widget.n, nullptr) : -1;
     if (g > -1) {
       g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
     }
-    setLoggingIcon(widget.n);
-    setBlockIcon(widget.n);
-    setMuteIcon(widget.n);
-    setStatusIcon(widget.n);
-    setStatus(widget.n);
     //  controllerNick.text = Pointer<Utf8>.fromAddress(torx.torx_loo kup(globalCurrentRouteChatN, 8, 0, 0).address).toDartString();
     controllerMessage.text = t_peer.unsent[widget.n];
-    SpellCheckConfiguration? ime_enabled_spellCheckConfiguration = const SpellCheckConfiguration.disabled();
     if (keyboard_privacy == false) {
       ime_enabled_spellCheckConfiguration = null;
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    int log_messages = torx.getter_int8(widget.n, INT_MIN, -1, offsetof("peer", "log_messages"));
+    int global_log_messages = threadsafe_read_global_Uint8("global_log_messages");
+    int status = torx.getter_uint8(widget.n, INT_MIN, -1, offsetof("peer", "status"));
     return PopScope(
         onPopInvoked: (didPop) {
           scrollController.dispose();
@@ -1319,8 +1297,7 @@ class _RouteChatState extends State<RouteChat> {
               icon: AnimatedBuilder(
                   animation: changeNotifierOnlineOffline,
                   builder: (BuildContext context, Widget? snapshot) {
-                    setStatusIcon(widget.n);
-                    return statusIcon;
+                    return g > -1 ? SvgPicture.asset(path_logo, color: color.logo, width: 40, height: 40) : Icon(Icons.lock, color: ui_statusColor(widget.n), size: 40);
                   }),
               onPressed: () {
                 Navigator.popUntil(context, (Route<dynamic> route) => route.isFirst); // THIS WORKS, but sends us to login page.
@@ -1359,7 +1336,6 @@ class _RouteChatState extends State<RouteChat> {
               AnimatedBuilder(
                   animation: changeNotifierOnlineOffline,
                   builder: (BuildContext context, Widget? snapshot) {
-                    setStatus(widget.n);
                     return InkWell(
                         onTap: () {
                           if (g > -1) {
@@ -1375,7 +1351,7 @@ class _RouteChatState extends State<RouteChat> {
                               fontSize: 12,
                               color: color.last_online,
                             ),
-                            statusText));
+                            setStatus(widget.n)));
                   }),
             ]),
             actions: [
@@ -1385,12 +1361,12 @@ class _RouteChatState extends State<RouteChat> {
                   CustomPopupMenuItem(
                     color: color.chat_headerbar,
                     child: ListTile(
-                      leading: loggingIcon,
+                      leading: setLoggingIcon(log_messages, global_log_messages),
                       title: Text(
-                        loggingText,
+                        setLoggingText(log_messages, global_log_messages),
                         style: TextStyle(color: color.page_title),
                       ),
-                      iconColor: loggingColor,
+                      iconColor: setLoggingColor(log_messages, global_log_messages),
                       onTap: () {
                         toggleLogging(widget.n);
                         Navigator.pop(context); // Alternative: utilize changeNotifierSettingChange
@@ -1400,9 +1376,9 @@ class _RouteChatState extends State<RouteChat> {
                   CustomPopupMenuItem(
                     color: color.chat_headerbar,
                     child: ListTile(
-                      leading: muteIcon,
+                      leading: t_peer.mute[widget.n] == 0 ? Icon(Icons.notifications_active, color: color.torch_on) : Icon(Icons.notifications_off, color: color.torch_off),
                       title: Text(
-                        muteText,
+                        t_peer.mute[widget.n] == 0 ? text.mute_off : text.mute_on,
                         style: TextStyle(color: color.page_title),
                       ),
                       onTap: () {
@@ -1438,10 +1414,10 @@ class _RouteChatState extends State<RouteChat> {
                       child: ListTile(
                         leading: const Icon(Icons.block),
                         title: Text(
-                          blockText,
+                          status == ENUM_STATUS_BLOCKED ? text.blocked : text.unblocked,
                           style: TextStyle(color: color.page_title),
                         ),
-                        iconColor: blockColor,
+                        iconColor: status == ENUM_STATUS_BLOCKED ? Colors.red : color.torch_off,
                         onTap: () {
                           toggleBlock(widget.n);
                           Navigator.pop(context); // Alternative: utilize changeNotifierSettingChange
@@ -1557,7 +1533,7 @@ class _RouteChatState extends State<RouteChat> {
                             return owner == ENUM_OWNER_GROUP_CTRL
                                 ? ListView.builder(
                                     reverse: true,
-                                    shrinkWrap: true,
+                                    //    shrinkWrap: true, // Seems unnecessary considering Expanded?
                                     controller: scrollController,
                                     //      itemCount: current_msg_count,
                                     itemBuilder: (context, index) {
@@ -1580,7 +1556,7 @@ class _RouteChatState extends State<RouteChat> {
                                   )
                                 : ListView.builder(
                                     reverse: true,
-                                    shrinkWrap: true,
+                                    //    shrinkWrap: true, // Seems unnecessary considering Expanded?
                                     controller: scrollController,
                                     //    itemCount: current_msg_count, // REMOVED PERMANENTLY to support unlimited scroll
                                     itemBuilder: (context, index) {
