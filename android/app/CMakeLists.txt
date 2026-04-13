@@ -105,6 +105,8 @@ add_executable( # Necessary to have a library or exec otherwise android sdk igno
 include(ProcessorCount)
 ProcessorCount(CPU_COUNT)
 
+set(GO_LDFLAGS "-s -w -checklinkname=0")
+
 ExternalProject_Add(
 	tor
 	GIT_REPOSITORY ${REPO_TOR}
@@ -123,7 +125,7 @@ ExternalProject_Add(
 	GIT_TAG main
 	BUILD_IN_SOURCE 1
 	CONFIGURE_COMMAND ""
-	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=-checklinkname=0 ./cmd/lyrebird
+	BUILD_COMMAND CGO_ENABLED=0 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=${GO_LDFLAGS} ./cmd/lyrebird
 	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp lyrebird ${JNILIBS_DIR}/liblyrebird.so
 ##	BUILD_BYPRODUCTS lyrebird
 )
@@ -133,7 +135,7 @@ ExternalProject_Add(
 	GIT_TAG main
 	BUILD_IN_SOURCE 1
 	CONFIGURE_COMMAND ""
-	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=-checklinkname=0 -o client/libconjure.so ./client
+	BUILD_COMMAND CGO_ENABLED=0 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=${GO_LDFLAGS} -o client/libconjure.so ./client
 	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp client/libconjure.so ${JNILIBS_DIR}
 	BUILD_BYPRODUCTS client/libconjure.so
 )
@@ -143,7 +145,7 @@ ExternalProject_Add(
 	GIT_TAG main
 	BUILD_IN_SOURCE 1
 	CONFIGURE_COMMAND ""
-	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=-checklinkname=0 -o client/libsnowflake.so ./client
+	BUILD_COMMAND CGO_ENABLED=0 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=${GO_LDFLAGS} -o client/libsnowflake.so ./client
 	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp client/libsnowflake.so ${JNILIBS_DIR}
 	BUILD_BYPRODUCTS client/libsnowflake.so
 )
