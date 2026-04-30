@@ -132,22 +132,14 @@ class Callbacks {
 
   void shrinkage_cb_ui(int n, int shrinkage) {
     if (verbose) printf("Checkpoint shrinkage_cb_ui n=$n shrinkage=$shrinkage");
-    if (shrinkage != 0) {
-      List<int> tmp = [];
-      for (int iter = 0; iter < t_peer.t_message[n].unheard.length - shrinkage.abs(); iter++) {
-        if (shrinkage > 0) {
-          // We shift everything forward
-          tmp.add(t_peer.t_message[n].unheard[iter + shrinkage]);
-        } else {
-          tmp.add(t_peer.t_message[n].unheard[iter]);
-        }
-      }
-      t_peer.t_message[n].unheard.clear();
-      t_peer.t_message[n].unheard = tmp;
-      if (shrinkage > 0) {
-        // We shift everything forward
-        t_peer.t_message[n].offset + shrinkage;
-      }
+    // Note: Apparently this is a proper way, and there is no memory leak here because dart garbage collects it
+    if (shrinkage == 0) return;
+    final unheard = t_peer.t_message[n].unheard;
+    if (shrinkage > 0) {
+      t_peer.t_message[n].unheard = unheard.sublist(shrinkage);
+      t_peer.t_message[n].offset += shrinkage;
+    } else {
+      t_peer.t_message[n].unheard = unheard.sublist(0, unheard.length + shrinkage);
     }
   }
 

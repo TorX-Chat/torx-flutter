@@ -268,7 +268,7 @@ void resumptionTasks() {
     if (totalIncoming > 0) {
       changeNotifierTotalIncoming.callback(integer: 0);
     }
-    if (launcherBadges && totalIncoming > 0 || totalUnreadPeer > 0 || totalUnreadGroup > 0) {
+    if (launcherBadges && (totalIncoming > 0 || totalUnreadPeer > 0 || totalUnreadGroup > 0)) {
       AppBadgePlus.updateBadge(totalUnreadPeer + totalUnreadGroup + totalIncoming);
     }
   }
@@ -1138,8 +1138,8 @@ Future<void> record_start(int sample_rate, int call_n, int call_c) async {
         }
       },
       onDone: () {},
-      onError: (error) {
-        error(0, "Recording error: $error");
+      onError: (error_message) {
+        error(0, "Recording error: $error_message");
       },
     );
     if (call_n < 0 || call_c < 0) {
@@ -1211,19 +1211,21 @@ void writeUnread() {
 }
 
 void setBottomIndex() {
-  bool set = false;
+  bool has_friend = false;
   for (int n = 0; torx.getter_byte(n, INT_MIN, -1, offsetof("peer", "onion")) != 0; n++) {
-    if (torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner")) == ENUM_OWNER_CTRL && torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status")) == ENUM_STATUS_PENDING) {
+    int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
+    int status = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status"));
+    if (owner == ENUM_OWNER_CTRL && status == ENUM_STATUS_PENDING) {
       bottom_index = 2; // default to view pending list
-      set = true;
+      return; // return early
+    } else if (owner == ENUM_OWNER_CTRL && status == ENUM_STATUS_FRIEND) {
+      has_friend = true;
     }
   }
-  if (set == false) {
-    for (int n = 0; torx.getter_byte(n, INT_MIN, -1, offsetof("peer", "onion")) != 0; n++) {
-      if (torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner")) == ENUM_OWNER_CTRL && torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "status")) == ENUM_STATUS_FRIEND) {
-        bottom_index = 0; // default to view pending list
-      }
-    }
+  if (has_friend) {
+    bottom_index = 0; // default to view friend list
+  } else {
+    bottom_index = 1; // default to add/generate page
   }
 }
 
@@ -1328,7 +1330,7 @@ Color ui_statusColor(int n) {
   return returnColor;
 }
 
-scrollToBottom(ScrollController ctrler) {
+void scrollToBottom(ScrollController ctrler) {
   ctrler.jumpTo(ctrler.position.maxScrollExtent);
 //  ctrler.animateTo(ctrler.position.maxScrollExtent, duration: const Duration(milliseconds: 200), curve: Curves.ease);
 }

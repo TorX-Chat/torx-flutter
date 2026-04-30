@@ -760,27 +760,13 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   bool is_image_file(int transferred, int size, String file_path) {
-    //  final file = File(file_path);
-    if (file_path.endsWith(".jpg") ||
-        file_path.endsWith(".JPG") ||
-        file_path.endsWith(".jpeg") ||
-        file_path.endsWith(".JPEG") ||
-        file_path.endsWith(".png") ||
-        file_path.endsWith(".PNG") ||
-        file_path.endsWith(".gif") ||
-        file_path.endsWith(".GIF") ||
-        file_path.endsWith(".webp") ||
-        file_path.endsWith(".WEBP") ||
-        file_path.endsWith(".bmp") ||
-        file_path.endsWith(".BMP") ||
-        file_path.endsWith(".svg") ||
-        file_path.endsWith(".SVG")) {
-      /*    final imageBytes = file.readAsBytesSync();
+    /*    final imageBytes = File(file_path).readAsBytesSync();
       final decodedImage = decodeImage(imageBytes); // requires pub get image // GOAT consider actually checking if valid/existing
       if (decodedImage == null) return false; */ // TODO BAD IDEA, because this runs every rebuild
-      return true;
-    }
-    return false;
+    const Set<String> imageExtensions = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'};
+    int dot = file_path.lastIndexOf('.');
+    if (dot < 0) return false;
+    return imageExtensions.contains(file_path.substring(dot).toLowerCase());
   }
 
   Widget ui_message_builder(int n, int i) {
@@ -1259,6 +1245,7 @@ class _RouteChatState extends State<RouteChat> {
   void dispose() {
     //  record.dispose(); // says we have to do this
     player.dispose();
+    scrollController.dispose();
     super.dispose();
   }
 
@@ -1284,7 +1271,6 @@ class _RouteChatState extends State<RouteChat> {
     int status = torx.getter_uint8(widget.n, INT_MIN, -1, offsetof("peer", "status"));
     return PopScope(
         onPopInvoked: (didPop) {
-          scrollController.dispose();
           global_n = -1; // DO NOT PUT ONLY AT onPressed (otherwise it could get skipped)
           changeNotifierChatList.callback(integer: widget.n);
           controllerMessage.clear(); // must be after preceding callback
@@ -1529,7 +1515,6 @@ class _RouteChatState extends State<RouteChat> {
                             } else {
                               starting_msg_count = torx.getter_int(widget.n, INT_MIN, -1, offsetof("peer", "max_i")) + 1;
                             }
-                            int current_msg_count = starting_msg_count; // UNSURE OF VALUE (if any)
                             return owner == ENUM_OWNER_GROUP_CTRL
                                 ? ListView.builder(
                                     reverse: true,
@@ -1537,14 +1522,15 @@ class _RouteChatState extends State<RouteChat> {
                                     controller: scrollController,
                                     //      itemCount: current_msg_count,
                                     itemBuilder: (context, index) {
-                                      if (index == current_msg_count - 1) {
-                                        current_msg_count += torx.message_load_more(widget.n);
-                                      } else if (index > current_msg_count - 1) {
+                                      int msg_count = torx.getter_group_uint32(g, offsetof("group", "msg_count"));
+                                      if (index == msg_count - 1) {
+                                        torx.message_load_more(widget.n);
+                                      } else if (index > msg_count - 1) {
                                         return null;
                                       }
                                       Pointer<Int> n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free
                                       Pointer<Int> i_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free
-                                      torx.group_get_index(n_p, i_p, g, current_msg_count - 1 - index);
+                                      torx.group_get_index(n_p, i_p, g, msg_count - 1 - index);
                                       int n = n_p.value;
                                       int i = i_p.value;
                                       torx.torx_free_simple(n_p);
@@ -2085,8 +2071,13 @@ class RouteLogTor extends StatefulWidget {
 
 class _RouteLogTorState extends State<RouteLogTor> {
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom(scrollcontroller_log_tor));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: color.right_panel_background,
       appBar: AppBar(
@@ -2141,8 +2132,13 @@ class RouteLogTorX extends StatefulWidget {
 
 class _RouteLogTorXState extends State<RouteLogTorX> {
   @override
-  Widget build(BuildContext context) {
+  void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom(scrollcontroller_log_torx));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: color.right_panel_background,
       appBar: AppBar(
@@ -2965,7 +2961,7 @@ class _widget_route_generateState extends State<widget_route_generate> {
                           style: TextStyle(color: color.button_text),
                         ),
                       ),
-                    if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated != nullptr)
+                    if (((!group && changeNotifierOnionReady.section.integer > -1) || (group && g > -1)) && !deleted && generated.isNotEmpty)
                       MaterialButton(
                         onPressed: () {
                           saveQr(generated);
