@@ -2101,7 +2101,7 @@ class _RouteLogTorState extends State<RouteLogTor> {
               animation: changeNotifierTorLog,
               builder: (BuildContext context, Widget? snapshot) {
                 return SelectableText(
-                  torLogBuffer,
+                  torLogBuffer.toString(),
                   textAlign: TextAlign.left,
                   style: TextStyle(
                     fontWeight: FontWeight.normal,
@@ -2114,7 +2114,7 @@ class _RouteLogTorState extends State<RouteLogTor> {
         color: color.right_panel_background,
         child: MaterialButton(
           onPressed: () {
-            Clipboard.setData(ClipboardData(text: torLogBuffer));
+            Clipboard.setData(ClipboardData(text: torLogBuffer.toString()));
           },
           height: 20,
           minWidth: 20,
@@ -2187,7 +2187,7 @@ class _RouteLogTorXState extends State<RouteLogTorX> {
               animation: changeNotifierError,
               builder: (BuildContext context, Widget? snapshot) {
                 return SelectableText(
-                  torxLogBuffer,
+                  torxLogBuffer.toString(),
                   textAlign: TextAlign.left,
                   style: TextStyle(
                     fontWeight: FontWeight.normal,
@@ -2200,7 +2200,7 @@ class _RouteLogTorXState extends State<RouteLogTorX> {
         color: color.right_panel_background,
         child: MaterialButton(
           onPressed: () {
-            Clipboard.setData(ClipboardData(text: torxLogBuffer));
+            Clipboard.setData(ClipboardData(text: torxLogBuffer.toString()));
           },
           height: 20,
           minWidth: 20,

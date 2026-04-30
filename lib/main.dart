@@ -114,8 +114,8 @@ int totalIncoming = 0; // incoming peer requests, ++'d from incoming_friend_requ
 bool login_failed = false;
 bool callbacks_registered = false;
 bool launcherBadges = true;
-String torLogBuffer = ""; // global
-String torxLogBuffer = "";
+final StringBuffer torLogBuffer = StringBuffer();
+final StringBuffer torxLogBuffer = StringBuffer();
 String? temporaryDir; // WARNING: Use String? instead of Directory? because Directory interpolates incorrectly to String (it adds a bunk prefix)
 String? nativeLibraryDir;
 String? applicationDocumentsDir;
@@ -463,8 +463,14 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       generated_n = surviveDestruction.ref._generated_n;
       last_played_n = surviveDestruction.ref._last_played_n;
       last_played_i = surviveDestruction.ref._last_played_i;
-      if (surviveDestruction.ref._torLogBuffer != nullptr) torLogBuffer = surviveDestruction.ref._torLogBuffer.toDartString();
-      if (surviveDestruction.ref._torxLogBuffer != nullptr) torxLogBuffer = surviveDestruction.ref._torxLogBuffer.toDartString();
+      if (surviveDestruction.ref._torLogBuffer != nullptr) {
+        torLogBuffer.clear();
+        torLogBuffer.write(surviveDestruction.ref._torLogBuffer.toDartString());
+      }
+      if (surviveDestruction.ref._torxLogBuffer != nullptr) {
+        torxLogBuffer.clear();
+        torxLogBuffer.write(surviveDestruction.ref._torxLogBuffer.toDartString());
+      }
       bottom_index = surviveDestruction.ref._bottom_index;
       _clear_ui_data();
       ui_unread_clear(global_n); // redundant with resumptionTasks because it may not have global_n
@@ -487,14 +493,14 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
         await Noti.startForegroundService(flutterLocalNotificationsPlugin); // 2024/09/22 MUST AWAIT otherwise it won't happen. DO NOT REMOVE AWAIT.
         torx.sticker_offload_saved();
         _clear_ui_data();
-        Pointer<surviveDestructionModel> surviveDestruction = calloc<surviveDestructionModel>(); // NOTE: calloc.free
+        Pointer<surviveDestructionModel> surviveDestruction = calloc<surviveDestructionModel>(); // free'd by calloc.free
         surviveDestruction.ref._current_index = current_index;
         surviveDestruction.ref._global_n = global_n;
         surviveDestruction.ref._generated_n = generated_n;
         surviveDestruction.ref._last_played_n = last_played_n;
         surviveDestruction.ref._last_played_i = last_played_i;
-        surviveDestruction.ref._torLogBuffer = torLogBuffer.toNativeUtf8(); // NOTE: calloc.free
-        surviveDestruction.ref._torxLogBuffer = torxLogBuffer.toNativeUtf8(); // NOTE: calloc.free
+        surviveDestruction.ref._torLogBuffer = torLogBuffer.toString().toNativeUtf8(); // free'd by calloc.free
+        surviveDestruction.ref._torxLogBuffer = torxLogBuffer.toString().toNativeUtf8(); // free'd by calloc.free
         surviveDestruction.ref._bottom_index = bottom_index;
         torx.ui_data[0] = surviveDestruction.cast<Void>();
         writeUnread();
@@ -1027,7 +1033,7 @@ Future<void> audio_cache_play(int n) async {
         data = torx.torx_realloc(data, existing + tmp_len) as Pointer<Uint8>;
         torx.memcpy(data + existing, tmp, tmp_len);
       }
-      existing = tmp_len;
+      existing += tmp_len;
     }
     if (existing > 0) {
 //    while ((data = torx.audio_cache_retrieve(nullptr, nullptr, data_len_p, n)) != nullptr) {
@@ -1044,9 +1050,7 @@ Future<void> audio_cache_play(int n) async {
 Future<void> audio_ready(int call_n, int call_c, Uint8List data) async {
   // In Flutter, this is NOT used for audio messages, only for audio streams. Audio messages utilize recordedDataChunks
   Pointer<Uint8> pointer = torx.torx_secure_malloc(data.length) as Pointer<Uint8>;
-  for (int iter = 0; iter < data.length; iter++) {
-    pointer[iter] = data[iter]; // Necessary for some reason
-  }
+  pointer.asTypedList(data.length).setAll(0, data); // Necessary to allocate rather than use data for some reason, presumably related to async
   if (torx.record_cache_add(call_n, call_c, AptitudeBuffer.cache_minimum_size, AptitudeBuffer.max_age_in_ms, pointer, data.length) < 1) {
     await record_stop(true); // probably need to await
   }

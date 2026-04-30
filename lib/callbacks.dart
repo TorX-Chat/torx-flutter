@@ -337,7 +337,7 @@ class Callbacks {
     }
     if (verbose) printf("Checkpoint tor_log_cb_ui: $message");
     String message_string = message.toDartString();
-    torLogBuffer = torLogBuffer + message_string;
+    torLogBuffer.write(message_string);
     changeNotifierTorLog.callback(string: message_string);
     if (scrollcontroller_log_tor.hasClients &&
         scrollcontroller_log_tor.positions.isNotEmpty &&
@@ -354,7 +354,7 @@ class Callbacks {
     }
     if (verbose) printf("Checkpoint error_cb_ui: $error_message");
     String message_string = error_message.toDartString();
-    torxLogBuffer = torxLogBuffer + message_string;
+    torxLogBuffer.write(message_string);
     printf(message_string);
     changeNotifierError.callback(string: message_string);
     if (scrollcontroller_log_torx.hasClients &&
