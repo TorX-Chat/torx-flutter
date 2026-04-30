@@ -103,10 +103,8 @@ class _RouteLoginState extends State<RouteLogin> {
     return AnimatedBuilder(
         animation: changeNotifierLogin,
         builder: (BuildContext context, Widget? snapshot) {
+          printf("Checkpoint login_cb = ${changeNotifierLogin.section.integer}");
           if (changeNotifierLogin.section.integer == 0) {
-            if (threadsafe_read_global_Uint8("keyed") < 1) {
-              torx.initial_keyed();
-            }
             setBottomIndex();
             return const RouteBottom();
           } else {

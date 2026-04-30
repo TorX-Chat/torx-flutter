@@ -453,9 +453,6 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
     error(0, "Checkpoint restoreState");
 
     resumptionTasks(); // THIS IS HIGHLY NECESSARY, DO NOT REMOVE. Necessary to re-register callbacks and re-fetch settings from lib.
-//    if (threadsafe_read_global_Uint8("keyed") != 0) {
-    //    setBottomIndex(); // choose landing page
-    //  }
     if (torx.ui_data[0] != nullptr) {
       Pointer<surviveDestructionModel> surviveDestruction = torx.ui_data[0] as Pointer<surviveDestructionModel>;
       current_index = surviveDestruction.ref._current_index;
@@ -1040,7 +1037,7 @@ Future<void> audio_cache_play(int n) async {
     if (existing > 0) {
 //    while ((data = torx.audio_cache_retrieve(nullptr, nullptr, data_len_p, n)) != nullptr) {
       printf("Checkpoint audio_cache_play n=$n data_len=$existing");
-      Uint8List bytes = data.asTypedList(existing).sublist(0);
+      Uint8List bytes = data.asTypedList(existing).sublist(0); // The sublist is necessary to copy
       torx.torx_free_simple(data);
       data = nullptr;
       await t_peer.player[n].setSource(BytesSource(bytes));
@@ -1215,6 +1212,7 @@ void writeUnread() {
 }
 
 void setBottomIndex() {
+  error(0, "Checkpoint setBottomIndex");
   bool has_friend = false;
   for (int n = 0; torx.getter_byte(n, INT_MIN, -1, offsetof("peer", "onion")) != 0; n++) {
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
@@ -1231,6 +1229,7 @@ void setBottomIndex() {
   } else {
     bottom_index = 1; // default to add/generate page
   }
+  error(0, "Checkpoint has_friend = $has_friend");
 }
 
 void changeNick(int n, TextEditingController tec) {
