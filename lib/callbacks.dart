@@ -546,7 +546,6 @@ class Callbacks {
 
   void login_cb_ui(int value) {
     if (verbose) printf("Checkpoint login_cb_ui value=$value");
-    login_failed = true;
     changeNotifierLogin.callback(integer: value);
   }
 }

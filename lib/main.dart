@@ -111,7 +111,6 @@ int last_played_i = INT_MIN;
 int totalUnreadPeer = 0;
 int totalUnreadGroup = 0;
 int totalIncoming = 0; // incoming peer requests, ++'d from incoming_friend_request_cb_ui
-bool login_failed = false;
 bool callbacks_registered = false;
 bool launcherBadges = true;
 final StringBuffer torLogBuffer = StringBuffer();

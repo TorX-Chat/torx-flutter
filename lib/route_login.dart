@@ -117,9 +117,8 @@ class _RouteLoginState extends State<RouteLogin> {
               }
             }
             if (threadsafe_read_global_Uint8("lockout") == 0) {
-              if (login_failed && changeNotifierLogin.section.integer == -1) {
+              if (changeNotifierLogin.section.integer == -1) {
                 entryLoginController.clear();
-                login_failed = false;
               }
               button_text = text.enter;
             } else {
