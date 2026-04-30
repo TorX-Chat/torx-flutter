@@ -1032,6 +1032,8 @@ Future<void> audio_cache_play(int n) async {
       } else {
         data = torx.torx_realloc(data, existing + tmp_len) as Pointer<Uint8>;
         torx.memcpy(data + existing, tmp, tmp_len);
+        torx.torx_free_simple(tmp);
+        tmp = nullptr;
       }
       existing += tmp_len;
     }
@@ -1039,6 +1041,8 @@ Future<void> audio_cache_play(int n) async {
 //    while ((data = torx.audio_cache_retrieve(nullptr, nullptr, data_len_p, n)) != nullptr) {
       printf("Checkpoint audio_cache_play n=$n data_len=$existing");
       Uint8List bytes = data.asTypedList(existing).sublist(0);
+      torx.torx_free_simple(data);
+      data = nullptr;
       await t_peer.player[n].setSource(BytesSource(bytes));
       await t_peer.player[n].resume();
     }
