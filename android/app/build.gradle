@@ -25,7 +25,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace = "com.torx.chat"
-    compileSdk = 36 // flutter.compileSdkVersion
+    compileSdk = 36 // flutter.compileSdkVersion NOTE: MUST ALSO CHANGE IN android/build.gradle!!!!!! Subprojects!!!
     buildToolsVersion "36.1.0"
     ndkVersion = "30.0.14904198" // flutter.ndkVersion
 
