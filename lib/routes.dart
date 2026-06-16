@@ -750,15 +750,21 @@ class _RouteChatState extends State<RouteChat> {
   }
 
   Widget message_bubble(int stat, int group_pm, Widget child) {
-    return Container(
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(stat != ENUM_MESSAGE_RECV ? msgBorderRadius : 0),
-                topRight: Radius.circular(stat != ENUM_MESSAGE_RECV ? 0 : msgBorderRadius),
-                bottomLeft: const Radius.circular(10),
-                bottomRight: const Radius.circular(10)),
-            color: _colorizeBackground(stat, group_pm)),
-        child: Padding(padding: const EdgeInsets.all(8.0), child: child));
+    return Padding(
+        padding: const EdgeInsets.all(5.0),
+        child: Row(mainAxisAlignment: stat != ENUM_MESSAGE_RECV ? MainAxisAlignment.end : MainAxisAlignment.start, children: [
+          Flexible(
+              // This Flexible is NECESSARY to prevent horizontal overflow. This is the RIGHT location for it.
+              child: Container(
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(stat != ENUM_MESSAGE_RECV ? msgBorderRadius : 0),
+                          topRight: Radius.circular(stat != ENUM_MESSAGE_RECV ? 0 : msgBorderRadius),
+                          bottomLeft: const Radius.circular(10),
+                          bottomRight: const Radius.circular(10)),
+                      color: _colorizeBackground(stat, group_pm)),
+                  child: Padding(padding: const EdgeInsets.all(8.0), child: child))),
+        ]));
   }
 
   bool is_image_file(int transferred, int size, String file_path) {
@@ -771,329 +777,308 @@ class _RouteChatState extends State<RouteChat> {
     return imageExtensions.contains(file_path.substring(dot).toLowerCase());
   }
 
-  Widget? ui_message_builder(int n, int i) {
+  Widget message_builder(int n, int i) {
     int p_iter = torx.getter_int(n, i, -1, offsetof("message", "p_iter"));
-    if (p_iter < 0) {
-      return const Text("Negative p_iter in ui_message_builder. Coding error. Report this to UI Devs.");
-    }
-    int group_pm = protocol_int(p_iter, "group_pm");
-    int file_offer = protocol_int(p_iter, "file_offer");
-    int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
-    //  int file_checksum = protocol_int(p_iter, "file_checksum");
-    int protocol = protocol_int(p_iter, "protocol");
-    String message = "";
-    if (t_peer.search_text[widget.n].isNotEmpty) {
-      if (null_terminated_len == 0) {
-        return null;
-      }
-      message = getter_string(n, i, -1, offsetof("message", "message"));
-      if (!message.toLowerCase().contains(t_peer.search_text[widget.n].toLowerCase())) {
-        return null;
-      }
-    } else if (null_terminated_len > 0) {
-      message = getter_string(n, i, -1, offsetof("message", "message"));
-    }
     int stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
-    int message_len = torx.getter_length(n, i, -1, offsetof("message", "message"));
-
-    if (null_terminated_len > 0) {
-      return message_bubble(
-          stat,
-          group_pm,
-          GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {},
-              onLongPressStart: (touchDetail) {
-                offs = touchDetail.globalPosition;
-              },
-              onLongPress: () {
-                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
-              },
-              child: Column(
-                crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    textAlign: TextAlign.left,
-                    // NOTE: this is nonfile message // was formerly SelectableText but we need showMenu
-                    message,
-                    style: TextStyle(color: _colorizeText(stat, group_pm)),
-                  ),
-                  messageTime(n, i)
-                ],
-              )));
-    } else if (file_offer > 0) {
-      Pointer<Int> file_n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
-      int f = torx.set_f_from_i(file_n_p, n, i);
-      int file_n = file_n_p.value;
-      torx.torx_free_simple(file_n_p);
-      file_n_p = nullptr;
-      if (f < 0) {
-        return const Text("Negative f from set_f_from_i. Coding error. Report this to UI Devs.");
-      }
-      // NOTE: this is SENT OR RECEIVED file offer
-      return message_bubble(
-          stat,
-          group_pm,
-          AnimatedBuilder(
-              animation: t_peer.t_file[file_n].changeNotifierTransferProgress[f],
-              builder: (BuildContext context, Widget? snapshot) {
-                String filename = getter_string(file_n, INT_MIN, f, offsetof("file", "filename"));
-                String file_path = getter_string(file_n, INT_MIN, f, offsetof("file", "file_path"));
-                int size = torx.getter_uint64(file_n, INT_MIN, f, offsetof("file", "size"));
-                int transferred = torx.calculate_transferred(file_n, f);
-                Pointer<Utf8> file_size_text_p = torx.file_progress_string(file_n, f); // free'd by torx_free
-                String file_size_text = file_size_text_p.toDartString();
-                torx.torx_free_simple(file_size_text_p);
-                file_size_text_p = nullptr;
-                bool finished_image = false;
-                if (t_peer.t_file[file_n].previously_completed[f] == 1 || torx.file_is_complete(file_n, f) == 1) {
-                  t_peer.t_file[file_n].previously_completed[f] = 1;
-                  finished_image = is_image_file(transferred, size, file_path);
-                }
-                double fraction = 0;
-                if (transferred == 0 && t_peer.t_file[file_n].previously_completed[f] == 1) {
-                  fraction = 1;
-                } else if (size > 0) {
-                  fraction = transferred / size;
-                }
-                return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () async {
-                      torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
-                      Pointer<Utf8> download_dir = torx.download_dir[0];
-                      torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
-                      if ((filename == file_path || file_path == "") && download_dir == nullptr) {
-                        String? selectedDirectory = await FilePicker.getDirectoryPath(); // allows user to choose a directory
-                        if (selectedDirectory != null && write_test(selectedDirectory)) {
-                          String path = "$selectedDirectory/$filename";
-                          Pointer<Utf8> file_path_p = path.toNativeUtf8(); // free'd by calloc.free
-                          torx.file_set_path(file_n, f, file_path_p);
-                          calloc.free(file_path_p);
-                          file_path_p = nullptr;
-                          //    printf("Checkpoint accept_file: $path");
-                          torx.file_accept(file_n, f); // NOTE: having this in two places because this function is async
-                          //    printf("Checkpoint have accepted file");
-                        }
-                      } else if (finished_image) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => RouteImage(file_path)),
-                        );
-                      } else if (t_peer.t_file[file_n].previously_completed[f] == 1) {
-                        //      printf("Checkpoint OpenFile $file_path");
-                        OpenFilex.open(file_path);
-                      } else {
-                        //    printf("Checkpoint should pause or start file transfer: $file_path");
-                        torx.file_accept(file_n, f); // NOTE: having this in two places because this function is async
-                      }
-                    },
-                    onLongPressStart: (touchDetail) {
-                      offs = touchDetail.globalPosition;
-                    },
-                    onLongPress: () {
-                      showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
-                    },
-                    child: Column(
-                      crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                      children: [
-                        finished_image
-                            ? Image.file(File(file_path), height: sticker_size * 2, fit: BoxFit.contain, gaplessPlayback: true)
-                            : Row(
-                                // NOTE: this is file message
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 10.0),
-                                    child: CircularPercentIndicator(
-                                        radius: 30.0,
-                                        lineWidth: 5.0,
-                                        percent: fraction,
-                                        center: Text(
-                                          fraction == 1 ? "100%" : "${(fraction * 100).toStringAsFixed(0)}%",
-                                          style: TextStyle(color: _colorizeText(stat, group_pm)),
-                                        ),
-                                        progressColor: Colors.green),
-                                  ),
-                                  Flexible(
-                                      // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
-                                      child: Column(
-                                    children: [
-                                      Text(
-                                        filename, style: TextStyle(color: color.message_recv_text), // File title
-                                      ),
-                                      Text(
-                                        file_size_text,
-                                        style: TextStyle(color: _colorizeText(stat, group_pm)),
-                                      )
-                                    ],
-                                  ))
-                                ],
-                              ),
-                        messageTime(n, i)
-                      ],
-                    ));
-              }));
-    } else if (protocol == ENUM_PROTOCOL_GROUP_OFFER || protocol == ENUM_PROTOCOL_GROUP_OFFER_FIRST) {
-      Pointer<Uint32> untrusted_peercount_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
-      int local_g = torx.set_g_from_i(untrusted_peercount_p, n, i);
-      int untrusted_peercount = untrusted_peercount_p.value;
-      torx.torx_free_simple(untrusted_peercount_p);
-      untrusted_peercount_p = nullptr;
-      int local_g_invite_required = torx.getter_group_uint8(local_g, offsetof("group", "invite_required"));
-      //    printf("Checkpoint group==$local_g $local_g_invite_required");
-      int local_group_n = torx.getter_group_int(local_g, offsetof("group", "n"));
-      int peercount;
-      String group_name;
-      String group_type = local_g_invite_required != 0 ? text.group_private : text.group_public;
-
-      if (local_group_n > -1) {
-        peercount = torx.getter_group_uint32(local_g, offsetof("group", "peercount"));
-        group_name = getter_string(local_group_n, INT_MIN, -1, offsetof("peer", "peernick"));
-      } else {
-        peercount = untrusted_peercount;
-        group_name = getter_group_id(local_g);
-      }
-      return message_bubble(
-          stat,
-          group_pm,
-          InkWell(
-              onTap: () {
-                if (stat == ENUM_MESSAGE_RECV) {
-                  torx.group_join_from_i(n, i);
-                }
-              },
-              onLongPress: () {
-                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
-              },
-              child: Column(
-                crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                children: [
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    Padding(padding: const EdgeInsets.only(right: 10.0), child: SvgPicture.asset(path_logo, color: color.logo, width: 40, height: 40)),
-                    Flexible(
-                      // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
-                      child: Text("$group_type\n${text.current_members}: $peercount\n$group_name", style: TextStyle(color: _colorizeText(stat, group_pm))),
-                    )
-                  ]),
-                  messageTime(n, i)
-                ],
-              )));
-    } else if (message_len >= CHECKSUM_BIN_LEN &&
-        (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
-      Image? animated_gif;
-      int s = -1;
-      return AnimatedBuilder(
-          animation: changeNotifierStickerReady,
-          builder: (BuildContext context, Widget? snapshot) {
-            if (s < 0) {
-              Pointer<Utf8> message_local = torx.getter_string(n, i, -1, offsetof("message", "message")); // free'd by torx_free
-              s = torx.set_s(message_local as Pointer<Uint8>);
-              torx.torx_free_simple(message_local);
-              message_local = nullptr;
-            }
-            return message_bubble(
-                stat,
-                group_pm,
-                s > -1 && (animated_gif = sticker_generator(s)) != null
-                    ? InkWell(
-                        onLongPress: () {
-                          showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, s));
-                        },
-                        child: Column(
-                          crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                          children: [animated_gif!, messageTime(n, i)],
-                        ))
-                    : InkWell(
-                        onLongPress: () {
-                          showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, s));
-                        },
-                        child: Column(
-                          crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                          children: [
-                            enable_spinners && stat == ENUM_MESSAGE_RECV
-                                ? const CircularProgressIndicator()
-                                : SvgPicture.asset(path_logo, color: color.logo, width: sticker_size, height: sticker_size),
-                            messageTime(n, i)
-                          ],
-                        )));
-          });
-    } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
-      int duration = be32toh(getter_array(4, n, i, -1, offsetof("message", "message")));
-      return message_bubble(
-          stat,
-          group_pm,
-          InkWell(
-              onTap: () async {
-                if (player.state == PlayerState.playing) {
-                  await player.stop();
-                  if (last_played_n == n && last_played_i == i) {
-                    return;
-                  }
-                }
-                last_played_n = n;
-                last_played_i = i;
-                Uint8List bytes = getter_audio(n, i);
-                await player.setSource(BytesSource(bytes));
-                await player.resume();
-                if (t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1 && torx.getter_uint8(n, i, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
-                  t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 0;
-                  Pointer<Uint8> val = torx.torx_insecure_malloc(1) as Pointer<Uint8>; // free'd by torx_free
-                  val.value = 0;
-                  torx.message_extra(n, i, val, 1);
-                  print_message(n, i, 2);
-                  torx.torx_free_simple(val);
-                  val = nullptr;
-                }
-              },
-              onLongPress: () {
-                showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
-              },
-              child: Column(
-                crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-                children: [
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    Padding(padding: const EdgeInsets.only(right: 10.0), child: SvgPicture.asset(path_logo, color: color.logo, width: 20, height: 20)),
-                    Flexible(
-                      // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
-                      child: Text(" ${(duration / 1000).round()}\" ", style: TextStyle(color: _colorizeText(stat, group_pm))),
-                    ),
-                    if (stat == ENUM_MESSAGE_RECV && t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1) Icon(Icons.circle, color: color.auth_error, size: 18)
-                  ]),
-                  messageTime(n, i)
-                ],
-              )));
-    } else {
-      return message_bubble(
-          stat,
-          group_pm,
-          Column(
-            crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-            children: [Text("Unrecognized message protocol: $protocol"), messageTime(n, i)],
-          ));
-    }
-  }
-
-  Widget message_builder(int n, int index) {
-    int p_iter = torx.getter_int(n, index, -1, offsetof("message", "p_iter"));
-    int stat = torx.getter_uint8(n, index, -1, offsetof("message", "stat"));
     if (p_iter < 0 ||
         protocol_int(p_iter, "notifiable") == 0 ||
         (stat == ENUM_MESSAGE_RECV && t_peer.mute[n] == 1 && torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER)) {
       return const SizedBox.shrink(); // NOTE: invisible widget of zero size, for placeholder / deleted / ignored messages. could still flash something.
     } else {
-      Widget? ret = ui_message_builder(n, index);
-      if (ret == null) {
-        // NOTE: invisible widget of zero size, for placeholder. Cannot return null because messagebuilder will cease.
-        return const SizedBox.shrink();
+      int group_pm = protocol_int(p_iter, "group_pm");
+      int file_offer = protocol_int(p_iter, "file_offer");
+      int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
+      //  int file_checksum = protocol_int(p_iter, "file_checksum");
+      int protocol = protocol_int(p_iter, "protocol");
+      String message = "";
+      if (t_peer.search_text[widget.n].isNotEmpty) {
+        if (null_terminated_len == 0) {
+          return const SizedBox.shrink(); // NOTE: invisible widget of zero size, for placeholder. Cannot return null because messagebuilder will cease.
+        }
+        message = getter_string(n, i, -1, offsetof("message", "message"));
+        if (!message.toLowerCase().contains(t_peer.search_text[widget.n].toLowerCase())) {
+          return const SizedBox.shrink(); // NOTE: invisible widget of zero size, for placeholder. Cannot return null because messagebuilder will cease.
+        }
+      } else if (null_terminated_len > 0) {
+        message = getter_string(n, i, -1, offsetof("message", "message"));
       }
-      return Padding(
-          padding: const EdgeInsets.all(5.0),
-          child: Row(mainAxisAlignment: stat != ENUM_MESSAGE_RECV ? MainAxisAlignment.end : MainAxisAlignment.start, children: [
-            Flexible(
-              // This Flexible is NECESSARY to prevent horizontal overflow. This is the RIGHT location for it.
-              child: ret,
-            ),
-          ]));
+      int message_len = torx.getter_length(n, i, -1, offsetof("message", "message"));
+      if (null_terminated_len > 0) {
+        return message_bubble(
+            stat,
+            group_pm,
+            GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {},
+                onLongPressStart: (touchDetail) {
+                  offs = touchDetail.globalPosition;
+                },
+                onLongPress: () {
+                  showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
+                },
+                child: Column(
+                  crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      textAlign: TextAlign.left,
+                      // NOTE: this is nonfile message // was formerly SelectableText but we need showMenu
+                      message,
+                      style: TextStyle(color: _colorizeText(stat, group_pm)),
+                    ),
+                    messageTime(n, i)
+                  ],
+                )));
+      } else if (file_offer > 0) {
+        Pointer<Int> file_n_p = torx.torx_insecure_malloc(8) as Pointer<Int>; // free'd by torx_free // 4 is wide enough, could be 8, should be sizeof, meh.
+        int f = torx.set_f_from_i(file_n_p, n, i);
+        int file_n = file_n_p.value;
+        torx.torx_free_simple(file_n_p);
+        file_n_p = nullptr;
+        if (f < 0) {
+          error(0, "Negative f from set_f_from_i. Coding error. Report this to UI Devs.");
+          return const SizedBox.shrink(); // NOTE: invisible widget of zero size, for placeholder. Cannot return null because messagebuilder will cease.
+        }
+        // NOTE: this is SENT OR RECEIVED file offer
+        return message_bubble(
+            stat,
+            group_pm,
+            AnimatedBuilder(
+                animation: t_peer.t_file[file_n].changeNotifierTransferProgress[f],
+                builder: (BuildContext context, Widget? snapshot) {
+                  String filename = getter_string(file_n, INT_MIN, f, offsetof("file", "filename"));
+                  String file_path = getter_string(file_n, INT_MIN, f, offsetof("file", "file_path"));
+                  int size = torx.getter_uint64(file_n, INT_MIN, f, offsetof("file", "size"));
+                  int transferred = torx.calculate_transferred(file_n, f);
+                  Pointer<Utf8> file_size_text_p = torx.file_progress_string(file_n, f); // free'd by torx_free
+                  String file_size_text = file_size_text_p.toDartString();
+                  torx.torx_free_simple(file_size_text_p);
+                  file_size_text_p = nullptr;
+                  bool finished_image = false;
+                  if (t_peer.t_file[file_n].previously_completed[f] == 1 || torx.file_is_complete(file_n, f) == 1) {
+                    t_peer.t_file[file_n].previously_completed[f] = 1;
+                    finished_image = is_image_file(transferred, size, file_path);
+                  }
+                  double fraction = 0;
+                  if (transferred == 0 && t_peer.t_file[file_n].previously_completed[f] == 1) {
+                    fraction = 1;
+                  } else if (size > 0) {
+                    fraction = transferred / size;
+                  }
+                  return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () async {
+                        torx.pthread_rwlock_rdlock(torx.mutex_global_variable); // 🟧
+                        Pointer<Utf8> download_dir = torx.download_dir[0];
+                        torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
+                        if ((filename == file_path || file_path == "") && download_dir == nullptr) {
+                          String? selectedDirectory = await FilePicker.getDirectoryPath(); // allows user to choose a directory
+                          if (selectedDirectory != null && write_test(selectedDirectory)) {
+                            String path = "$selectedDirectory/$filename";
+                            Pointer<Utf8> file_path_p = path.toNativeUtf8(); // free'd by calloc.free
+                            torx.file_set_path(file_n, f, file_path_p);
+                            calloc.free(file_path_p);
+                            file_path_p = nullptr;
+                            //    printf("Checkpoint accept_file: $path");
+                            torx.file_accept(file_n, f); // NOTE: having this in two places because this function is async
+                            //    printf("Checkpoint have accepted file");
+                          }
+                        } else if (finished_image) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => RouteImage(file_path)),
+                          );
+                        } else if (t_peer.t_file[file_n].previously_completed[f] == 1) {
+                          //      printf("Checkpoint OpenFile $file_path");
+                          OpenFilex.open(file_path);
+                        } else {
+                          //    printf("Checkpoint should pause or start file transfer: $file_path");
+                          torx.file_accept(file_n, f); // NOTE: having this in two places because this function is async
+                        }
+                      },
+                      onLongPressStart: (touchDetail) {
+                        offs = touchDetail.globalPosition;
+                      },
+                      onLongPress: () {
+                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
+                      },
+                      child: Column(
+                        crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                        children: [
+                          finished_image
+                              ? Image.file(File(file_path), height: sticker_size * 2, fit: BoxFit.contain, gaplessPlayback: true)
+                              : Row(
+                                  // NOTE: this is file message
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 10.0),
+                                      child: CircularPercentIndicator(
+                                          radius: 30.0,
+                                          lineWidth: 5.0,
+                                          percent: fraction,
+                                          center: Text(
+                                            fraction == 1 ? "100%" : "${(fraction * 100).toStringAsFixed(0)}%",
+                                            style: TextStyle(color: _colorizeText(stat, group_pm)),
+                                          ),
+                                          progressColor: Colors.green),
+                                    ),
+                                    Flexible(
+                                        // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
+                                        child: Column(
+                                      children: [
+                                        Text(
+                                          filename, style: TextStyle(color: color.message_recv_text), // File title
+                                        ),
+                                        Text(
+                                          file_size_text,
+                                          style: TextStyle(color: _colorizeText(stat, group_pm)),
+                                        )
+                                      ],
+                                    ))
+                                  ],
+                                ),
+                          messageTime(n, i)
+                        ],
+                      ));
+                }));
+      } else if (protocol == ENUM_PROTOCOL_GROUP_OFFER || protocol == ENUM_PROTOCOL_GROUP_OFFER_FIRST) {
+        Pointer<Uint32> untrusted_peercount_p = torx.torx_insecure_malloc(4) as Pointer<Uint32>; // free'd by torx_free
+        int local_g = torx.set_g_from_i(untrusted_peercount_p, n, i);
+        int untrusted_peercount = untrusted_peercount_p.value;
+        torx.torx_free_simple(untrusted_peercount_p);
+        untrusted_peercount_p = nullptr;
+        int local_g_invite_required = torx.getter_group_uint8(local_g, offsetof("group", "invite_required"));
+        //    printf("Checkpoint group==$local_g $local_g_invite_required");
+        int local_group_n = torx.getter_group_int(local_g, offsetof("group", "n"));
+        int peercount;
+        String group_name;
+        String group_type = local_g_invite_required != 0 ? text.group_private : text.group_public;
+
+        if (local_group_n > -1) {
+          peercount = torx.getter_group_uint32(local_g, offsetof("group", "peercount"));
+          group_name = getter_string(local_group_n, INT_MIN, -1, offsetof("peer", "peernick"));
+        } else {
+          peercount = untrusted_peercount;
+          group_name = getter_group_id(local_g);
+        }
+        return message_bubble(
+            stat,
+            group_pm,
+            InkWell(
+                onTap: () {
+                  if (stat == ENUM_MESSAGE_RECV) {
+                    torx.group_join_from_i(n, i);
+                  }
+                },
+                onLongPress: () {
+                  showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
+                },
+                child: Column(
+                  crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                  children: [
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      Padding(padding: const EdgeInsets.only(right: 10.0), child: SvgPicture.asset(path_logo, color: color.logo, width: 40, height: 40)),
+                      Flexible(
+                        // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
+                        child: Text("$group_type\n${text.current_members}: $peercount\n$group_name", style: TextStyle(color: _colorizeText(stat, group_pm))),
+                      )
+                    ]),
+                    messageTime(n, i)
+                  ],
+                )));
+      } else if (message_len >= CHECKSUM_BIN_LEN &&
+          (protocol == ENUM_PROTOCOL_STICKER_HASH || protocol == ENUM_PROTOCOL_STICKER_HASH_PRIVATE || protocol == ENUM_PROTOCOL_STICKER_HASH_DATE_SIGNED)) {
+        Image? animated_gif;
+        int s = -1;
+        return AnimatedBuilder(
+            animation: changeNotifierStickerReady,
+            builder: (BuildContext context, Widget? snapshot) {
+              if (s < 0) {
+                Pointer<Utf8> message_local = torx.getter_string(n, i, -1, offsetof("message", "message")); // free'd by torx_free
+                s = torx.set_s(message_local as Pointer<Uint8>);
+                torx.torx_free_simple(message_local);
+                message_local = nullptr;
+              }
+              return message_bubble(
+                  stat,
+                  group_pm,
+                  s > -1 && (animated_gif = sticker_generator(s)) != null
+                      ? InkWell(
+                          onLongPress: () {
+                            showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, s));
+                          },
+                          child: Column(
+                            crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                            children: [animated_gif!, messageTime(n, i)],
+                          ))
+                      : InkWell(
+                          onLongPress: () {
+                            showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, s));
+                          },
+                          child: Column(
+                            crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                            children: [
+                              enable_spinners && stat == ENUM_MESSAGE_RECV
+                                  ? const CircularProgressIndicator()
+                                  : SvgPicture.asset(path_logo, color: color.logo, width: sticker_size, height: sticker_size),
+                              messageTime(n, i)
+                            ],
+                          )));
+            });
+      } else if (protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE || protocol == ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED) {
+        int duration = be32toh(getter_array(4, n, i, -1, offsetof("message", "message")));
+        return message_bubble(
+            stat,
+            group_pm,
+            InkWell(
+                onTap: () async {
+                  if (player.state == PlayerState.playing) {
+                    await player.stop();
+                    if (last_played_n == n && last_played_i == i) {
+                      return;
+                    }
+                  }
+                  last_played_n = n;
+                  last_played_i = i;
+                  Uint8List bytes = getter_audio(n, i);
+                  await player.setSource(BytesSource(bytes));
+                  await player.resume();
+                  if (t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1 && torx.getter_uint8(n, i, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
+                    t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 0;
+                    Pointer<Uint8> val = torx.torx_insecure_malloc(1) as Pointer<Uint8>; // free'd by torx_free
+                    val.value = 0;
+                    torx.message_extra(n, i, val, 1);
+                    print_message(n, i, 2);
+                    torx.torx_free_simple(val);
+                    val = nullptr;
+                  }
+                },
+                onLongPress: () {
+                  showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, n, i, -1));
+                },
+                child: Column(
+                  crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                  children: [
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      Padding(padding: const EdgeInsets.only(right: 10.0), child: SvgPicture.asset(path_logo, color: color.logo, width: 20, height: 20)),
+                      Flexible(
+                        // THIS FLEXIBLE IS NECESSARY or there is an overflow here because Text widget cannot determine the size of the Row
+                        child: Text(" ${(duration / 1000).round()}\" ", style: TextStyle(color: _colorizeText(stat, group_pm))),
+                      ),
+                      if (stat == ENUM_MESSAGE_RECV && t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1) Icon(Icons.circle, color: color.auth_error, size: 18)
+                    ]),
+                    messageTime(n, i)
+                  ],
+                )));
+      } else {
+        return message_bubble(
+            stat,
+            group_pm,
+            Column(
+              crossAxisAlignment: stat == ENUM_MESSAGE_RECV ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+              children: [Text("Unrecognized message protocol: $protocol"), messageTime(n, i)],
+            ));
+      }
     }
   }
 
