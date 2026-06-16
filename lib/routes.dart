@@ -440,6 +440,8 @@ class _RoutePopoverGroupListState extends State<RoutePopoverGroupList> {
                           t_peer.edit_n[global_n] = -1;
                           t_peer.edit_i[global_n] = INT_MIN;
                           t_peer.pm_n[global_n] = list[index];
+                          t_peer.search_active[global_n] = false;
+                          t_peer.search_text[global_n] = "";
                           Navigator.pop(context);
                         } else {
                           int g_invite_required = torx.getter_group_uint8(widget.g, offsetof("group", "invite_required"));
@@ -615,13 +617,13 @@ class _RouteChatState extends State<RouteChat> {
 
   Widget setLoggingIcon(int log_messages, int global_log_messages) {
     if (log_messages == -1) {
-      return Icon(Icons.article_outlined, color: color.torch_on);
+      return Icon(Icons.article_outlined);
     } else if (log_messages == 0 && global_log_messages > 0) {
-      return Icon(Icons.language, color: color.torch_off);
+      return Icon(Icons.language);
     } else if (log_messages == 0 && global_log_messages == 0) {
-      return Icon(Icons.language, color: color.torch_off);
+      return Icon(Icons.language);
     } else /*if (log_messages == 1)*/ {
-      return Icon(Icons.article, color: color.torch_on);
+      return Icon(Icons.article);
     }
   }
 
@@ -769,7 +771,7 @@ class _RouteChatState extends State<RouteChat> {
     return imageExtensions.contains(file_path.substring(dot).toLowerCase());
   }
 
-  Widget ui_message_builder(int n, int i) {
+  Widget? ui_message_builder(int n, int i) {
     int p_iter = torx.getter_int(n, i, -1, offsetof("message", "p_iter"));
     if (p_iter < 0) {
       return const Text("Negative p_iter in ui_message_builder. Coding error. Report this to UI Devs.");
@@ -779,6 +781,18 @@ class _RouteChatState extends State<RouteChat> {
     int null_terminated_len = protocol_int(p_iter, "null_terminated_len");
     //  int file_checksum = protocol_int(p_iter, "file_checksum");
     int protocol = protocol_int(p_iter, "protocol");
+    String message = "";
+    if (t_peer.search_text[widget.n].isNotEmpty) {
+      if (null_terminated_len == 0) {
+        return null;
+      }
+      message = getter_string(n, i, -1, offsetof("message", "message"));
+      if (!message.toLowerCase().contains(t_peer.search_text[widget.n].toLowerCase())) {
+        return null;
+      }
+    } else if (null_terminated_len > 0) {
+      message = getter_string(n, i, -1, offsetof("message", "message"));
+    }
     int stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
     int message_len = torx.getter_length(n, i, -1, offsetof("message", "message"));
 
@@ -801,7 +815,7 @@ class _RouteChatState extends State<RouteChat> {
                   Text(
                     textAlign: TextAlign.left,
                     // NOTE: this is nonfile message // was formerly SelectableText but we need showMenu
-                    getter_string(n, i, -1, offsetof("message", "message")),
+                    message,
                     style: TextStyle(color: _colorizeText(stat, group_pm)),
                   ),
                   messageTime(n, i)
@@ -1065,17 +1079,20 @@ class _RouteChatState extends State<RouteChat> {
     if (p_iter < 0 ||
         protocol_int(p_iter, "notifiable") == 0 ||
         (stat == ENUM_MESSAGE_RECV && t_peer.mute[n] == 1 && torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner")) == ENUM_OWNER_GROUP_PEER)) {
-      return const Padding(padding: EdgeInsets.only(right: 0.0)); // NOTE: invisible widget of zero size, for placeholder / deleted / ignored messages. could still flash something.
+      return const SizedBox.shrink(); // NOTE: invisible widget of zero size, for placeholder / deleted / ignored messages. could still flash something.
     } else {
+      Widget? ret = ui_message_builder(n, index);
+      if (ret == null) {
+        // NOTE: invisible widget of zero size, for placeholder. Cannot return null because messagebuilder will cease.
+        return const SizedBox.shrink();
+      }
       return Padding(
           padding: const EdgeInsets.all(5.0),
           child: Row(mainAxisAlignment: stat != ENUM_MESSAGE_RECV ? MainAxisAlignment.end : MainAxisAlignment.start, children: [
-            const Padding(padding: EdgeInsets.only(right: 0.0)),
             Flexible(
               // This Flexible is NECESSARY to prevent horizontal overflow. This is the RIGHT location for it.
-              child: ui_message_builder(n, index),
+              child: ret,
             ),
-            const Padding(padding: EdgeInsets.only(right: 0.0)),
           ]));
     }
   }
@@ -1258,7 +1275,11 @@ class _RouteChatState extends State<RouteChat> {
       g_invite_required = torx.getter_group_uint8(g, offsetof("group", "invite_required"));
     }
     //  controllerNick.text = Pointer<Utf8>.fromAddress(torx.torx_loo kup(globalCurrentRouteChatN, 8, 0, 0).address).toDartString();
-    controllerMessage.text = t_peer.unsent[widget.n];
+    if (t_peer.search_active[widget.n]) {
+      controllerMessage.text = t_peer.search_text[widget.n];
+    } else {
+      controllerMessage.text = t_peer.unsent[widget.n];
+    }
     if (keyboard_privacy == false) {
       ime_enabled_spellCheckConfiguration = null;
     }
@@ -1344,6 +1365,28 @@ class _RouteChatState extends State<RouteChat> {
               PopupMenuButton(
                 icon: Icon(Icons.more_vert, color: color.torch_off),
                 itemBuilder: (BuildContext context) => <PopupMenuEntry>[
+                  CustomPopupMenuItem(
+                    color: color.chat_headerbar,
+                    child: ListTile(
+                      leading: const Icon(Icons.search),
+                      title: Text(
+                        text.search,
+                        style: TextStyle(color: color.page_title),
+                      ),
+                      iconColor: t_peer.search_active[widget.n] ? color.torch_on : color.torch_off,
+                      onTap: () {
+                        t_peer.search_active[widget.n] = true; // NOTE: We do NOT reset pm_n/edit_n/edit_i
+                        t_peer.search_text[widget.n] = "";
+                        controllerMessage.clear(); // empty box for the query
+                        former_text_len = 0;
+                        show_keyboard = true; // ensure text entry (not audio) is shown
+                        changeNotifierTextOrAudio.callback(integer: 1); // value is arbitrary
+                        changeNotifierActivity.callback(integer: 1); // value is arbitrary
+                        changeNotifierSendButton.callback(integer: 1); // value is arbitrary
+                        Navigator.pop(context); // pop the menu
+                      },
+                    ),
+                  ),
                   CustomPopupMenuItem(
                     color: color.chat_headerbar,
                     child: ListTile(
@@ -1440,7 +1483,7 @@ class _RouteChatState extends State<RouteChat> {
                     CustomPopupMenuItem(
                       color: color.chat_headerbar,
                       child: ListTile(
-                        leading: Icon(Icons.local_fire_department, color: color.torch_off),
+                        leading: const Icon(Icons.local_fire_department),
                         title: Text(
                           text.kill,
                           style: TextStyle(color: color.page_title),
@@ -1460,7 +1503,7 @@ class _RouteChatState extends State<RouteChat> {
                   CustomPopupMenuItem(
                     color: color.chat_headerbar,
                     child: ListTile(
-                      leading: Icon(Icons.delete_forever, color: color.torch_off),
+                      leading: const Icon(Icons.delete_forever),
                       title: Text(
                         text.delete,
                         style: TextStyle(color: color.page_title),
@@ -1480,7 +1523,7 @@ class _RouteChatState extends State<RouteChat> {
                   CustomPopupMenuItem(
                     color: color.chat_headerbar,
                     child: ListTile(
-                      leading: Icon(Icons.clear_all, color: color.torch_off),
+                      leading: const Icon(Icons.clear_all),
                       title: Text(
                         text.delete_log,
                         style: TextStyle(color: color.page_title),
@@ -1496,7 +1539,6 @@ class _RouteChatState extends State<RouteChat> {
               ),
             ],
           ), // globalCurrentRouteChatN
-
           body: Column(
             children: [
               Expanded(
@@ -1587,22 +1629,34 @@ class _RouteChatState extends State<RouteChat> {
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (t_peer.pm_n[widget.n] > -1 || t_peer.edit_n[widget.n] > -1)
+                        if (t_peer.pm_n[widget.n] > -1 || t_peer.edit_n[widget.n] > -1 || t_peer.search_active[widget.n])
                           FloatingActionButton.extended(
                               onPressed: () {
-                                if (t_peer.edit_n[widget.n] > -1) {
-                                  former_text_len = 0;
-                                  controllerMessage.clear();
-                                  changeNotifierSendButton.callback(integer: 1); // value is arbitrary
+                                if (t_peer.search_active[widget.n]) {
+                                  t_peer.search_active[widget.n] = false;
+                                  t_peer.search_text[widget.n] = "";
+                                  if (former_text_len > 0) {
+                                    changeNotifierMessage.callback(n: -1, i: -1, scroll: -1); // SLOW-ROUTE full rebuild on every keypress
+                                  }
+                                  controllerMessage.text = t_peer.unsent[widget.n];
+                                  former_text_len = t_peer.unsent[widget.n].length;
+                                } else {
+                                  if (t_peer.edit_n[widget.n] > -1) {
+                                    former_text_len = 0;
+                                    controllerMessage.clear();
+                                  }
+                                  t_peer.pm_n[widget.n] = -1;
+                                  t_peer.edit_n[widget.n] = -1;
+                                  t_peer.edit_i[widget.n] = INT_MIN;
                                 }
-                                t_peer.pm_n[widget.n] = -1;
-                                t_peer.edit_n[widget.n] = -1;
-                                t_peer.edit_i[widget.n] = INT_MIN;
+                                changeNotifierSendButton.callback(integer: 1); // value is arbitrary
                                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
                               },
-                              label: t_peer.pm_n[widget.n] > -1
-                                  ? Text("${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], INT_MIN, -1, offsetof("peer", "peernick"))}")
-                                  : Text(text.cancel_editing))
+                              label: t_peer.search_active[widget.n]
+                                  ? Text(text.search)
+                                  : t_peer.pm_n[widget.n] > -1
+                                      ? Text("${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], INT_MIN, -1, offsetof("peer", "peernick"))}")
+                                      : Text(text.cancel_editing))
                       ],
                     );
                   }),
@@ -1635,12 +1689,17 @@ class _RouteChatState extends State<RouteChat> {
                                           autofocus: autoFocusKeyboard,
                                           onChanged: (value) {
                                             int text_len = controllerMessage.text.length;
-                                            if (text_len == 0 || former_text_len == 0) {
+                                            if (!t_peer.search_active[widget.n] && (text_len == 0 || former_text_len == 0)) {
                                               changeNotifierSendButton.callback(integer: 1); // value is arbitrary
                                             }
                                             former_text_len = text_len;
+                                            if (t_peer.search_active[widget.n]) {
+                                              t_peer.search_text[widget.n] = controllerMessage.text;
+                                              changeNotifierMessage.callback(n: -1, i: -1, scroll: -1); // SLOW-ROUTE full rebuild on every keypress
+                                            } else {
+                                              t_peer.unsent[widget.n] = controllerMessage.text;
+                                            }
                                             //  printf("Checkpoint 1, if after detach, t_peer.unsent may not exist for n=${widget.n}");
-                                            t_peer.unsent[widget.n] = controllerMessage.text;
                                           },
                                           style: TextStyle(color: color.write_message_text),
                                         )
@@ -1715,6 +1774,11 @@ class _RouteChatState extends State<RouteChat> {
                   AnimatedBuilder(
                       animation: changeNotifierSendButton,
                       builder: (BuildContext context, Widget? snapshot) {
+                        if (t_peer.search_active[widget.n]) {
+                          return Row(children: [
+                            // Currently we have no send / clear button for searching. One day there might be a toggle or something that allows searching files, etc.
+                          ]);
+                        }
                         return Row(children: [
                           if (controllerMessage.text.isEmpty)
                             IconButton(

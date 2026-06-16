@@ -105,6 +105,8 @@ class Callbacks {
     t_peer.pm_n[n] = -1;
     t_peer.edit_n[n] = -1;
     t_peer.edit_i[n] = INT_MIN;
+    t_peer.search_active[n] = false;
+    t_peer.search_text[n] = "";
     t_peer.t_message[n] = t_message_class();
     t_peer.t_file[n] = t_file_class();
     t_peer.stickers_requested[n] = [];
@@ -177,6 +179,8 @@ class Callbacks {
       t_peer.pm_n.add(0);
       t_peer.edit_n.add(0);
       t_peer.edit_i.add(0);
+      t_peer.search_active.add(false);
+      t_peer.search_text.add("");
       t_peer.t_message.add(t_message_class());
       t_peer.t_file.add(t_file_class());
       t_peer.stickers_requested.add([]);

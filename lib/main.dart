@@ -181,6 +181,8 @@ class t_peer {
   static List<int> pm_n = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]; //11
   static List<int> edit_n = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]; //11
   static List<int> edit_i = [INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN, INT_MIN]; //11
+  static List<bool> search_active = [false, false, false, false, false, false, false, false, false, false, false]; //11
+  static List<String> search_text = ["", "", "", "", "", "", "", "", "", "", ""]; //11
   static List<t_file_class> t_file = [
     t_file_class(),
     t_file_class(),
@@ -845,6 +847,8 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 t_peer.pm_n[global_n] = -1;
                 t_peer.edit_n[global_n] = n;
                 t_peer.edit_i[global_n] = i;
+                t_peer.search_active[global_n] = false;
+                t_peer.search_text[global_n] = "";
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
                 if (controllerMessage != null) {
                   controllerMessage.text = t_peer.unsent[global_n] = getter_string(n, i, -1, offsetof("message", "message"));
@@ -866,9 +870,11 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
               leading: const Icon(Icons.message),
               title: Text(text.private_messaging),
               onTap: () {
+                t_peer.pm_n[global_n] = n;
                 t_peer.edit_n[global_n] = -1;
                 t_peer.edit_i[global_n] = INT_MIN;
-                t_peer.pm_n[global_n] = n;
+                t_peer.search_active[global_n] = false;
+                t_peer.search_text[global_n] = "";
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
                 Navigator.pop(context);
               })),
@@ -881,6 +887,8 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
                 t_peer.pm_n[global_n] = -1;
                 t_peer.edit_i[global_n] = INT_MIN;
                 t_peer.edit_n[global_n] = n;
+                t_peer.search_active[global_n] = false;
+                t_peer.search_text[global_n] = "";
                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
                 if (controllerMessage != null) {
                   controllerMessage.text = t_peer.unsent[global_n] = getter_string(n, INT_MIN, -1, offsetof("peer", "peernick"));

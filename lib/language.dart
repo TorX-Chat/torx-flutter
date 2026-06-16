@@ -156,6 +156,7 @@ class text {
   static String hold_to_talk = "";
   static String cancel_editing = "";
   static String private_messaging = "";
+  static String search = "";
   static String rename = "";
   static String button_add = "";
   static String button_join = "";
@@ -346,6 +347,7 @@ void initialize_language() {
     text.hold_to_talk = "Hold to Talk";
     text.cancel_editing = "Cancel editing";
     text.private_messaging = "Private Messaging";
+    text.search = "Search";
     text.rename = "Rename";
     text.button_add = "Send Friend Request";
     text.button_join = "Attempt To Join";
@@ -526,6 +528,7 @@ void initialize_language() {
     text.hold_to_talk = "按住说话";
     text.cancel_editing = "取消编辑";
     text.private_messaging = "私密消息";
+    text.search = "搜索";
     text.rename = "重命名";
     text.button_add = "发送好友请求";
     text.button_join = "尝试加入";
