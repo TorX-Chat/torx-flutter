@@ -138,7 +138,6 @@ ScrollController scrollcontroller_log_torx = ScrollController();
 TextEditingController entryAddPeeronionController = TextEditingController();
 TextEditingController entryAddGeneratePeernickController = TextEditingController();
 TextEditingController entryAddGenerateOutputController = TextEditingController();
-TextEditingController controllerMessage = TextEditingController();
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin(); // Don't call directly, use Noti.
 
 class t_file_class {
@@ -710,7 +709,7 @@ void toggleBlock(int n) {
   changeNotifierChatList.callback(integer: n);
 }
 
-List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingController? controllerMessage, int n, int i, int s) {
+List<PopupMenuEntry<dynamic>> generate_message_menu(BuildContext context, TextEditingController? controllerMessage, int n, int i, int s) {
   int message_owner = -1;
   int stat = -1;
   int file_status = -1;
@@ -747,7 +746,10 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
 
   if (n > -1) {
     message_owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
-
+    if (message_owner == ENUM_OWNER_GROUP_PEER) {
+      setIgnoreIcon(n);
+      setBlockIcon(n);
+    }
     if (i > INT_MIN) {
       stat = torx.getter_uint8(n, i, -1, offsetof("message", "stat"));
       p_iter = torx.getter_int(n, i, -1, offsetof("message", "p_iter"));
@@ -767,10 +769,6 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
     }
   }
   printf("Checkpoint generate_message_menu protocol $protocol: $n $i $s");
-  if (n > -1) {
-    setIgnoreIcon(n);
-    setBlockIcon(n);
-  }
   return <PopupMenuEntry>[
     if (s > -1 && torx.sticker_retrieve_saved(s) == 0)
       PopupMenuItem(
@@ -898,7 +896,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
     if (message_owner == ENUM_OWNER_GROUP_PEER)
       PopupMenuItem(
           child: ListTile(
-              leading: ignoreIcon, // rename
+              leading: ignoreIcon,
               title: Text(ignoreText),
               onTap: () {
                 toggleMute(n);
@@ -908,7 +906,7 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(context, TextEditingControll
     if (message_owner == ENUM_OWNER_GROUP_PEER)
       PopupMenuItem(
           child: ListTile(
-              leading: Icon(Icons.block, color: blockColor), // rename
+              leading: Icon(Icons.block, color: blockColor),
               title: Text(blockText),
               onTap: () {
                 toggleBlock(n);

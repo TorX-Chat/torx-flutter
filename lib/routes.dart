@@ -454,7 +454,7 @@ class _RoutePopoverGroupListState extends State<RoutePopoverGroupList> {
                         }
                       },
                       onLongPress: () {
-                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, list[index], INT_MIN, -1));
+                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, null, list[index], INT_MIN, -1));
                       },
                       child: ListTile(
                           leading: Badge(
@@ -525,7 +525,7 @@ class _RoutePopoverParticipantListState extends State<RoutePopoverParticipantLis
                         printf("Not doing anything here.");
                       },
                       onLongPress: () {
-                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, controllerMessage, participant_list[index], INT_MIN, -1));
+                        showMenu(context: context, position: getPosition(context), items: generate_message_menu(context, null, participant_list[index], INT_MIN, -1));
                       },
                       child: ListTile(
                         leading: Badge(
@@ -614,6 +614,7 @@ class _RouteChatState extends State<RouteChat> {
   int g_invite_required = 0;
   double msgBorderRadius = 10;
   AudioPlayer player = AudioPlayer();
+  TextEditingController controllerMessage = TextEditingController();
 
   Widget setLoggingIcon(int log_messages, int global_log_messages) {
     if (log_messages == -1) {
@@ -1637,11 +1638,19 @@ class _RouteChatState extends State<RouteChat> {
                                 changeNotifierSendButton.callback(integer: 1); // value is arbitrary
                                 changeNotifierActivity.callback(integer: 1); // value is arbitrary
                               },
-                              label: t_peer.search_active[widget.n]
-                                  ? Text(text.search)
-                                  : t_peer.pm_n[widget.n] > -1
-                                      ? Text("${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], INT_MIN, -1, offsetof("peer", "peernick"))}")
-                                      : Text(text.cancel_editing))
+                              label: ConstrainedBox(
+                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
+                                child: Text(
+                                  t_peer.search_active[widget.n]
+                                      ? text.search
+                                      : t_peer.pm_n[widget.n] > -1
+                                          ? "${text.private_messaging} ${getter_string(t_peer.pm_n[widget.n], INT_MIN, -1, offsetof("peer", "peernick"))}"
+                                          : text.cancel_editing,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: false,
+                                ),
+                              ))
                       ],
                     );
                   }),
