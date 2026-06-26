@@ -21,15 +21,15 @@ cd torx-flutter
 rm -rf build/ android/app/.cxx/Debug/ android/app/.cxx/RelWithDebInfo
 rm android/app/src/main/jniLibs/*/*.so
 flutter pub run flutter_launcher_icons
-flutter run
+flutter run -Pdisable-abi-filtering=true
 
 ```
 
 ###### Subsequent builds (takes 10-20 seconds, including fresh builds of libtorx)
-`flutter run`
+`flutter run -Pdisable-abi-filtering=true`
 
 ###### For building a release (Remember to increase the version in pubspec.yaml or F-Droid will ignore the update.)
-`flutter build apk`
+`flutter build apk -Pdisable-abi-filtering=true`
 
 #### Voluntary Contribution Licensing Agreement:
 Subject to implicit consent: Ownership of all ideas, suggestions, issues, pull requests, contributions of any kind, etc, are non-exclusively gifted to the original TorX developer without condition nor consideration, for the purpose of improving the software, for the benefit of all users, current and future. Any contributor who chooses not to apply this licensing agreement may make an opt-out statement when making their contribution.

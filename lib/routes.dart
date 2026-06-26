@@ -400,7 +400,7 @@ class _RoutePopoverGroupListState extends State<RoutePopoverGroupList> {
                                 changeNotifierPopoverList.callback(integer: -1);
                               },
                             ),
-                            hintText: text.placeholder_search,
+                            hintText: text.search,
                             hintStyle: TextStyle(color: color.torch_on),
                             border: InputBorder.none),
                       ),
@@ -2079,7 +2079,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
                                   changeNotifierChatList.callback(integer: -1);
                                 },
                               ),
-                              hintText: text.placeholder_search,
+                              hintText: text.search,
                               hintStyle: TextStyle(color: color.torch_on),
                               border: InputBorder.none),
                         ),

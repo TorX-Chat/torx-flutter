@@ -109,7 +109,6 @@ class text {
   static String placeholder_add_onion = "";
   static String placeholder_add_group_identifier = "";
   static String placeholder_add_group_id = "";
-  static String placeholder_search = "";
   static String dark = "";
   static String light = "";
   static String generate_onionid = "";
@@ -300,7 +299,6 @@ void initialize_language() {
     text.placeholder_add_onion = "Peer TorX-ID or OnionID (provided by peer)";
     text.placeholder_add_group_identifier = "Group Nickname";
     text.placeholder_add_group_id = "Public Group ID (provided by peer)";
-    text.placeholder_search = "Search";
     text.dark = "Dark";
     text.light = "Light";
     text.generate_onionid = "Generate OnionID";
@@ -481,7 +479,6 @@ void initialize_language() {
     text.placeholder_add_onion = "好友TorX-ID或洋葱ID（由好友提供）";
     text.placeholder_add_group_identifier = "群聊昵称";
     text.placeholder_add_group_id = "公共群聊ID（由好友提供）";
-    text.placeholder_search = "搜索";
     text.dark = "深色";
     text.light = "浅色";
     text.generate_onionid = "生成洋葱ID";
