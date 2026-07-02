@@ -1668,7 +1668,6 @@ class torx {
   static Pointer<Pointer<Utf8>> download_dir = dynamicLibrary.lookup('download_dir'); // utilized
   static Pointer<Pointer<Utf8>> tor_data_directory = dynamicLibrary.lookup('tor_data_directory'); // utilized
   static Pointer<Pointer<Utf8>> tor_location = dynamicLibrary.lookup('tor_location'); // utilized
-  static Pointer<Pointer<Utf8>> snowflake_location = dynamicLibrary.lookup('snowflake_location'); // utilized
   static Pointer<Pointer<Utf8>> lyrebird_location = dynamicLibrary.lookup('lyrebird_location'); // utilized
   static Pointer<Pointer<Utf8>> conjure_location = dynamicLibrary.lookup('conjure_location'); // utilized
   static Pointer<Pointer<Utf8>> native_library_directory = dynamicLibrary.lookup('native_library_directory'); // utilized

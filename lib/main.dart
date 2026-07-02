@@ -261,7 +261,8 @@ void resumptionTasks() {
       torx.sql_populate_setting(0); // re-load settings to get UI settings and stickers, etc
     }
     if (totalUnreadPeer > 0 || totalUnreadGroup > 0) {
-      ui_unread_clear(global_n);
+      int owner = torx.getter_uint8(global_n, INT_MIN, -1, offsetof("peer", "owner"));
+      ui_unread_clear(global_n, owner);
       changeNotifierTotalUnread.callback(integer: -5);
       changeNotifierChatList.callback(integer: 0);
     }
@@ -292,7 +293,6 @@ void initialization_functions() {
   String tor_location = "$nativeLibraryDir/libtor.so";
   String lyrebird_location = "nativeLibraryDir/liblyrebird.so"; // This is a FAKE location that is replaced by the library with native_library_directory
   String conjure_location = "nativeLibraryDir/libconjure.so"; // This is a FAKE location that is replaced by the library with native_library_directory
-  String snowflake_location = "nativeLibraryDir/libsnowflake.so"; // This is a FAKE location that is replaced by the library with native_library_directory
 
   torx.torx_debug_level(4);
 
@@ -301,7 +301,6 @@ void initialization_functions() {
   torx.tor_location[0] = tor_location.toNativeUtf8();
   torx.lyrebird_location[0] = lyrebird_location.toNativeUtf8();
   torx.conjure_location[0] = conjure_location.toNativeUtf8();
-  torx.snowflake_location[0] = snowflake_location.toNativeUtf8();
   torx.native_library_directory[0] = nativeLibraryDir!.toNativeUtf8();
   torx.reduced_memory.value = 2; // 1 == 256mb, 2 == 64mb
   torx.working_dir[0] = applicationDocumentsDir!.toNativeUtf8(); // necessary before initial on systems where $HOME is not set
@@ -470,7 +469,8 @@ class _TorXState extends State<TorX> with RestorationMixin, WidgetsBindingObserv
       }
       bottom_index = surviveDestruction.ref._bottom_index;
       _clear_ui_data();
-      ui_unread_clear(global_n); // redundant with resumptionTasks because it may not have global_n
+      int owner = torx.getter_uint8(global_n, INT_MIN, -1, offsetof("peer", "owner"));
+      ui_unread_clear(global_n, owner); // redundant with resumptionTasks because it may not have global_n
     }
   }
 
@@ -925,10 +925,9 @@ List<PopupMenuEntry<dynamic>> generate_message_menu(BuildContext context, TextEd
   ];
 }
 
-void ui_unread_clear(int n) {
+void ui_unread_clear(int n, int owner) {
   if (n > -1 && t_peer.unread[n] > 0) {
     // MUST check n > -1, and not treat -1 as global
-    int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_GROUP_CTRL) {
       totalUnreadGroup -= t_peer.unread[n];
     } else {
@@ -1012,7 +1011,7 @@ void print_message(int n, int i, int scroll) {
       nn = torx.getter_group_int(g, offsetof("group", "n"));
       owner = ENUM_OWNER_GROUP_CTRL;
     }
-    ui_unread_clear(nn);
+    ui_unread_clear(nn, owner);
   }
   changeNotifierMessage.callback(n: n, i: i, scroll: scroll);
   int max_i = torx.getter_int(n, INT_MIN, -1, offsetof("peer", "max_i"));

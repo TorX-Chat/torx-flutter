@@ -38,14 +38,12 @@ if(DEFINED ENV{LAN_REPO}) # flutter run --dart-define=LAN_REPO=http://10.8.88.11
 	set(REPO_TOR $ENV{LAN_REPO}/tor.git)
 	set(REPO_LYREBIRD $ENV{LAN_REPO}/lyrebird.git)
 	set(REPO_CONJURE $ENV{LAN_REPO}/conjure.git)
-	set(REPO_SNOWFLAKE $ENV{LAN_REPO}/snowflake.git)
 	set(REPO_TORX $ENV{LAN_REPO}/libtorx.git)
 else()
 	message(STATUS "Using default remote repositories instead of LAN.")
 	set(REPO_TOR "https://gitlab.torproject.org/tpo/core/tor.git") # http://xtlfhaspqtkeeqxk6umggfbr3gyfznvf4jhrge2fujz53433i2fcs3id.onion/tor.git
 	set(REPO_LYREBIRD "https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/lyrebird.git")
 	set(REPO_CONJURE "https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/conjure.git")
-	set(REPO_SNOWFLAKE "https://gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake.git")
 	set(REPO_TORX "https://github.com/TorX-Chat/libtorx/")
 endif()
 
@@ -140,16 +138,6 @@ ExternalProject_Add(
 	BUILD_BYPRODUCTS client/libconjure.so
 )
 ExternalProject_Add(
-	snowflake
-	GIT_REPOSITORY ${REPO_SNOWFLAKE}
-	GIT_TAG main
-	BUILD_IN_SOURCE 1
-	CONFIGURE_COMMAND ""
-	BUILD_COMMAND CGO_ENABLED=1 CC=${CLANG_BINARY_PATH} CXX=${CLANGPP_BINARY_PATH} GOOS=android GOARCH=${GO_ARCH} go build -v -ldflags=${GO_LDFLAGS} -o client/libsnowflake.so ./client
-	INSTALL_COMMAND mkdir -p ${JNILIBS_DIR} && cp client/libsnowflake.so ${JNILIBS_DIR}
-	BUILD_BYPRODUCTS client/libsnowflake.so
-)
-ExternalProject_Add(
 	torx
 	GIT_REPOSITORY ${REPO_TORX} ## XXX temp removed: -D ANDROID=${ANDROID_ABI} -D ANDROID_PLATFORM=${ANDROID_PLATFORM}
 	GIT_TAG ${TAG_REPO}
@@ -162,6 +150,5 @@ add_dependencies(
 	torx
 	lyrebird
 	conjure
-	snowflake
 	tor
 )

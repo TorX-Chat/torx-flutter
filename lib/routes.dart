@@ -1980,7 +1980,7 @@ class _RouteChatListState extends State<RouteChatList> with TickerProviderStateM
           onTap: () {
             global_n = list[index];
             Noti.cancel(list[index], flutterLocalNotificationsPlugin);
-            ui_unread_clear(list[index]);
+            ui_unread_clear(list[index], owner);
             //    printf("Checkpoint RouteChat n=${arrayFriends[index]}");
             Navigator.push(context, MaterialPageRoute(builder: (context) => RouteChat(list[index])));
           },
