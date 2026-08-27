@@ -445,7 +445,7 @@ class _RoutePopoverGroupListState extends State<RoutePopoverGroupList> {
                           Navigator.pop(context);
                         } else {
                           int g_invite_required = torx.getter_group_uint8(widget.g, offsetof("group", "invite_required"));
-                          int g_peercount = torx.getter_group_uint32(widget.g, offsetof("group", "peercount"));
+                          int g_peercount = torx.group_peercount(widget.g);
                           if (g_invite_required == 1 && g_peercount == 0) {
                             torx.message_send(list[index], ENUM_PROTOCOL_GROUP_OFFER_FIRST, torx.itovp(widget.g), GROUP_OFFER_FIRST_LEN);
                           } else {
@@ -685,7 +685,7 @@ class _RouteChatState extends State<RouteChat> {
     int owner = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "owner"));
     if (owner == ENUM_OWNER_GROUP_CTRL) {
       int g = torx.set_g(n, nullptr);
-      int g_peercount = torx.getter_group_uint32(g, offsetof("group", "peercount"));
+      int g_peercount = torx.group_peercount(g);
       return "${text.status_online}: ${torx.group_online(g)} ${text.of} $g_peercount";
     }
     int sendfd_connected = torx.getter_uint8(n, INT_MIN, -1, offsetof("peer", "sendfd_connected"));
@@ -956,7 +956,7 @@ class _RouteChatState extends State<RouteChat> {
         String group_type = local_g_invite_required != 0 ? text.group_private : text.group_public;
 
         if (local_group_n > -1) {
-          peercount = torx.getter_group_uint32(local_g, offsetof("group", "peercount"));
+          peercount = torx.group_peercount(local_g);
           group_name = getter_string(local_group_n, INT_MIN, -1, offsetof("peer", "peernick"));
         } else {
           peercount = untrusted_peercount;

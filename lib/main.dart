@@ -294,7 +294,7 @@ void initialization_functions() {
   String lyrebird_location = "nativeLibraryDir/liblyrebird.so"; // This is a FAKE location that is replaced by the library with native_library_directory
   String conjure_location = "nativeLibraryDir/libconjure.so"; // This is a FAKE location that is replaced by the library with native_library_directory
 
-  torx.torx_debug_level(4);
+//  torx.torx_debug_level(4);
 
   torx.pthread_rwlock_wrlock(torx.mutex_global_variable); // 🟥
 //  torx.show_log_messages.value = 15;
@@ -302,7 +302,7 @@ void initialization_functions() {
   torx.lyrebird_location[0] = lyrebird_location.toNativeUtf8();
   torx.conjure_location[0] = conjure_location.toNativeUtf8();
   torx.native_library_directory[0] = nativeLibraryDir!.toNativeUtf8();
-  torx.reduced_memory.value = 2; // 1 == 256mb, 2 == 64mb
+//  torx.reduced_memory.value = 2; // 0 == 1024 (default), 1 == 256mb, 2 == 64mb
   torx.working_dir[0] = applicationDocumentsDir!.toNativeUtf8(); // necessary before initial on systems where $HOME is not set
   torx.tor_data_directory[0] = "$applicationDocumentsDir/tor".toNativeUtf8(); // hardcoding this. This will override user settings for sanity purposes.
   torx.pthread_rwlock_unlock(torx.mutex_global_variable); // 🟩
@@ -316,9 +316,51 @@ void initialization_functions() {
   });
   error(0, "Working dir: $applicationDocumentsDir");
 
-  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG, "AAC Audio Message", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED, "AAC Audio Message Date Signed", "", 0, 1, 1, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_MSG, 0, 1, 0);
-  protocol_registration(ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE, "AAC Audio Message Private", "", 0, 0, 0, 1, 1, 0, 0, ENUM_EXCLUSIVE_GROUP_PM, 0, 1, 0);
+  protocol_registration(
+      protocol: ENUM_PROTOCOL_AAC_AUDIO_MSG,
+      name: "AAC Audio Message",
+      description: "",
+      null_terminate: 0,
+      date: 0,
+      sign: 0,
+      logged: 1,
+      notifiable: 1,
+      file_checksum: 0,
+      file_offer: 0,
+      exclusive_type: ENUM_EXCLUSIVE_GROUP_MSG,
+      utf8: 0,
+      socket_swappable: 1,
+      stream: 0);
+  protocol_registration(
+      protocol: ENUM_PROTOCOL_AAC_AUDIO_MSG_DATE_SIGNED,
+      name: "AAC Audio Message Date Signed",
+      description: "",
+      null_terminate: 0,
+      date: 1,
+      sign: 1,
+      logged: 1,
+      notifiable: 1,
+      file_checksum: 0,
+      file_offer: 0,
+      exclusive_type: ENUM_EXCLUSIVE_GROUP_MSG,
+      utf8: 0,
+      socket_swappable: 1,
+      stream: 0);
+  protocol_registration(
+      protocol: ENUM_PROTOCOL_AAC_AUDIO_MSG_PRIVATE,
+      name: "AAC Audio Message Private",
+      description: "",
+      null_terminate: 0,
+      date: 0,
+      sign: 0,
+      logged: 1,
+      notifiable: 1,
+      file_checksum: 0,
+      file_offer: 0,
+      exclusive_type: ENUM_EXCLUSIVE_GROUP_PM,
+      utf8: 0,
+      socket_swappable: 1,
+      stream: 0);
 
   int first_run = threadsafe_read_global_Uint8("first_run");
   printf("First run: $first_run");

@@ -558,8 +558,50 @@ typedef FnDARTthreadsafe_read_uint64 = int Function(Pointer<NativeType>, Pointer
 typedef FnCprotocol_lookup = Int Function(Uint16);
 typedef FnDARTprotocol_lookup = int Function(int);
 
-typedef FnCprotocol_registration = Int Function(Int16, Pointer<Utf8>, Pointer<Utf8>, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8, Uint8);
-typedef FnDARTprotocol_registration = int Function(int, Pointer<Utf8>, Pointer<Utf8>, int, int, int, int, int, int, int, int, int, int, int);
+final class protocol_definition extends Struct {
+  @Int16()
+  external int protocol;
+
+  external Pointer<Utf8> name;
+
+  external Pointer<Utf8> description;
+
+  @Uint8()
+  external int null_terminate;
+
+  @Uint8()
+  external int date;
+
+  @Uint8()
+  external int sign;
+
+  @Uint8()
+  external int logged;
+
+  @Uint8()
+  external int notifiable;
+
+  @Uint8()
+  external int file_checksum;
+
+  @Uint8()
+  external int file_offer;
+
+  @Uint8()
+  external int exclusive_type;
+
+  @Uint8()
+  external int utf8;
+
+  @Uint8()
+  external int socket_swappable;
+
+  @Uint8()
+  external int stream;
+}
+
+typedef FnCprotocol_registration = Int Function(protocol_definition pd);
+typedef FnDARTprotocol_registration = int Function(protocol_definition pd);
 
 typedef FnCread_bytes = Pointer<Uint8> Function(Pointer<Utf8>);
 typedef FnDARTread_bytes = Pointer<Uint8> Function(Pointer<Utf8>);
@@ -596,6 +638,12 @@ typedef FnDARTtorx_free = void Function(Pointer<Pointer<NativeType>>);
 
 typedef FnCtorx_secure_malloc = Pointer<Void> Function(Size_t);
 typedef FnDARTtorx_secure_malloc = Pointer<Void> Function(int);
+
+typedef FnCgroup_peercount = Uint32 Function(Int);
+typedef FnDARTgroup_peercount = int Function(int);
+
+typedef FnCgroup_peerlist_get = Int Function(Int, Int);
+typedef FnDARTgroup_peerlist_get = int Function(int, int);
 
 typedef FnCmessage_load_more = Int Function(Int);
 typedef FnDARTmessage_load_more = int Function(int);
@@ -675,9 +723,6 @@ typedef FnDARTb64_decode = int Function(Pointer<Uint8>, int, Pointer<Utf8>);
 typedef FnCb64_encode = Pointer<Utf8> Function(Pointer<NativeType>, Size_t); // torx_free required
 typedef FnDARTb64_encode = Pointer<Utf8> Function(Pointer<NativeType>, int);
 
-typedef FnCinitial_keyed = Void Function();
-typedef FnDARTinitial_keyed = void Function();
-
 typedef FnCre_expand_callbacks = Void Function();
 typedef FnDARTre_expand_callbacks = void Function();
 
@@ -689,9 +734,6 @@ typedef FnDARTgroup_online = int Function(int);
 
 typedef FnCgroup_check_sig = Int Function(Int, Pointer<Utf8>, Uint32, Uint16, Pointer<Uint8>, Pointer<Utf8>);
 typedef FnDARTgroup_check_sig = int Function(int, Pointer<Utf8>, int, int, Pointer<Uint8>, Pointer<Utf8>);
-
-typedef FnCbroadcast_prep = Void Function(Pointer<Uint8>, Int);
-typedef FnDARTbroadcast_prep = void Function(Pointer<Uint8>, int);
 
 typedef FnCgroup_join = Int Function(Int, Pointer<Uint8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>);
 typedef FnDARTgroup_join = int Function(int, Pointer<Uint8>, Pointer<Utf8>, Pointer<Utf8>, Pointer<Uint8>);
@@ -810,9 +852,6 @@ typedef FnDARTfile_cancel = void Function(int, int);
 typedef FnCfile_send = Int Function(Int, Pointer<Utf8>);
 typedef FnDARTfile_send = int Function(int, Pointer<Utf8>);
 
-typedef FnCtorx_events = Pointer<Void> Function(Pointer<NativeType>);
-typedef FnDARTtorx_events = Pointer<Void> Function(Pointer<NativeType>);
-
 typedef FnCgenerate_onion = Int Function(Uint8, Pointer<Utf8>, Pointer<Utf8>);
 typedef FnDARTgenerate_onion = int Function(int, Pointer<Utf8>, Pointer<Utf8>);
 
@@ -821,12 +860,6 @@ typedef FnDARTcpucount = int Function();
 
 typedef FnCutf8_valid = Uint8 Function(Pointer<NativeType>, Size_t);
 typedef FnDARTutf8_valid = int Function(Pointer<NativeType>, int);
-
-typedef FnCbase32_encode = Size_t Function(Pointer<Uint8>, Pointer<Uint8>, Size_t);
-typedef FnDARTbase32_encode = int Function(Pointer<Uint8>, Pointer<Uint8>, int);
-
-typedef FnCbase32_decode = Pointer<Uint8> Function(Pointer<Utf8>, Size_t, Pointer<NativeType>);
-typedef FnDARTbase32_decode = Pointer<Uint8> Function(Pointer<Utf8>, int, Pointer<NativeType>);
 
 typedef FnCqr_bool = Pointer<Void> Function(Pointer<Utf8>, Size_t); // returns struct qr_data *
 typedef FnDARTqr_bool = Pointer<Void> Function(Pointer<Utf8>, int); // returns struct qr_data *
@@ -1226,16 +1259,42 @@ void error(int level, String message) {
   }
 }
 
-int protocol_registration(int protocol, String name, String description, int null_terminate, int date, int signature, int logged, int notifiable, int file_checksum, int file_offer,
-    int exclusive_type, int utf8, int socket_swappable, int stream) {
-  Pointer<Utf8> name_p = name.toNativeUtf8(); // free'd by calloc.free
-  Pointer<Utf8> description_p = description.toNativeUtf8(); // free'd by calloc.free
-  int ret = torx.protocol_registration(
-      protocol, name_p, description_p, null_terminate, date, signature, logged, notifiable, file_checksum, file_offer, exclusive_type, utf8, socket_swappable, stream);
-  calloc.free(name_p);
-  name_p = nullptr;
-  calloc.free(description_p);
-  description_p = nullptr;
+int protocol_registration(
+    {required int protocol,
+    String name = "",
+    String description = "",
+    int null_terminate = 0,
+    int date = 0,
+    int sign = 0,
+    int logged = 0,
+    int notifiable = 0,
+    int file_checksum = 0,
+    int file_offer = 0,
+    int exclusive_type = 0,
+    int utf8 = 0,
+    int socket_swappable = 0,
+    int stream = 0}) {
+  final pd = calloc<protocol_definition>();
+  pd.ref.protocol = protocol;
+  pd.ref.name = name.toNativeUtf8(); // free'd by calloc.free
+  pd.ref.description = description.toNativeUtf8(); // free'd by calloc.free
+  pd.ref.null_terminate = null_terminate;
+  pd.ref.date = date;
+  pd.ref.sign = sign;
+  pd.ref.logged = logged;
+  pd.ref.notifiable = notifiable;
+  pd.ref.file_checksum = file_checksum;
+  pd.ref.file_offer = file_offer;
+  pd.ref.exclusive_type = exclusive_type;
+  pd.ref.utf8 = utf8;
+  pd.ref.socket_swappable = socket_swappable;
+  pd.ref.stream = stream;
+  int ret = torx.protocol_registration(pd.ref);
+  calloc.free(pd.ref.name);
+  pd.ref.name = nullptr;
+  calloc.free(pd.ref.description);
+  pd.ref.description = nullptr;
+  calloc.free(pd);
   return ret;
 }
 
@@ -1449,6 +1508,10 @@ class torx {
 
   static final torx_secure_malloc = dynamicLibrary.lookupFunction<FnCtorx_secure_malloc, FnDARTtorx_secure_malloc>('torx_secure_malloc');
 
+  static final group_peercount = dynamicLibrary.lookupFunction<FnCgroup_peercount, FnDARTgroup_peercount>('group_peercount');
+
+  static final group_peerlist_get = dynamicLibrary.lookupFunction<FnCgroup_peerlist_get, FnDARTgroup_peerlist_get>('group_peerlist_get');
+
   static final message_load_more = dynamicLibrary.lookupFunction<FnCmessage_load_more, FnDARTmessage_load_more>('message_load_more');
 
   static final set_time = dynamicLibrary.lookupFunction<FnCset_time, FnDARTset_time>('set_time');
@@ -1501,8 +1564,6 @@ class torx {
 
   static final b64_encode = dynamicLibrary.lookupFunction<FnCb64_encode, FnDARTb64_encode>('b64_encode');
 
-  static final initial_keyed = dynamicLibrary.lookupFunction<FnCinitial_keyed, FnDARTinitial_keyed>('initial_keyed');
-
   static final re_expand_callbacks = dynamicLibrary.lookupFunction<FnCre_expand_callbacks, FnDARTre_expand_callbacks>('re_expand_callbacks');
 
   static final set_last_message = dynamicLibrary.lookupFunction<FnCset_last_message, FnDARTset_last_message>('set_last_message');
@@ -1510,8 +1571,6 @@ class torx {
   static final group_online = dynamicLibrary.lookupFunction<FnCgroup_online, FnDARTgroup_online>('group_online');
 
   static final group_check_sig = dynamicLibrary.lookupFunction<FnCgroup_check_sig, FnDARTgroup_check_sig>('group_check_sig');
-
-  static final broadcast_prep = dynamicLibrary.lookupFunction<FnCbroadcast_prep, FnDARTbroadcast_prep>('broadcast_prep');
 
   static final group_join = dynamicLibrary.lookupFunction<FnCgroup_join, FnDARTgroup_join>('group_join');
 
@@ -1591,17 +1650,11 @@ class torx {
 
   static final file_send = dynamicLibrary.lookupFunction<FnCfile_send, FnDARTfile_send>('file_send');
 
-  static final torx_events = dynamicLibrary.lookupFunction<FnCtorx_events, FnDARTtorx_events>('torx_events');
-
   static final generate_onion = dynamicLibrary.lookupFunction<FnCgenerate_onion, FnDARTgenerate_onion>('generate_onion');
 
   static final cpucount = dynamicLibrary.lookupFunction<FnCcpucount, FnDARTcpucount>('cpucount');
 
   static final utf8_valid = dynamicLibrary.lookupFunction<FnCutf8_valid, FnDARTutf8_valid>('utf8_valid');
-
-  static final base32_encode = dynamicLibrary.lookupFunction<FnCbase32_encode, FnDARTbase32_encode>('base32_encode');
-
-  static final base32_decode = dynamicLibrary.lookupFunction<FnCbase32_decode, FnDARTbase32_decode>('base32_decode');
 
   static final qr_bool = dynamicLibrary.lookupFunction<FnCqr_bool, FnDARTqr_bool>('qr_bool');
 
