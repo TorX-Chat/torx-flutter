@@ -1037,7 +1037,7 @@ void print_message(int n, int i, int scroll) {
 
 const MethodChannel androidChannel = MethodChannel('com.torx.chat/android');
 const int audio_retrieve_max =
-    1; // Messages to take from the library cache per callback. XXX Must stay small: audio_cache_retrieve advances a watermark and audio_cache_add discards anything older than it on arrival. (Recommended: 1 to 4)
+    2; // Messages to take from the library cache per callback. XXX Must stay small: audio_cache_retrieve advances a watermark and audio_cache_add discards anything older than it on arrival. (Recommended: 2 to 3)
 
 Future<void> audio_cache_play(int n) async {
   // For streaming audio. One decoder and track per participant, built on first arrival and fed thereafter; a decoder per batch guarantees a gap and a click at every batch boundary.
@@ -1103,7 +1103,7 @@ class AptitudeBuffer {
   static int lowerLimit = -55; // a sanity check to eliminate bad values (common on startup)
   static int maxSilent = 2; // Maximum number of silent packets to send after sound packets
   static int minTriggerSilent = 3; // minimum number of good packets to send before triggering a silent (this is to avoid spikes)
-  static int recording_cache_minimum_size = 1000; // Too low and we will pick up spikes and keypresses
+  static int recording_cache_minimum_size = 1500; // Too low and we will pick up spikes and keypresses
   static int recording_max_age_in_ms = 300; // Too low and we will delete good data.
 
   static int countSequential = 0;

@@ -72,10 +72,10 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 private const val LOG_TAG = "torx"
-private const val AUDIO_PLAYOUT_DELAY_MS = 100 // Depth of the receive side jitter buffer. Costs exactly this much added latency.
-private const val AUDIO_HEADROOM_MS = 500 // Track buffer beyond the playout delay. This, plus blocking writes, is what bounds the backlog when the transport stalls.
+private const val AUDIO_PLAYOUT_DELAY_MS = 50 // Depth of the receive side jitter buffer. Costs exactly this much added latency. (Recommended: 50ms to 300ms)
+private const val AUDIO_HEADROOM_MS = 500 // Track buffer beyond the playout delay, and so the slack a burst can be written into before WRITE_BLOCKING throttles the decoder. Bounds the track, not the backlog, which is MAX_PENDING_FRAMES.
 private const val AAC_FRAME_SAMPLES = 1024 // Fixed by AAC-LC, not a tunable.
-private const val MAX_PENDING_FRAMES = 512
+private const val MAX_PENDING_FRAMES = 512 // A call's queue depth. Clips do not use the queue. XXX Shortening this to shed the backlog was tried and reverted: see AUDIO-BACKLOG-PLAN.md.
 
 private val ADTS_SAMPLE_RATES = intArrayOf(96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350)
 private val ADTS_CHANNEL_COUNTS = intArrayOf(0, 1, 2, 3, 4, 5, 6, 8)
@@ -105,7 +105,7 @@ private fun adtsCodecSpecificData(data: ByteArray, offset: Int): ByteArray {
 	return byteArrayOf((((objectType shl 3) or (frequency shr 1)) and 0xFF).toByte(), ((((frequency and 0x01) shl 7) or (channels shl 3)) and 0xFF).toByte())
 }
 
-private class Frame(val data: ByteArray, val presentationTimeUs: Long)
+private class Frame(val data: ByteArray, val offset: Int, val length: Int, val presentationTimeUs: Long) // References its message in place. Neither a stream's message nor a clip is reused after it is handed over, so nothing is copied.
 
 object Audio {
 	private val streams = HashMap<Int, Stream>()
@@ -170,13 +170,11 @@ object Audio {
 			Log.e(LOG_TAG, "Unsupported ADTS header in a voice message rate=$sampleRate channels=$channelCount. Discarding it.")
 			return
 		}
-		val stream = Stream(-1, sampleRate, channelCount, adtsCodecSpecificData(data, 0))
+		val stream = Stream(-1, sampleRate, channelCount, adtsCodecSpecificData(data, 0), data) // XXX The clip must arrive at construction: start() launches the worker, and a worker that finds no data declares itself ended.
 		if (!stream.start()) {
 			return
 		}
 		clip = stream
-		stream.push(data, 0L, 0L)
-		stream.end() // XXX A clip is finite. Without this the decoder holds its final frames and the track is never released.
 	}
 
 	@Synchronized fun clipStop(): Boolean { // Returns whether a clip was still playing, which is what the caller's play/stop toggle needs
@@ -188,9 +186,9 @@ object Audio {
 	}
 }
 
-private class Stream(private val n: Int, private val sampleRate: Int, private val channelCount: Int, private val csd: ByteArray) : Runnable {
-	private val streaming = n > -1 // XXX As in torx-gtk4's playback_start: n > -1 is a call, n == -1 is a one shot voice message.
-	private val queue = LinkedBlockingQueue<Frame>(MAX_PENDING_FRAMES)
+private class Stream(private val n: Int, private val sampleRate: Int, private val channelCount: Int, private val csd: ByteArray, private val clipData: ByteArray? = null) : Runnable {
+	private val streaming = n > -1 // XXX As in torx-gtk4's playback_start: n > -1 is a call, n == -1 is a one shot voice message. Must agree with clipData == null.
+	private val queue = LinkedBlockingQueue<Frame>(MAX_PENDING_FRAMES) // Streams only. A clip is read in place by the worker, so its length is bounded by nothing.
 	@Volatile private var running = false
 	@Volatile private var ended = false // Clips only. No more input is coming.
 	@Volatile private var anchored = false
@@ -205,6 +203,8 @@ private class Stream(private val n: Int, private val sampleRate: Int, private va
 	private var timelineOrigin = 0L
 	private var reported = 0
 	private var silence = ByteArray(0)
+	private var clipOffset = 0 // Clips only. Worker owned, so it needs no synchronisation.
+	private var clipIndex = 0
 
 	fun isRunning(): Boolean {
 		return running
@@ -247,8 +247,27 @@ private class Stream(private val n: Int, private val sampleRate: Int, private va
 		thread = null
 	}
 
-	fun end() { // Clips only. See the end of stream handling in decode().
-		ended = true
+	private fun nextClipFrame(): Frame? { // Clips only. Walks the message in place. Any failure ends the clip rather than spinning on it.
+		val data = clipData
+		if (data == null || clipOffset >= data.size) {
+			ended = true
+			return null
+		}
+		if (!adtsSynced(data, clipOffset)) {
+			Log.e(LOG_TAG, "Lost ADTS sync in a voice message. Discarding the remainder.")
+			ended = true
+			return null
+		}
+		val length = adtsFrameLength(data, clipOffset)
+		if (length < 7 || clipOffset + length > data.size) {
+			Log.e(LOG_TAG, "Bad ADTS frame length in a voice message. Discarding the remainder.")
+			ended = true
+			return null
+		}
+		val frame = Frame(data, clipOffset, length, clipIndex.toLong() * AAC_FRAME_SAMPLES * 1000000L / sampleRate) // A clip has no sender timeline to anchor against, so its frames are simply consecutive.
+		clipOffset += length
+		clipIndex++
+		return frame
 	}
 
 	fun push(data: ByteArray, time: Long, nstime: Long) {
@@ -273,7 +292,7 @@ private class Stream(private val n: Int, private val sampleRate: Int, private va
 			if (presentationTimeUs < 0L) {
 				presentationTimeUs = 0L
 			}
-			if (!queue.offer(Frame(data.copyOfRange(offset, offset + length), presentationTimeUs))) {
+			if (!queue.offer(Frame(data, offset, length, presentationTimeUs))) {
 				Log.e(LOG_TAG, "Audio decoder for n=$n is not keeping up. Dropping a frame.")
 			}
 			offset += length
@@ -298,10 +317,14 @@ private class Stream(private val n: Int, private val sampleRate: Int, private va
 		var signalled = false // Input end of stream has been queued. Clips only.
 		while (running) {
 			if (pending == null) {
-				pending = try {
-					queue.poll(5, TimeUnit.MILLISECONDS)
-				} catch (e: InterruptedException) {
-					return
+				pending = if (streaming) {
+					try {
+						queue.poll(5, TimeUnit.MILLISECONDS)
+					} catch (e: InterruptedException) {
+						return
+					}
+				} else {
+					nextClipFrame()
 				}
 			}
 			if (pending == null && ended && !signalled) { // XXX A decoder holds its final frames until it is told the input ended, so a clip would lose its tail without this.
@@ -317,8 +340,8 @@ private class Stream(private val n: Int, private val sampleRate: Int, private va
 					val buffer = codec.getInputBuffer(index)
 					if (buffer != null) {
 						buffer.clear()
-						buffer.put(pending.data)
-						codec.queueInputBuffer(index, 0, pending.data.size, pending.presentationTimeUs, 0)
+						buffer.put(pending.data, pending.offset, pending.length)
+						codec.queueInputBuffer(index, 0, pending.length, pending.presentationTimeUs, 0)
 					}
 					pending = null
 				}
