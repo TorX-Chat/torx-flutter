@@ -64,7 +64,6 @@ severable if found in contradiction with the License or applicable law.
 import 'dart:ffi';
 import 'dart:math';
 import 'package:app_badge_plus/app_badge_plus.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:ffi/ffi.dart';
 import 'change_notifiers.dart';
 import 'colors.dart';
@@ -111,9 +110,6 @@ class Callbacks {
     t_peer.t_file[n] = t_file_class();
     t_peer.stickers_requested[n] = [];
     t_peer.t_call[n] = t_call_class();
-    t_peer.playing[n] = false;
-//  t_peer.player[n].dispose();
-//  t_peer.player[n] = AudioPlayer();
   }
 
   void initialize_i_cb_ui(int n, int i) {
@@ -148,6 +144,7 @@ class Callbacks {
   void initialize_peer_call_cb_ui(int call_n, int call_c) {
     t_peer.t_call[call_n].speaker_phone[call_c] = false;
     t_peer.t_call[call_n].notification_id[call_c] = -1;
+    t_peer.t_call[call_n].participating[call_c] = [];
   }
 
   void expand_file_struc_cb_ui(int n, int f) {
@@ -185,8 +182,6 @@ class Callbacks {
       t_peer.t_file.add(t_file_class());
       t_peer.stickers_requested.add([]);
       t_peer.t_call.add(t_call_class());
-      t_peer.playing.add(false);
-      t_peer.player.add(AudioPlayer());
     }
   }
 
@@ -198,6 +193,7 @@ class Callbacks {
   void expand_call_struc_cb_ui(int call_n, int call_c) {
     t_peer.t_call[call_n].speaker_phone.add(false);
     t_peer.t_call[call_n].notification_id.add(-1);
+    t_peer.t_call[call_n].participating.add([]);
   }
 
   void transfer_progress_cb_ui(int n, int f, int transferred) {
@@ -250,6 +246,13 @@ class Callbacks {
   void onion_deleted_cb_ui(int owner, int n) {
     if (verbose) printf("Checkpoint onion_deleted_cb_ui owner=$owner n=$n");
     ui_unread_clear(n, owner); // must be BEFORE initialize_n_cb_ui
+    audio_stream_stop(n);
+    for (List<int> participating in t_peer.t_call[n].participating) {
+      // XXX libtorx's zero_n frees the call structs without a callback, so this is the last notice we get that these participants are gone. Must be BEFORE initialize_n_cb_ui, which discards the lists.
+      for (int participant_n in participating) {
+        audio_stream_stop(participant_n);
+      }
+    }
     initialize_n_cb_ui(n); // must be AFTER ui_unread_clear
     changeNotifierDataTables.callback(integer: owner);
     // GOAT check if ctrl before updating chatlist
@@ -447,11 +450,17 @@ class Callbacks {
   }
 
   void call_update_cb_ui(int call_n, int call_c) {
-    printf("Checkpoint call_update_cb_ui");
-
     bool joined = torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "joined")) == 1 ? true : false;
     bool waiting = torx.getter_call_uint8(call_n, call_c, -1, offsetof("call", "waiting")) == 1 ? true : false;
-    int participants = torx.call_participant_count(call_n, call_c);
+    List<int> participant_list = joined || waiting ? call_participant_list(call_n, call_c) : [];
+    for (int participant_n in t_peer.t_call[call_n].participating[call_c]) {
+      // XXX A call update is the only notice we get that a participant left, and their playback holds an audio device open, so it must not outlive them.
+      if (!participant_list.contains(participant_n)) {
+        audio_stream_stop(participant_n);
+      }
+    }
+    t_peer.t_call[call_n].participating[call_c] = participant_list;
+    int participants = participant_list.length;
     int owner = torx.getter_uint8(call_n, INT_MIN, -1, offsetof("peer", "owner"));
 
     int group_n = -1;
@@ -499,7 +508,6 @@ class Callbacks {
   }
 
   void audio_cache_add_cb_ui(int participant_n) {
-    printf("Checkpoint audio_cache_add_cb_ui");
     audio_cache_play(participant_n);
   }
 

@@ -1179,16 +1179,29 @@ List<int> call_participant_list(int call_n, int call_c) {
   return list;
 }
 
-Uint8List audio_cache_retrieve(int participant_n) {
-  Pointer<Uint8> pointer = torx.audio_cache_retrieve(nullptr, nullptr, participant_n);
+class audio_cache_message {
+  Uint8List data;
+  int time; // Capture time on the SENDER's clock, not ours
+  int nstime;
+  audio_cache_message(this.data, this.time, this.nstime);
+}
+
+audio_cache_message? audio_cache_retrieve(int participant_n) {
+  Pointer<Time_t> time_p = calloc<Time_t>(); // free'd by calloc.free
+  Pointer<Time_t> nstime_p = calloc<Time_t>(); // free'd by calloc.free
+  Pointer<Uint8> pointer = torx.audio_cache_retrieve(time_p, nstime_p, participant_n);
+  audio_cache_message? message;
   if (pointer != nullptr) {
     int len = torx.torx_allocation_len(pointer);
-    Uint8List list = pointer.asTypedList(len).sublist(0);
-    torx.torx_free_simple(pointer);
+    message = audio_cache_message(pointer.asTypedList(len).sublist(0), time_p.value, nstime_p.value); // The sublist is necessary to copy
+    torx.torx_free_simple(pointer); // free'd by torx_free
     pointer = nullptr;
-    return list;
   }
-  return Uint8List(0);
+  calloc.free(time_p);
+  time_p = nullptr;
+  calloc.free(nstime_p);
+  nstime_p = nullptr;
+  return message;
 }
 
 int get_file_size(String file_path) {

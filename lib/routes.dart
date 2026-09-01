@@ -64,7 +64,6 @@ import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'package:app_badge_plus/app_badge_plus.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -613,7 +612,6 @@ class _RouteChatState extends State<RouteChat> {
   int g = -1;
   int g_invite_required = 0;
   double msgBorderRadius = 10;
-  AudioPlayer player = AudioPlayer();
   TextEditingController controllerMessage = TextEditingController();
 
   Widget setLoggingIcon(int log_messages, int global_log_messages) {
@@ -1033,17 +1031,12 @@ class _RouteChatState extends State<RouteChat> {
             group_pm,
             InkWell(
                 onTap: () async {
-                  if (player.state == PlayerState.playing) {
-                    await player.stop();
-                    if (last_played_n == n && last_played_i == i) {
-                      return;
-                    }
+                  if (await audio_clip_stop() && last_played_n == n && last_played_i == i) {
+                    return; // Tapping the message that is sounding stops it, rather than restarting it
                   }
                   last_played_n = n;
                   last_played_i = i;
-                  Uint8List bytes = getter_audio(n, i);
-                  await player.setSource(BytesSource(bytes));
-                  await player.resume();
+                  await audio_clip_play(getter_audio(n, i));
                   if (t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] == 1 && torx.getter_uint8(n, i, -1, offsetof("message", "stat")) == ENUM_MESSAGE_RECV) {
                     t_peer.t_message[n].unheard[i - t_peer.t_message[n].offset] = 0;
                     Pointer<Uint8> val = torx.torx_insecure_malloc(1) as Pointer<Uint8>; // free'd by torx_free
@@ -1247,7 +1240,7 @@ class _RouteChatState extends State<RouteChat> {
   @override
   void dispose() {
     //  record.dispose(); // says we have to do this
-    player.dispose();
+    audio_clip_stop(); // XXX Necessary: playback is process wide now, so leaving the chat no longer stops it by disposing a per route player.
     scrollController.dispose();
     super.dispose();
   }

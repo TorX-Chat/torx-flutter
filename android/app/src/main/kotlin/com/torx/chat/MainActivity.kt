@@ -38,10 +38,40 @@ class MainActivity: FlutterActivity() {
 
 	override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
 		super.configureFlutterEngine(flutterEngine)
+		Audio.stopAll() // XXX Any stream still held belongs to a destroyed engine, so nothing will ever stop it. A live call rebuilds within a message. Do NOT do this on pause/resume, which does not rebuild the engine and would interrupt a backgrounded call.
 		MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_TAG).setMethodCallHandler {
 			call, result ->
 			if (call.method == "getNativeLibraryPath") {
 				result.success(getContext().getApplicationInfo().nativeLibraryDir);
+			} else if (call.method == "audio_stream_push") {
+				val n = call.argument<Number>("n")
+				val data = call.argument<ByteArray>("data")
+				val time = call.argument<Number>("time")
+				val nstime = call.argument<Number>("nstime")
+				if (n == null || data == null || time == null || nstime == null) {
+					result.error("sanity", "audio_stream_push requires n, data, time, nstime", null)
+				} else {
+					Audio.push(n.toInt(), data, time.toLong(), nstime.toLong())
+					result.success(null)
+				}
+			} else if (call.method == "audio_stream_stop") {
+				val n = call.argument<Number>("n")
+				if (n == null) {
+					result.error("sanity", "audio_stream_stop requires n", null)
+				} else {
+					Audio.stop(n.toInt())
+					result.success(null)
+				}
+			} else if (call.method == "audio_clip_play") {
+				val data = call.argument<ByteArray>("data")
+				if (data == null) {
+					result.error("sanity", "audio_clip_play requires data", null)
+				} else {
+					Audio.clipPlay(data)
+					result.success(null)
+				}
+			} else if (call.method == "audio_clip_stop") {
+				result.success(Audio.clipStop())
 			} else {
 				result.notImplemented();
 			}

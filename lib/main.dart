@@ -65,7 +65,6 @@ import 'dart:ffi';
 import 'dart:ffi' as ffi;
 import 'dart:io';
 import 'package:app_badge_plus/app_badge_plus.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:chat/callbacks.dart';
 import 'package:ffi/ffi.dart';
 import 'package:file_picker/file_picker.dart';
@@ -169,6 +168,7 @@ class t_call_class {
   // NOTE: We do call struct allocation differently, so don't initialize blocks of 11 (except within t_peer)
   List<bool> speaker_phone = []; // TODO utilize
   List<int> notification_id = []; // Flutter specific, for killing notifications when call ends
+  List<List<int>> participating = []; // Participants as of the last call_update. Retained because a departure is only visible as a difference against it.
 }
 
 class t_peer {
@@ -222,20 +222,6 @@ class t_peer {
     t_call_class(),
     t_call_class(),
   ]; // 11
-  static List<bool> playing = [false, false, false, false, false, false, false, false, false, false, false]; //11
-  static List<AudioPlayer> player = [
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-    AudioPlayer(),
-  ]; // 11, used for audio_cache_play
 }
 
 AppLifecycleState globalAppLifecycleState = AppLifecycleState.resumed; // This is the appropriate default Enum values below
@@ -706,31 +692,18 @@ RelativeRect getPosition(context) {
   );
 }*/
 
-//AudioPlayer? ring_pipeline;
-
 void ring_start() {
   printf("Checkpoint Ring start");
   Vibration.vibrate(repeat: 1, duration: 30000); // TODO repeat doesn't work so we just set it to vibrate for 30 seconds. phones will be on the floor.
   FlutterRingtonePlayer().playRingtone(
     looping: true,
   ); // TODO just play a loop of beep.wav for now
-  /*
-  if (ring_pipeline != null) return; // already ringing
-  printf("Ring start 2");
-
-  ring_pipeline = AudioPlayer();
-  ring_pipeline?.setReleaseMode(ReleaseMode.loop); // Loop the audio
-  ring_pipeline?.play(AssetSource('beep.wav')); // Must be within assets folder. Alt: DeviceFileSource */
 }
 
 void ring_stop() {
   printf("Checkpoint Ring stop");
   Vibration.cancel();
   FlutterRingtonePlayer().stop();
-/*
-  ring_pipeline?.stop();
-  ring_pipeline?.dispose();
-  ring_pipeline = null;*/
 }
 
 void toggleMute(int n) {
@@ -1062,35 +1035,53 @@ void print_message(int n, int i, int scroll) {
   }
 }
 
+const MethodChannel androidChannel = MethodChannel('com.torx.chat/android');
+const int audio_retrieve_max =
+    1; // Messages to take from the library cache per callback. XXX Must stay small: audio_cache_retrieve advances a watermark and audio_cache_add discards anything older than it on arrival. (Recommended: 1 to 4)
+
 Future<void> audio_cache_play(int n) async {
-  if (n > -1 && !t_peer.playing[n]) {
-    t_peer.playing[n] = true;
-//    AudioPlayer player = AudioPlayer(); // TODO continually creating and destroying this may be expensive
-    Pointer<Uint8> data = nullptr;
-    int existing = 0;
-    for (Pointer<Uint8> tmp; (tmp = torx.audio_cache_retrieve(nullptr, nullptr, n)) != nullptr;) {
-      int tmp_len = torx.torx_allocation_len(tmp);
-      if (data == nullptr) {
-        data = tmp;
-      } else {
-        data = torx.torx_realloc(data, existing + tmp_len) as Pointer<Uint8>;
-        torx.memcpy(data + existing, tmp, tmp_len);
-        torx.torx_free_simple(tmp);
-        tmp = nullptr;
-      }
-      existing += tmp_len;
+  // For streaming audio. One decoder and track per participant, built on first arrival and fed thereafter; a decoder per batch guarantees a gap and a click at every batch boundary.
+  if (n < 0) return;
+  for (int retrieved = 0; retrieved < audio_retrieve_max; retrieved++) {
+    // XXX Do NOT drain to empty. See audio_retrieve_max.
+    audio_cache_message? message = audio_cache_retrieve(n);
+    if (message == null) break;
+    try {
+      // XXX The timeline must follow the SENDER's clock, not ours. Audio arrives clumped, so placing it by arrival puts a message on top of its predecessor.
+      await androidChannel.invokeMethod('audio_stream_push', {'n': n, 'data': message.data, 'time': message.time, 'nstime': message.nstime});
+    } catch (e) {
+      error(0, "Failed to push audio for n=$n: $e");
     }
-    if (existing > 0) {
-//    while ((data = torx.audio_cache_retrieve(nullptr, nullptr, data_len_p, n)) != nullptr) {
-      printf("Checkpoint audio_cache_play n=$n data_len=$existing");
-      Uint8List bytes = data.asTypedList(existing).sublist(0); // The sublist is necessary to copy
-      torx.torx_free_simple(data);
-      data = nullptr;
-      await t_peer.player[n].setSource(BytesSource(bytes));
-      await t_peer.player[n].resume();
-    }
-    t_peer.playing[n] = false;
-    //  t_peer.player[n].dispose();
+  }
+}
+
+Future<void> audio_clip_play(Uint8List data) async {
+  // Voice messages, which are the same AAC that calls use, arriving all at once
+  if (data.isEmpty) return;
+  try {
+    await androidChannel.invokeMethod('audio_clip_play', {'data': data});
+  } catch (e) {
+    error(0, "Failed to play an audio message: $e");
+  }
+}
+
+Future<bool> audio_clip_stop() async {
+  // Returns whether a clip was still playing
+  try {
+    return await androidChannel.invokeMethod('audio_clip_stop') as bool;
+  } catch (e) {
+    error(0, "Failed to stop an audio message: $e");
+    return false;
+  }
+}
+
+Future<void> audio_stream_stop(int n) async {
+  // Tear down a participant's streaming playback, if they have one
+  if (n < 0) return;
+  try {
+    await androidChannel.invokeMethod('audio_stream_stop', {'n': n});
+  } catch (e) {
+    error(0, "Failed to stop audio for n=$n: $e");
   }
 }
 
@@ -1098,7 +1089,7 @@ Future<void> audio_ready(int call_n, int call_c, Uint8List data) async {
   // In Flutter, this is NOT used for audio messages, only for audio streams. Audio messages utilize recordedDataChunks
   Pointer<Uint8> pointer = torx.torx_secure_malloc(data.length) as Pointer<Uint8>;
   pointer.asTypedList(data.length).setAll(0, data); // Necessary to allocate rather than use data for some reason, presumably related to async
-  if (torx.record_cache_add(call_n, call_c, AptitudeBuffer.cache_minimum_size, AptitudeBuffer.max_age_in_ms, pointer, data.length) < 1) {
+  if (torx.record_cache_add(call_n, call_c, AptitudeBuffer.recording_cache_minimum_size, AptitudeBuffer.recording_max_age_in_ms, pointer, data.length) < 1) {
     await record_stop(true); // probably need to await
   }
   torx.torx_free_simple(pointer);
@@ -1112,8 +1103,8 @@ class AptitudeBuffer {
   static int lowerLimit = -55; // a sanity check to eliminate bad values (common on startup)
   static int maxSilent = 2; // Maximum number of silent packets to send after sound packets
   static int minTriggerSilent = 3; // minimum number of good packets to send before triggering a silent (this is to avoid spikes)
-  static int cache_minimum_size = 3000; // Too low and we will pick up spikes and keypresses
-  static int max_age_in_ms = 300; // Too low and we will delete good data.
+  static int recording_cache_minimum_size = 1000; // Too low and we will pick up spikes and keypresses
+  static int recording_max_age_in_ms = 300; // Too low and we will delete good data.
 
   static int countSequential = 0;
   static int countSilent = 0;
@@ -1123,7 +1114,7 @@ class AptitudeBuffer {
 
   static int add(int value) {
     if (value < lowerLimit) {
-      printf("Checkpoint lower limit hit: $value");
+      error(2, "Audio lower limit hit: $value");
       return 0; // return a high value, do not send this
     }
     buffer[index] = value;
@@ -1163,7 +1154,6 @@ Future<void> record_start(int sample_rate, int call_n, int call_c) async {
         if (call_n > -1 && call_c > -1) {
           // Audio call
           final aptitude = await current_recording.pipeline.getAmplitude();
-          printf("Audio stream occuring");
           if (aptitude.current > AptitudeBuffer.add(aptitude.current.toInt()) + AptitudeBuffer.sensitivity) {
             // Aptitude check is to avoid sending silence during streams. For voice messages we permit silence.
             audio_ready(call_n, call_c, data); // send good sound
@@ -1212,7 +1202,6 @@ Future<void> record_delete() async {
 
 Future<void> record_stop(bool delete) async {
   // WARNING: Must follow call with record_delete if delete==false
-  printf("Checkpoint record_stop is_recording: ${current_recording.is_recording} delete: $delete");
   if (current_recording.is_recording) {
     current_recording.is_recording = false;
     if (current_recording.call_n < 0 || current_recording.call_c < 0) {
@@ -1393,7 +1382,6 @@ void scrollIfBottom(ScrollController scrollController) {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const androidChannel = MethodChannel('com.torx.chat/android');
   Future<String> getNativeLibraryPath() async {
     return await androidChannel.invokeMethod('getNativeLibraryPath') as String;
   }
